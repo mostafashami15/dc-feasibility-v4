@@ -1,0 +1,2461 @@
+{
+  "site_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7",
+  "site_name": "Atessa",
+  "latitude": 42.13480186801634,
+  "longitude": 14.424249138648928,
+  "analysis_grade": "screening_grade",
+  "summary": {
+    "radius_km": 2.0,
+    "nearby_line_count": 52,
+    "nearby_substation_count": 3,
+    "nearest_line_km": 0.091,
+    "nearest_substation_km": 1.115,
+    "max_voltage_kv": 150.0,
+    "high_voltage_assets_within_radius": 4
+  },
+  "score": {
+    "overall_score": 72.7,
+    "voltage_score": 18.0,
+    "distance_score": 35.0,
+    "substation_score": 19.7,
+    "evidence_score": 0.0,
+    "notes": [
+      "Heuristic screening signal only; it is not confirmed connection capacity or connectable MW.",
+      "The score highlights visible voltage, nearby mapped assets, and mapped substation proximity inside the chosen radius.",
+      "No user-confirmed official evidence is active, so the evidence component stays at 0.",
+      "At least one 132 kV or higher mapped asset is visible within the selected radius.",
+      "Nearest mapped substation is approximately 1.1 km away."
+    ]
+  },
+  "assets": [
+    {
+      "asset_id": "osm-way-432816332",
+      "asset_type": "line",
+      "name": "Casoli-Atessa",
+      "operator": null,
+      "voltage_kv": 150.0,
+      "circuits": null,
+      "distance_km": 0.091,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.133853,
+          14.375042
+        ],
+        [
+          42.133018,
+          14.375702
+        ],
+        [
+          42.13077,
+          14.37741
+        ],
+        [
+          42.128641,
+          14.379791
+        ],
+        [
+          42.127754,
+          14.380784
+        ],
+        [
+          42.127378,
+          14.381206
+        ],
+        [
+          42.127083,
+          14.381535
+        ],
+        [
+          42.124521,
+          14.384399
+        ],
+        [
+          42.12388,
+          14.386664
+        ],
+        [
+          42.123948,
+          14.389611
+        ],
+        [
+          42.125085,
+          14.393494
+        ],
+        [
+          42.12593,
+          14.396427
+        ],
+        [
+          42.126882,
+          14.399739
+        ],
+        [
+          42.127379,
+          14.4014
+        ],
+        [
+          42.12859,
+          14.405606
+        ],
+        [
+          42.129634,
+          14.409214
+        ],
+        [
+          42.130763,
+          14.413064
+        ],
+        [
+          42.131767,
+          14.41657
+        ],
+        [
+          42.132865,
+          14.420377
+        ],
+        [
+          42.133983,
+          14.424212
+        ],
+        [
+          42.13376,
+          14.428472
+        ],
+        [
+          42.133555,
+          14.432369
+        ],
+        [
+          42.136052,
+          14.43261
+        ],
+        [
+          42.138704,
+          14.43288
+        ],
+        [
+          42.140036,
+          14.43484
+        ],
+        [
+          42.14114,
+          14.436475
+        ],
+        [
+          42.14359,
+          14.437878
+        ],
+        [
+          42.14395,
+          14.437447
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435276842",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.269,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.132047,
+          14.42476
+        ],
+        [
+          42.132344,
+          14.425235
+        ],
+        [
+          42.13264,
+          14.425711
+        ],
+        [
+          42.132878,
+          14.426377
+        ],
+        [
+          42.13311,
+          14.427053
+        ],
+        [
+          42.133363,
+          14.427776
+        ],
+        [
+          42.133652,
+          14.428603
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099775",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.401,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.130988,
+          14.420737
+        ],
+        [
+          42.131252,
+          14.421057
+        ],
+        [
+          42.131314,
+          14.421452
+        ],
+        [
+          42.131449,
+          14.421741
+        ],
+        [
+          42.131596,
+          14.422029
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447100075",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.615,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.138518,
+          14.429777
+        ],
+        [
+          42.138746,
+          14.430123
+        ],
+        [
+          42.138965,
+          14.430431
+        ],
+        [
+          42.139165,
+          14.430751
+        ],
+        [
+          42.139031,
+          14.430926
+        ],
+        [
+          42.138583,
+          14.43108
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-130670138",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.665,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.068282,
+          14.443211
+        ],
+        [
+          42.068458,
+          14.443205
+        ],
+        [
+          42.068774,
+          14.443336
+        ],
+        [
+          42.069763,
+          14.443672
+        ],
+        [
+          42.071108,
+          14.443038
+        ],
+        [
+          42.072297,
+          14.442482
+        ],
+        [
+          42.074256,
+          14.441577
+        ],
+        [
+          42.075546,
+          14.44099
+        ],
+        [
+          42.077758,
+          14.440315
+        ],
+        [
+          42.079788,
+          14.439708
+        ],
+        [
+          42.082346,
+          14.438937
+        ],
+        [
+          42.084664,
+          14.438246
+        ],
+        [
+          42.086186,
+          14.437784
+        ],
+        [
+          42.088476,
+          14.439198
+        ],
+        [
+          42.090084,
+          14.440195
+        ],
+        [
+          42.09215,
+          14.441117
+        ],
+        [
+          42.093783,
+          14.441824
+        ],
+        [
+          42.095279,
+          14.441843
+        ],
+        [
+          42.096976,
+          14.441843
+        ],
+        [
+          42.099683,
+          14.441845
+        ],
+        [
+          42.100916,
+          14.441845
+        ],
+        [
+          42.102207,
+          14.441835
+        ],
+        [
+          42.103576,
+          14.441841
+        ],
+        [
+          42.10568,
+          14.441834
+        ],
+        [
+          42.107191,
+          14.441839
+        ],
+        [
+          42.108994,
+          14.441839
+        ],
+        [
+          42.111432,
+          14.441841
+        ],
+        [
+          42.113093,
+          14.441846
+        ],
+        [
+          42.114751,
+          14.441285
+        ],
+        [
+          42.117046,
+          14.440518
+        ],
+        [
+          42.119292,
+          14.439769
+        ],
+        [
+          42.12157,
+          14.439009
+        ],
+        [
+          42.122754,
+          14.43878
+        ],
+        [
+          42.124161,
+          14.437741
+        ],
+        [
+          42.125653,
+          14.436686
+        ],
+        [
+          42.126813,
+          14.435844
+        ],
+        [
+          42.128771,
+          14.434309
+        ],
+        [
+          42.130278,
+          14.433346
+        ],
+        [
+          42.131953,
+          14.432159
+        ],
+        [
+          42.132876,
+          14.431889
+        ],
+        [
+          42.133444,
+          14.432213
+        ],
+        [
+          42.135058,
+          14.432399
+        ],
+        [
+          42.136773,
+          14.432559
+        ],
+        [
+          42.138602,
+          14.432705
+        ],
+        [
+          42.139975,
+          14.432532
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436383923",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.669,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.12961,
+          14.41589
+        ],
+        [
+          42.1295,
+          14.416345
+        ],
+        [
+          42.129913,
+          14.417432
+        ],
+        [
+          42.130197,
+          14.416963
+        ],
+        [
+          42.130465,
+          14.4175
+        ],
+        [
+          42.13032,
+          14.418
+        ],
+        [
+          42.130481,
+          14.418599
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436383924",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.669,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.129967,
+          14.418294
+        ],
+        [
+          42.130102,
+          14.418594
+        ],
+        [
+          42.130243,
+          14.418959
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435840578",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.691,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.138097,
+          14.431799
+        ],
+        [
+          42.137883,
+          14.431524
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-130670141",
+      "asset_type": "line",
+      "name": "Atessa-Gissi",
+      "operator": null,
+      "voltage_kv": 150.0,
+      "circuits": null,
+      "distance_km": 0.695,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.068907,
+          14.594355
+        ],
+        [
+          42.068997,
+          14.594247
+        ],
+        [
+          42.070352,
+          14.592953
+        ],
+        [
+          42.073021,
+          14.590501
+        ],
+        [
+          42.077573,
+          14.593633
+        ],
+        [
+          42.078938,
+          14.595487
+        ],
+        [
+          42.080799,
+          14.598038
+        ],
+        [
+          42.081939,
+          14.599544
+        ],
+        [
+          42.08439,
+          14.602321
+        ],
+        [
+          42.085504,
+          14.60516
+        ],
+        [
+          42.086604,
+          14.607907
+        ],
+        [
+          42.087736,
+          14.610765
+        ],
+        [
+          42.088892,
+          14.613687
+        ],
+        [
+          42.090554,
+          14.61661
+        ],
+        [
+          42.093651,
+          14.617448
+        ],
+        [
+          42.094712,
+          14.615041
+        ],
+        [
+          42.096125,
+          14.612111
+        ],
+        [
+          42.097547,
+          14.608983
+        ],
+        [
+          42.098963,
+          14.606067
+        ],
+        [
+          42.100214,
+          14.603461
+        ],
+        [
+          42.102253,
+          14.599309
+        ],
+        [
+          42.103798,
+          14.596136
+        ],
+        [
+          42.105407,
+          14.592725
+        ],
+        [
+          42.107248,
+          14.588962
+        ],
+        [
+          42.108819,
+          14.585734
+        ],
+        [
+          42.110274,
+          14.582768
+        ],
+        [
+          42.111573,
+          14.580016
+        ],
+        [
+          42.11437,
+          14.574255
+        ],
+        [
+          42.11587,
+          14.570963
+        ],
+        [
+          42.118642,
+          14.564848
+        ],
+        [
+          42.120353,
+          14.561099
+        ],
+        [
+          42.121045,
+          14.555089
+        ],
+        [
+          42.121582,
+          14.551681
+        ],
+        [
+          42.12217,
+          14.548014
+        ],
+        [
+          42.123093,
+          14.542086
+        ],
+        [
+          42.12361,
+          14.538826
+        ],
+        [
+          42.124737,
+          14.531705
+        ],
+        [
+          42.125599,
+          14.524192
+        ],
+        [
+          42.126065,
+          14.520254
+        ],
+        [
+          42.126455,
+          14.516915
+        ],
+        [
+          42.126863,
+          14.513334
+        ],
+        [
+          42.127187,
+          14.510054
+        ],
+        [
+          42.12748,
+          14.506974
+        ],
+        [
+          42.127833,
+          14.503332
+        ],
+        [
+          42.127511,
+          14.500616
+        ],
+        [
+          42.127021,
+          14.496517
+        ],
+        [
+          42.126592,
+          14.492897
+        ],
+        [
+          42.126028,
+          14.48814
+        ],
+        [
+          42.126649,
+          14.485431
+        ],
+        [
+          42.127979,
+          14.479841
+        ],
+        [
+          42.129071,
+          14.475224
+        ],
+        [
+          42.1304,
+          14.469463
+        ],
+        [
+          42.13167,
+          14.464063
+        ],
+        [
+          42.132114,
+          14.458023
+        ],
+        [
+          42.13245,
+          14.453333
+        ],
+        [
+          42.132653,
+          14.449639
+        ],
+        [
+          42.132752,
+          14.446687
+        ],
+        [
+          42.132992,
+          14.442679
+        ],
+        [
+          42.13316,
+          14.439756
+        ],
+        [
+          42.133342,
+          14.436209
+        ],
+        [
+          42.133536,
+          14.432622
+        ],
+        [
+          42.136011,
+          14.432734
+        ],
+        [
+          42.138637,
+          14.433097
+        ],
+        [
+          42.139929,
+          14.434975
+        ],
+        [
+          42.141026,
+          14.436685
+        ],
+        [
+          42.143557,
+          14.438142
+        ],
+        [
+          42.144118,
+          14.437474
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447100003",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.696,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.130143,
+          14.416429
+        ],
+        [
+          42.130458,
+          14.417008
+        ],
+        [
+          42.130837,
+          14.41772
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435270113",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.744,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.133063,
+          14.432957
+        ],
+        [
+          42.133177,
+          14.433618
+        ],
+        [
+          42.133571,
+          14.434099
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212460",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.752,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.12947,
+          14.433134
+        ],
+        [
+          42.129353,
+          14.432585
+        ],
+        [
+          42.129597,
+          14.432563
+        ],
+        [
+          42.12999,
+          14.432515
+        ],
+        [
+          42.130414,
+          14.432632
+        ],
+        [
+          42.130598,
+          14.432453
+        ],
+        [
+          42.130888,
+          14.432428
+        ],
+        [
+          42.131287,
+          14.43238
+        ],
+        [
+          42.131701,
+          14.432349
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435270093",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.803,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.130888,
+          14.432428
+        ],
+        [
+          42.131022,
+          14.432838
+        ],
+        [
+          42.131144,
+          14.433212
+        ],
+        [
+          42.131675,
+          14.433901
+        ],
+        [
+          42.13201,
+          14.434341
+        ],
+        [
+          42.132464,
+          14.434935
+        ],
+        [
+          42.132744,
+          14.435302
+        ],
+        [
+          42.13309,
+          14.435752
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212459",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.847,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.130444,
+          14.432678
+        ],
+        [
+          42.129988,
+          14.432928
+        ],
+        [
+          42.129489,
+          14.433123
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099912",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.903,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.129871,
+          14.415547
+        ],
+        [
+          42.12964,
+          14.414867
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435270131",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.964,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.134177,
+          14.435904
+        ],
+        [
+          42.134381,
+          14.43644
+        ],
+        [
+          42.134622,
+          14.4371
+        ],
+        [
+          42.134846,
+          14.437713
+        ],
+        [
+          42.135003,
+          14.438247
+        ],
+        [
+          42.135067,
+          14.438823
+        ],
+        [
+          42.135308,
+          14.439426
+        ],
+        [
+          42.135568,
+          14.440044
+        ],
+        [
+          42.135809,
+          14.440641
+        ],
+        [
+          42.136034,
+          14.441247
+        ],
+        [
+          42.136261,
+          14.441809
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331760",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.058,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.127296,
+          14.416365
+        ],
+        [
+          42.127012,
+          14.416449
+        ],
+        [
+          42.126792,
+          14.4166
+        ],
+        [
+          42.126463,
+          14.41681
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212466",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.06,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.126235,
+          14.41861
+        ],
+        [
+          42.125941,
+          14.419229
+        ],
+        [
+          42.125707,
+          14.419811
+        ],
+        [
+          42.125488,
+          14.420327
+        ],
+        [
+          42.125199,
+          14.420981
+        ],
+        [
+          42.124946,
+          14.42158
+        ],
+        [
+          42.124647,
+          14.422254
+        ],
+        [
+          42.124429,
+          14.422762
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331779",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.083,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.124404,
+          14.419013
+        ],
+        [
+          42.124314,
+          14.419463
+        ],
+        [
+          42.125116,
+          14.42071
+        ],
+        [
+          42.125346,
+          14.421088
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435840658",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.101,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.132044,
+          14.409679
+        ],
+        [
+          42.132214,
+          14.40985
+        ],
+        [
+          42.132309,
+          14.409959
+        ],
+        [
+          42.132492,
+          14.410269
+        ],
+        [
+          42.132679,
+          14.410588
+        ],
+        [
+          42.132823,
+          14.410796
+        ],
+        [
+          42.13275,
+          14.411191
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099727",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.109,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.128838,
+          14.413385
+        ],
+        [
+          42.129129,
+          14.413187
+        ],
+        [
+          42.129297,
+          14.41287
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099819",
+      "asset_type": "substation",
+      "name": "Mapped substation",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.115,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          42.128808,
+          14.413414
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099728",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.12,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.129377,
+          14.41263
+        ],
+        [
+          42.129297,
+          14.41287
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099919",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.129,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.131274,
+          14.410815
+        ],
+        [
+          42.131059,
+          14.411172
+        ],
+        [
+          42.130553,
+          14.41164
+        ],
+        [
+          42.130165,
+          14.412074
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212461",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.137,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.126431,
+          14.432786
+        ],
+        [
+          42.126908,
+          14.43302
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212465",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.153,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.124504,
+          14.425833
+        ],
+        [
+          42.124461,
+          14.426431
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447099974",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.161,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.137123,
+          14.409495
+        ],
+        [
+          42.137166,
+          14.409818
+        ],
+        [
+          42.137169,
+          14.41017
+        ],
+        [
+          42.137188,
+          14.410538
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212462",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.162,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.127667,
+          14.434541
+        ],
+        [
+          42.127879,
+          14.434964
+        ],
+        [
+          42.128115,
+          14.435384
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212464",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.167,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.124192,
+          14.424965
+        ],
+        [
+          42.124318,
+          14.424975
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331751",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.236,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.123772,
+          14.413427
+        ],
+        [
+          42.123846,
+          14.41374
+        ],
+        [
+          42.123936,
+          14.414036
+        ],
+        [
+          42.124025,
+          14.414356
+        ],
+        [
+          42.124113,
+          14.414674
+        ],
+        [
+          42.124235,
+          14.415104
+        ],
+        [
+          42.12436,
+          14.415545
+        ],
+        [
+          42.124493,
+          14.416015
+        ],
+        [
+          42.124647,
+          14.416587
+        ],
+        [
+          42.124814,
+          14.417167
+        ],
+        [
+          42.124898,
+          14.417431
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331763",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.276,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.123961,
+          14.419182
+        ],
+        [
+          42.123791,
+          14.41952
+        ],
+        [
+          42.123598,
+          14.419941
+        ],
+        [
+          42.123393,
+          14.42033
+        ],
+        [
+          42.123248,
+          14.420781
+        ],
+        [
+          42.123103,
+          14.421219
+        ],
+        [
+          42.122799,
+          14.422128
+        ],
+        [
+          42.122359,
+          14.423306
+        ],
+        [
+          42.12296,
+          14.423788
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447212463",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.289,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.123209,
+          14.424206
+        ],
+        [
+          42.123128,
+          14.424661
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331725",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.386,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.122359,
+          14.423306
+        ],
+        [
+          42.121944,
+          14.42303
+        ],
+        [
+          42.121608,
+          14.422705
+        ],
+        [
+          42.121282,
+          14.422376
+        ],
+        [
+          42.12095,
+          14.422066
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331814",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.486,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.122586,
+          14.43156
+        ],
+        [
+          42.122372,
+          14.431544
+        ],
+        [
+          42.122011,
+          14.431537
+        ],
+        [
+          42.121772,
+          14.431516
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-130670140",
+      "asset_type": "substation",
+      "name": "Atessa Z. I.",
+      "operator": "Enel Distribuzione",
+      "voltage_kv": 150.0,
+      "circuits": null,
+      "distance_km": 1.497,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          42.144105,
+          14.437365
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1437154224",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.507,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.135252,
+          14.404461
+        ],
+        [
+          42.135054,
+          14.404791
+        ],
+        [
+          42.134853,
+          14.405142
+        ],
+        [
+          42.134588,
+          14.405605
+        ],
+        [
+          42.134377,
+          14.405985
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-130670139",
+      "asset_type": "line",
+      "name": "Atessa-Sevel",
+      "operator": null,
+      "voltage_kv": 150.0,
+      "circuits": null,
+      "distance_km": 1.514,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.144087,
+          14.437691
+        ],
+        [
+          42.143656,
+          14.438214
+        ],
+        [
+          42.143199,
+          14.440841
+        ],
+        [
+          42.144749,
+          14.443129
+        ],
+        [
+          42.146547,
+          14.444822
+        ],
+        [
+          42.146254,
+          14.446404
+        ],
+        [
+          42.144564,
+          14.448658
+        ],
+        [
+          42.142841,
+          14.450983
+        ],
+        [
+          42.142977,
+          14.451175
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1437154223",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.549,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.134415,
+          14.403086
+        ],
+        [
+          42.13422,
+          14.403499
+        ],
+        [
+          42.134122,
+          14.403907
+        ],
+        [
+          42.133856,
+          14.404993
+        ],
+        [
+          42.133742,
+          14.405516
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447992226",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.558,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.121095,
+          14.428181
+        ],
+        [
+          42.120825,
+          14.427679
+        ],
+        [
+          42.120466,
+          14.427001
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1437154222",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.589,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.134495,
+          14.403462
+        ],
+        [
+          42.134397,
+          14.403742
+        ],
+        [
+          42.134273,
+          14.404049
+        ],
+        [
+          42.134141,
+          14.404374
+        ],
+        [
+          42.134012,
+          14.404698
+        ],
+        [
+          42.133878,
+          14.405021
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-197492319",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.6,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.151141,
+          14.420058
+        ],
+        [
+          42.150848,
+          14.421217
+        ],
+        [
+          42.15017,
+          14.423786
+        ],
+        [
+          42.149229,
+          14.427403
+        ],
+        [
+          42.148978,
+          14.428376
+        ],
+        [
+          42.148408,
+          14.43055
+        ],
+        [
+          42.14803,
+          14.432013
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-197492318",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.639,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.159204,
+          14.425139
+        ],
+        [
+          42.158945,
+          14.424624
+        ],
+        [
+          42.158482,
+          14.42403
+        ],
+        [
+          42.15783,
+          14.423371
+        ],
+        [
+          42.156944,
+          14.423469
+        ],
+        [
+          42.156262,
+          14.423714
+        ],
+        [
+          42.155671,
+          14.423902
+        ],
+        [
+          42.154463,
+          14.424125
+        ],
+        [
+          42.152998,
+          14.42445
+        ],
+        [
+          42.151749,
+          14.424703
+        ],
+        [
+          42.151155,
+          14.426023
+        ],
+        [
+          42.149903,
+          14.428935
+        ],
+        [
+          42.148885,
+          14.431082
+        ],
+        [
+          42.148296,
+          14.432252
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447992231",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.698,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.119587,
+          14.427132
+        ],
+        [
+          42.11959,
+          14.426665
+        ],
+        [
+          42.119594,
+          14.426134
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1434837992",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.733,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.138929,
+          14.448578
+        ],
+        [
+          42.138691,
+          14.447782
+        ],
+        [
+          42.138463,
+          14.447057
+        ],
+        [
+          42.138253,
+          14.44636
+        ],
+        [
+          42.137987,
+          14.445488
+        ],
+        [
+          42.137793,
+          14.44487
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1434612804",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.76,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.145099,
+          14.443867
+        ],
+        [
+          42.144921,
+          14.44314
+        ],
+        [
+          42.144837,
+          14.442675
+        ],
+        [
+          42.144802,
+          14.442423
+        ],
+        [
+          42.144493,
+          14.441843
+        ],
+        [
+          42.144242,
+          14.441381
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436394832",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.818,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.129013,
+          14.403634
+        ],
+        [
+          42.129432,
+          14.40312
+        ],
+        [
+          42.129892,
+          14.402659
+        ],
+        [
+          42.130254,
+          14.4023
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436411666",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.828,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.141075,
+          14.446931
+        ],
+        [
+          42.14089,
+          14.446565
+        ],
+        [
+          42.140124,
+          14.446089
+        ],
+        [
+          42.139326,
+          14.445563
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436411665",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.907,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.140326,
+          14.446145
+        ],
+        [
+          42.140638,
+          14.44634
+        ],
+        [
+          42.141249,
+          14.446718
+        ],
+        [
+          42.141551,
+          14.446895
+        ],
+        [
+          42.141656,
+          14.447467
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1437154227",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.91,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.131484,
+          14.401068
+        ],
+        [
+          42.131132,
+          14.401425
+        ],
+        [
+          42.130843,
+          14.401708
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447473772",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.917,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.116774,
+          14.421965
+        ],
+        [
+          42.116865,
+          14.422207
+        ],
+        [
+          42.116993,
+          14.422526
+        ],
+        [
+          42.11712,
+          14.422852
+        ],
+        [
+          42.11723,
+          14.423133
+        ],
+        [
+          42.117354,
+          14.423441
+        ],
+        [
+          42.117468,
+          14.423765
+        ],
+        [
+          42.117561,
+          14.424048
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436197801",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.923,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.152079,
+          14.425159
+        ],
+        [
+          42.152486,
+          14.425758
+        ],
+        [
+          42.152873,
+          14.426344
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1435063516",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.96,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.149476,
+          14.43743
+        ],
+        [
+          42.150159,
+          14.43807
+        ],
+        [
+          42.150578,
+          14.438451
+        ],
+        [
+          42.150962,
+          14.438795
+        ],
+        [
+          42.151232,
+          14.439055
+        ],
+        [
+          42.151583,
+          14.439388
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1447331705",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.961,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.123908,
+          14.405556
+        ],
+        [
+          42.123567,
+          14.405562
+        ],
+        [
+          42.12354,
+          14.405913
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436187858",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.979,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.150425,
+          14.412748
+        ],
+        [
+          42.150867,
+          14.412573
+        ],
+        [
+          42.15115,
+          14.413071
+        ],
+        [
+          42.151378,
+          14.41348
+        ],
+        [
+          42.151573,
+          14.41382
+        ],
+        [
+          42.151894,
+          14.414357
+        ],
+        [
+          42.152203,
+          14.41492
+        ],
+        [
+          42.152603,
+          14.415125
+        ],
+        [
+          42.153018,
+          14.415365
+        ],
+        [
+          42.153484,
+          14.414644
+        ],
+        [
+          42.153496,
+          14.415049
+        ],
+        [
+          42.153559,
+          14.415518
+        ],
+        [
+          42.153638,
+          14.416109
+        ],
+        [
+          42.153733,
+          14.416855
+        ],
+        [
+          42.15383,
+          14.417582
+        ],
+        [
+          42.153745,
+          14.418249
+        ],
+        [
+          42.153675,
+          14.418772
+        ],
+        [
+          42.153598,
+          14.419411
+        ],
+        [
+          42.153513,
+          14.420099
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-1436355588",
+      "asset_type": "substation",
+      "name": "Mapped substation",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 1.999,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          42.151146,
+          14.414146
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    }
+  ],
+  "evidence_notes": [
+    {
+      "label": "Screening-grade only",
+      "detail": "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "Mapped-public OSM screening layer",
+      "detail": "This result uses OpenStreetMap-derived power features queried through an Overpass interpreter and normalized for screening use.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "No exact capacity claim",
+      "detail": "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    }
+  ],
+  "official_evidence": null,
+  "official_context_notes": [
+    "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+    "This result uses OpenStreetMap-derived power features queried through an Overpass interpreter and normalized for screening use.",
+    "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence."
+  ],
+  "source_layers": [
+    "mapped_public_osm_overpass"
+  ],
+  "confidence": "mapped_public",
+  "generated_at_utc": "2026-03-16T14:34:00.751690+00:00"
+}

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+backend/.pytest-tmp/
+backend/.pytest_tmp*/
+backend/pytest-cache-files-*/
+backend/pytest_tmp*/
+
+# Node / React
+node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Data files (generated at runtime — don't commit)
+backend/data/sites/*.json
+backend/data/weather/*.parquet
+backend/data/solar/*.parquet
+backend/data/.pytest/
+backend/data/test-export-temp/
+
+# Reports (generated — don't commit)
+*.pdf
+*.xlsx
+
+# Environment
+.env
+.env.local
+
+# Local-only
+backups/
+.claude/

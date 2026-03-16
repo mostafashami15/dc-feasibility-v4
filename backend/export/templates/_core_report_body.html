@@ -1,0 +1,983 @@
+{% macro render_narrative(narrative) -%}
+  {% if narrative and narrative.available %}
+    <div class="callout spacer-top">
+      <div class="section-kicker">Narrative</div>
+      {% for paragraph in narrative.paragraphs %}
+        <p class="callout-text">{{ paragraph }}</p>
+      {% endfor %}
+      {% if narrative.basis_labels %}
+        <p class="callout-text muted">
+          Structured basis: {{ narrative.basis_labels | join(", ") }}
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+<section class="chapter cover">
+  <div class="cover-shell">
+    <div>
+      {% if theme.logo_url %}
+        <img class="logo" src="{{ theme.logo_url }}" alt="Logo" />
+      {% endif %}
+      <div class="cover-kicker">DC Feasibility Export</div>
+      <h1 class="cover-title">{{ report.title }}</h1>
+      <p class="cover-subtitle">
+        Fixed chapter report assembled from the normalized export bundle for the selected studied sites and primary scenarios.
+      </p>
+
+      <div class="cover-meta-grid">
+        <div class="summary-card">
+          <div class="cover-meta-label">Report Date</div>
+          <div class="cover-meta-value">{{ report.generated_on }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="cover-meta-label">Studied Sites</div>
+          <div class="cover-meta-value">{{ summary.site_count }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="cover-meta-label">Primary Scenarios</div>
+          <div class="cover-meta-value">{{ summary.primary_result_count }}</div>
+        </div>
+        <div class="summary-card">
+          <div class="cover-meta-label">Layout</div>
+          <div class="cover-meta-value">{{ report.layout_mode_label }}</div>
+        </div>
+      </div>
+
+      {{ render_narrative(report.narrative) }}
+    </div>
+
+    <aside class="cover-aside">
+      <div class="section-kicker">Scope</div>
+      <h2 class="aside-title">{{ study_scope.cover_scope_label }}</h2>
+      <div class="fact-list">
+        <div class="fact-row">
+          <div class="fact-label">Included sites</div>
+          <div class="fact-value">
+            {{ study_scope.studied_site_names | join(", ") if study_scope.studied_site_names else "No studied sites selected" }}
+          </div>
+        </div>
+        <div class="fact-row">
+          <div class="fact-label">Grid context chapters</div>
+          <div class="fact-value">
+            {{ report_bundle.analysis_availability.grid_context_available_site_count }}
+          </div>
+        </div>
+        <div class="fact-row">
+          <div class="fact-label">Climate chapters</div>
+          <div class="fact-value">
+            {{ report_bundle.analysis_availability.climate_available_site_count }}
+          </div>
+        </div>
+        <div class="fact-row">
+          <div class="fact-label">Load mix chapters</div>
+          <div class="fact-value">
+            {{ report_bundle.analysis_availability.load_mix_available_site_count }}
+          </div>
+        </div>
+        <div class="fact-row">
+          <div class="fact-label">Green energy chapters</div>
+          <div class="fact-value">
+            {{ report_bundle.analysis_availability.green_energy_available_site_count }}
+          </div>
+        </div>
+        <div class="fact-row">
+          <div class="fact-label">Displayed scenarios</div>
+          <div class="fact-value">{{ study_scope.displayed_result_count }}</div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-title">Selected Primary Scenarios</div>
+        {% if study_scope.selected_primary_results %}
+          <ul class="selection-list">
+            {% for result in study_scope.selected_primary_results %}
+              <li class="selection-item">
+                <div class="selection-site">{{ result.site_name }}</div>
+                <div class="selection-label">{{ result.label }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty-state">No primary scenario selections were supplied with this export.</div>
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+</section>
+
+{% for site_bundle in report_bundle.studied_sites %}
+  {% set site_specifics = site_bundle.chapters.site_specifics %}
+  {% set grid_context = site_bundle.chapters.grid_context %}
+  {% set climate = site_bundle.chapters.climate %}
+  {% set selected_scenario = site_bundle.chapters.selected_scenario %}
+  {% set deep_dive = site_bundle.chapters.deep_dive %}
+  {% set load_mix = site_bundle.chapters.load_mix %}
+  {% set green_energy = site_bundle.chapters.green_energy %}
+
+  <section class="chapter page-break">
+    <div class="chapter-head">
+      <div>
+        <div class="chapter-kicker">Chapter {{ loop.index }}A</div>
+        <h2 class="chapter-title">{{ site_specifics.title }}</h2>
+        <p class="chapter-subtitle">
+          {{ site_bundle.site_data.name }}
+          {% if site_bundle.site_data.location.city or site_bundle.site_data.location.country %}
+            |
+            {% if site_bundle.site_data.location.city %}{{ site_bundle.site_data.location.city }}{% endif %}
+            {% if site_bundle.site_data.location.city and site_bundle.site_data.location.country %}, {% endif %}
+            {% if site_bundle.site_data.location.country %}{{ site_bundle.site_data.location.country }}{% endif %}
+          {% endif %}
+        </p>
+      </div>
+      <div class="chapter-tags">
+        <span class="badge">{{ site_bundle.site_data.site_type }}</span>
+        <span class="badge">Site {{ loop.index }} of {{ report_bundle.studied_sites | length }}</span>
+      </div>
+    </div>
+
+    {{ render_narrative(site_specifics.narrative) }}
+
+    <div class="panel-grid">
+      <div class="fact-panel">
+        <div class="section-kicker">Identity</div>
+        <div class="section-title">Site identity and location</div>
+        <div class="fact-list">
+          {% for item in site_specifics.identity_items + site_specifics.location_items %}
+            <div class="fact-row">
+              <div class="fact-label">{{ item.label }}</div>
+              <div class="fact-value">{{ item.value }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="fact-panel">
+        <div class="section-kicker">Properties</div>
+        <div class="section-title">Land and building inputs</div>
+        <div class="fact-list">
+          {% for item in site_specifics.property_items %}
+            <div class="fact-row">
+              <div class="fact-label">{{ item.label }}</div>
+              <div class="fact-value">{{ item.value }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="fact-panel">
+        <div class="section-kicker">Power</div>
+        <div class="section-title">Power declaration and geometry</div>
+        <div class="fact-list">
+          {% for item in site_specifics.power_items + site_specifics.geometry_items %}
+            <div class="fact-row">
+              <div class="fact-label">{{ item.label }}</div>
+              <div class="fact-value">{{ item.value }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="fact-panel">
+        <div class="section-kicker">Study scope</div>
+        <div class="section-title">Export context for this site</div>
+        <div class="fact-list">
+          <div class="fact-row">
+            <div class="fact-label">Available results</div>
+            <div class="fact-value">{{ site_bundle.summary.available_result_count }}</div>
+          </div>
+          <div class="fact-row">
+            <div class="fact-label">Displayed results</div>
+            <div class="fact-value">{{ site_bundle.summary.display_result_count }}</div>
+          </div>
+          <div class="fact-row">
+            <div class="fact-label">Ranked alternatives</div>
+            <div class="fact-value">{{ site_bundle.summary.alternative_count }}</div>
+          </div>
+          <div class="fact-row">
+            <div class="fact-label">Resolved primary result key</div>
+            <div class="fact-value">{{ site_bundle.summary.resolved_primary_result_key or "Not available" }}</div>
+          </div>
+        </div>
+        {% if site_specifics.notes %}
+          <div class="callout spacer-top">
+            <div class="section-kicker">Notes</div>
+            <div class="callout-text">{{ site_specifics.notes }}</div>
+          </div>
+        {% else %}
+          <div class="empty-state spacer-top">No additional analyst notes were saved for this site.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if site_specifics.terrain_image %}
+    <div class="section-block">
+      <div class="visual-card">
+        <div class="section-kicker">Terrain view</div>
+        <div class="visual-title">Site Terrain Map</div>
+        <div class="visual-frame">
+          <img src="{{ site_specifics.terrain_image }}" alt="Terrain map" style="width:100%;border-radius:8px;" />
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section-block">
+      <div class="visual-card">
+        <div class="section-kicker">Export-safe visual</div>
+        <div class="visual-title">{{ site_specifics.map_visual.title }}</div>
+        {% if site_specifics.map_visual.available %}
+          <div class="visual-frame">{{ site_specifics.map_visual.svg_markup | safe }}</div>
+        {% else %}
+          <div class="empty-state">{{ site_specifics.map_visual.message }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if grid_context.included %}
+    <section class="chapter page-break">
+      <div class="chapter-head">
+        <div>
+          <div class="chapter-kicker">Chapter {{ loop.index }}B</div>
+          <h2 class="chapter-title">{{ grid_context.title }}</h2>
+          <p class="chapter-subtitle">
+            Screening-grade nearby power-access context for {{ site_bundle.site_data.name }}.
+          </p>
+        </div>
+        <div class="chapter-tags">
+          <span class="badge">{{ grid_context.asset_count }} mapped asset(s)</span>
+          {% if grid_context.omitted_asset_count %}
+            <span class="badge">{{ grid_context.omitted_asset_count }} omitted from body</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {{ render_narrative(grid_context.narrative) }}
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Summary</div>
+          <div class="section-title">Nearby network overview</div>
+          <div class="fact-list">
+            {% for item in grid_context.summary_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% if grid_context.score_items %}
+          <div class="fact-panel">
+            <div class="section-kicker">Heuristic</div>
+            <div class="section-title">Score and supporting notes</div>
+            <div class="fact-list">
+              {% for item in grid_context.score_items %}
+                <div class="fact-row">
+                  <div class="fact-label">{{ item.label }}</div>
+                  <div class="fact-value">{{ item.value }}</div>
+                </div>
+              {% endfor %}
+            </div>
+            {% if grid_context.score_notes %}
+              <ul class="note-list">
+                {% for note in grid_context.score_notes %}
+                  <li>{{ note }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if grid_context.official_items %}
+          <div class="fact-panel">
+            <div class="section-kicker">Official evidence</div>
+            <div class="section-title">Saved reference overlay</div>
+            <div class="fact-list">
+              {% for item in grid_context.official_items %}
+                <div class="fact-row">
+                  <div class="fact-label">{{ item.label }}</div>
+                  <div class="fact-value">{{ item.value }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="section-block">
+        <div class="visual-card">
+          <div class="section-kicker">Export-safe visual</div>
+          <div class="visual-title">{{ grid_context.map_visual.title }}</div>
+          {% if grid_context.map_visual.available %}
+            <div class="visual-frame">{{ grid_context.map_visual.svg_markup | safe }}</div>
+          {% else %}
+            <div class="empty-state">{{ grid_context.map_visual.message }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if grid_context.asset_rows %}
+        <div class="section-block">
+          <div class="section-title">Mapped assets shown in the core report</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asset Type</th>
+                  <th>Name</th>
+                  <th>Operator</th>
+                  <th>Voltage</th>
+                  <th>Distance</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for asset in grid_context.asset_rows %}
+                  <tr>
+                    <td>{{ asset.asset_type }}</td>
+                    <td>{{ asset.name }}</td>
+                    <td>{{ asset.operator }}</td>
+                    <td>{{ asset.voltage }}</td>
+                    <td>{{ asset.distance }}</td>
+                    <td>{{ asset.confidence }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if grid_context.evidence_notes %}
+        <div class="section-block">
+          <div class="section-title">Evidence notes</div>
+          <ul class="note-list">
+            {% for note in grid_context.evidence_notes %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if climate.included %}
+    <section class="chapter page-break">
+      <div class="chapter-head">
+        <div>
+          <div class="chapter-kicker">Chapter {{ loop.index }}C</div>
+          <h2 class="chapter-title">{{ climate.title }}</h2>
+          <p class="chapter-subtitle">
+            Weather provenance and climate suitability summary for {{ site_bundle.site_data.name }}.
+          </p>
+        </div>
+        <div class="chapter-tags">
+          <span class="badge">{{ climate.free_cooling_rows | length }} cooling path(s)</span>
+          {% if climate.monthly_rows %}
+            <span class="badge">Monthly breakout available</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {{ render_narrative(climate.narrative) }}
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Weather source</div>
+          <div class="section-title">Provenance and coverage</div>
+          <div class="fact-list">
+            {% for item in climate.weather_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Temperature statistics</div>
+          <div class="section-title">Representative climate inputs</div>
+          <div class="fact-list">
+            {% for item in climate.temperature_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Best fit</div>
+          <div class="section-title">Highest free-cooling result</div>
+          <div class="fact-list">
+            {% for item in climate.best_free_cooling_summary %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="visual-card">
+          <div class="section-kicker">Export-safe chart</div>
+          <div class="visual-title">{{ climate.monthly_chart_visual.title }}</div>
+          {% if climate.monthly_chart_visual.available %}
+            <div class="visual-frame">{{ climate.monthly_chart_visual.svg_markup | safe }}</div>
+          {% else %}
+            <div class="empty-state">{{ climate.monthly_chart_visual.message }}</div>
+          {% endif %}
+        </div>
+
+        <div class="visual-card">
+          <div class="section-kicker">Export-safe chart</div>
+          <div class="visual-title">{{ climate.free_cooling_chart_visual.title }}</div>
+          {% if climate.free_cooling_chart_visual.available %}
+            <div class="visual-frame">{{ climate.free_cooling_chart_visual.svg_markup | safe }}</div>
+          {% else %}
+            <div class="empty-state">{{ climate.free_cooling_chart_visual.message }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-title">Free cooling analysis</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cooling Type</th>
+                <th>Threshold</th>
+                <th>Hours</th>
+                <th>Fraction</th>
+                <th>Suitability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in climate.free_cooling_rows %}
+                <tr>
+                  <td>{{ item.cooling_type }}{% if item.is_selected %} (selected scenario){% endif %}</td>
+                  <td>{{ item.threshold }}</td>
+                  <td>{{ item.free_cooling_hours }}</td>
+                  <td>{{ item.free_cooling_fraction }}</td>
+                  <td>{{ item.suitability }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Monthly summary</div>
+          <div class="section-title">Monthly temperature breakout</div>
+          {% if climate.monthly_rows %}
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Mean</th>
+                    <th>Min</th>
+                    <th>Max</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in climate.monthly_rows %}
+                    <tr>
+                      <td>{{ row.month }}</td>
+                      <td>{{ row.mean }}</td>
+                      <td>{{ row.min }}</td>
+                      <td>{{ row.max }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">{{ climate.monthly_message }}</div>
+          {% endif %}
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Delta outlook</div>
+          <div class="section-title">Temperature projection summary</div>
+          {% if climate.delta_rows %}
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Delta</th>
+                    <th>Cooling Type</th>
+                    <th>Hours</th>
+                    <th>Fraction</th>
+                    <th>Suitability</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in climate.delta_rows %}
+                    <tr>
+                      <td>{{ row.delta }}</td>
+                      <td>{{ row.cooling_type }}</td>
+                      <td>{{ row.free_cooling_hours }}</td>
+                      <td>{{ row.free_cooling_fraction }}</td>
+                      <td>{{ row.suitability }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">No climate delta projections were available for this site.</div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="chapter page-break">
+    <div class="chapter-head">
+      <div>
+        <div class="chapter-kicker">Chapter {{ loop.index }}D</div>
+        <h2 class="chapter-title">{{ selected_scenario.title }}</h2>
+        <p class="chapter-subtitle">
+          Scenario identity, assumptions, and explicit configuration for {{ site_bundle.site_data.name }}.
+        </p>
+      </div>
+      {% if selected_scenario.available %}
+        <div class="chapter-tags">
+          <span class="badge">Primary selection</span>
+          <span class="badge">{{ selected_scenario.label }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+      {% if selected_scenario.available %}
+      {{ render_narrative(selected_scenario.narrative) }}
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Scenario definition</div>
+          <div class="section-title">Selected configuration</div>
+          <div class="fact-list">
+            {% for item in selected_scenario.summary_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Assumptions</div>
+          <div class="section-title">Scenario-level overrides</div>
+          {% if selected_scenario.assumption_rows %}
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Scope</th>
+                    <th>Parameter</th>
+                    <th>Effective Value</th>
+                    <th>Origin</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in selected_scenario.assumption_rows %}
+                    <tr>
+                      <td>{{ row.label }}</td>
+                      <td>{{ row.scope }}</td>
+                      <td>{{ row.parameter }}</td>
+                      <td>{{ row.effective_value }}</td>
+                      <td>{{ row.origin }}</td>
+                      <td>{{ row.source }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">No saved assumption overrides were applied to the selected scenario.</div>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="empty-state">{{ selected_scenario.message }}</div>
+    {% endif %}
+  </section>
+
+  <section class="chapter page-break">
+    <div class="chapter-head">
+      <div>
+        <div class="chapter-kicker">Chapter {{ loop.index }}E</div>
+        <h2 class="chapter-title">{{ deep_dive.title }}</h2>
+        <p class="chapter-subtitle">
+          Core scenario outputs arranged as a fixed shell using only currently available result fields.
+        </p>
+      </div>
+      {% if deep_dive.available %}
+        <div class="chapter-tags">
+          <span class="badge">Selected scenario results</span>
+        </div>
+      {% endif %}
+    </div>
+
+      {% if deep_dive.available %}
+      {{ render_narrative(deep_dive.narrative) }}
+      <div class="metric-grid">
+        {% for item in deep_dive.headline_metrics %}
+          <div class="metric-card">
+            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-value">{{ item.value }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Status</div>
+          <div class="section-title">Feasibility position</div>
+          <div class="fact-list">
+            {% for item in deep_dive.status_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+          {% if deep_dive.status_reasons %}
+            <ul class="note-list">
+              {% for reason in deep_dive.status_reasons %}
+                <li>{{ reason }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Capacity</div>
+          <div class="section-title">Available capacity shell</div>
+          <div class="fact-list">
+            {% for item in deep_dive.capacity_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Space</div>
+          <div class="section-title">Physical deployment context</div>
+          <div class="fact-list">
+            {% for item in deep_dive.space_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Power</div>
+          <div class="section-title">Power chain and rack deployment</div>
+          <div class="fact-list">
+            {% for item in deep_dive.power_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Data availability</div>
+          <div class="section-title">What this shell currently captures</div>
+          <div class="fact-list">
+            {% for item in deep_dive.availability_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% if deep_dive.advanced_blocks %}
+        {% for block in deep_dive.advanced_blocks %}
+          <div class="section-block">
+            <div class="section-kicker">Advanced Result Section</div>
+            <div class="section-title">{{ block.title }}</div>
+
+            {% if block.summary_items %}
+              <div class="metric-grid">
+                {% for item in block.summary_items %}
+                  <div class="metric-card">
+                    <div class="metric-label">{{ item.label }}</div>
+                    <div class="metric-value">{{ item.value }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% for table in block.tables %}
+              <div class="section-block">
+                <div class="section-title">{{ table.title }}</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        {% for column in table.columns %}
+                          <th>{{ column.label }}</th>
+                        {% endfor %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in table.rows %}
+                        <tr>
+                          {% for column in table.columns %}
+                            <td>{{ row[column.key] }}</td>
+                          {% endfor %}
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {% endfor %}
+
+            {% if block.notes %}
+              <ul class="note-list">
+                {% for note in block.notes %}
+                  <li>{{ note }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% else %}
+      <div class="empty-state">{{ deep_dive.message }}</div>
+    {% endif %}
+  </section>
+
+  {% if load_mix.included %}
+    <section class="chapter page-break">
+      <div class="chapter-head">
+        <div>
+          <div class="chapter-kicker">Chapter {{ loop.index }}F</div>
+          <h2 class="chapter-title">{{ load_mix.title }}</h2>
+          <p class="chapter-subtitle">
+            Deterministic workload-allocation optimizer output for {{ site_bundle.site_data.name }}.
+          </p>
+        </div>
+      <div class="chapter-tags">
+          <span class="badge">Optional workflow</span>
+          {% if load_mix.has_candidates %}
+            <span class="badge">Top candidate + ranked overview</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {{ render_narrative(load_mix.narrative) }}
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Inputs</div>
+          <div class="section-title">Selected optimizer assumptions</div>
+          <div class="fact-list">
+            {% for item in load_mix.input_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% if load_mix.has_candidates %}
+          <div class="fact-panel">
+            <div class="section-kicker">Summary</div>
+            <div class="section-title">Top candidate readout</div>
+            <div class="fact-list">
+              {% for item in load_mix.headline_items %}
+                <div class="fact-row">
+                  <div class="fact-label">{{ item.label }}</div>
+                  <div class="fact-value">{{ item.value }}</div>
+                </div>
+              {% endfor %}
+            </div>
+            {% if load_mix.top_candidate_notes %}
+              <ul class="note-list">
+                {% for note in load_mix.top_candidate_notes %}
+                  <li>{{ note }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+      {% if load_mix.has_candidates %}
+        <div class="section-block">
+          <div class="section-title">{{ load_mix.top_candidate_table.title }}</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  {% for column in load_mix.top_candidate_table.columns %}
+                    <th>{{ column.label }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in load_mix.top_candidate_table.rows %}
+                  <tr>
+                    {% for column in load_mix.top_candidate_table.columns %}
+                      <td>{{ row[column.key] }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-title">{{ load_mix.ranked_candidates_table.title }}</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  {% for column in load_mix.ranked_candidates_table.columns %}
+                    <th>{{ column.label }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in load_mix.ranked_candidates_table.rows %}
+                  <tr>
+                    {% for column in load_mix.ranked_candidates_table.columns %}
+                      <td>{{ row[column.key] }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">{{ load_mix.message }}</div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if green_energy.included %}
+    <section class="chapter page-break">
+      <div class="chapter-head">
+        <div>
+          <div class="chapter-kicker">Chapter {{ loop.index }}G</div>
+          <h2 class="chapter-title">{{ green_energy.title }}</h2>
+          <p class="chapter-subtitle">
+            Optional green-dispatch output using the selected scenario hourly demand for {{ site_bundle.site_data.name }}.
+          </p>
+        </div>
+        <div class="chapter-tags">
+          <span class="badge">Optional workflow</span>
+          <span class="badge">Annual dispatch summary</span>
+        </div>
+      </div>
+
+      {{ render_narrative(green_energy.narrative) }}
+
+      <div class="metric-grid">
+        {% for item in green_energy.headline_items %}
+          <div class="metric-card">
+            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-value">{{ item.value }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="panel-grid">
+        <div class="fact-panel">
+          <div class="section-kicker">Configuration</div>
+          <div class="section-title">Dispatch configuration used</div>
+          <div class="fact-list">
+            {% for item in green_energy.configuration_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Context</div>
+          <div class="section-title">Scenario and operating context</div>
+          <div class="fact-list">
+            {% for item in green_energy.context_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="fact-panel">
+          <div class="section-kicker">Provenance</div>
+          <div class="section-title">PV source provenance</div>
+          <div class="fact-list">
+            {% for item in green_energy.provenance_items %}
+              <div class="fact-row">
+                <div class="fact-label">{{ item.label }}</div>
+                <div class="fact-value">{{ item.value }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-title">{{ green_energy.energy_breakdown_table.title }}</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                {% for column in green_energy.energy_breakdown_table.columns %}
+                  <th>{{ column.label }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in green_energy.energy_breakdown_table.rows %}
+                <tr>
+                  {% for column in green_energy.energy_breakdown_table.columns %}
+                    <td>{{ row[column.key] }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+{% endfor %}

@@ -1,0 +1,40 @@
+# DC Feasibility Tool v4 — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data validation
+pydantic==2.10.4
+
+# Data processing
+pandas==2.2.3
+numpy==1.26.4
+
+# Excel export
+openpyxl==3.1.5
+
+# HTTP requests (for Open-Meteo, PVGIS, geocoding)
+requests==2.32.3
+
+# KML parsing
+lxml==5.3.0
+
+# HTML report templates
+jinja2==3.1.5
+
+# PDF generation from HTML
+weasyprint==63.1
+
+# Terrain map tile rendering (OpenTopoMap)
+staticmap==0.5.7
+
+# Testing
+pytest==8.3.4
+
+# File upload handling
+python-multipart==0.0.18
+
+# CORS (allows React frontend to talk to FastAPI backend)
+# This is included in fastapi but we need the middleware

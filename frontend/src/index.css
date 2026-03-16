@@ -1,0 +1,136 @@
+/*
+ * index.css — Global styles + Tailwind CSS
+ * ===========================================
+ * CONCEPT — How Tailwind CSS works
+ * Tailwind is a "utility-first" CSS framework. Instead of writing
+ * custom CSS like `.my-button { background: blue; padding: 8px; }`,
+ * you use utility classes directly in HTML: className="bg-blue-600 p-2".
+ *
+ * The @import below loads all of Tailwind's utility classes.
+ * The Vite Tailwind plugin scans your JSX files and only includes
+ * the classes you actually use in the final CSS bundle.
+ */
+
+@import "tailwindcss";
+
+/*
+ * Optional: any global custom styles go below.
+ * In this project, we'll keep custom CSS minimal and use
+ * Tailwind classes everywhere.
+ */
+
+/* Smooth scrolling for the whole app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove default body margin that some browsers add */
+body {
+  margin: 0;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.site-map-pin-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.site-map-pin {
+  position: relative;
+  display: block;
+  height: 24px;
+  width: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  border-radius: 999px 999px 999px 6px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
+  transform: rotate(-45deg);
+}
+
+.site-map-pin::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px 999px 999px 10px;
+  background: rgba(37, 99, 235, 0.14);
+  z-index: -1;
+}
+
+.site-map-pin__core {
+  position: absolute;
+  inset: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.site-map-pin--overview {
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+}
+
+.site-map-pin--detail {
+  height: 30px;
+  width: 30px;
+  background: linear-gradient(135deg, #155e75, #1d4ed8);
+}
+
+.site-map-pin--terrain {
+  height: 34px;
+  width: 34px;
+  border-width: 3px;
+  background: linear-gradient(135deg, #14532d, #ca8a04);
+  box-shadow: 0 16px 34px rgba(20, 83, 45, 0.34);
+}
+
+.site-map-pin--terrain::after {
+  inset: -8px;
+  background: rgba(22, 163, 74, 0.2);
+}
+
+.site-map-pin--terrain .site-map-pin__core {
+  inset: 7px;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.site-map-pin--draft {
+  background: linear-gradient(135deg, #dc2626, #f97316);
+}
+
+.site-map-pin.is-selected {
+  background: linear-gradient(135deg, #0f172a, #2563eb);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.34);
+}
+
+.site-map-pin.is-selected::after {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.site-map-pin--terrain.is-selected {
+  background: linear-gradient(135deg, #166534, #f59e0b);
+  box-shadow: 0 20px 40px rgba(20, 83, 45, 0.42);
+}
+
+.site-map-pin--terrain.is-selected::after {
+  background: rgba(34, 197, 94, 0.26);
+}
+
+/* SlidePanel animation */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}

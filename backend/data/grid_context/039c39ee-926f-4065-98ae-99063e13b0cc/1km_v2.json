@@ -1,0 +1,121 @@
+{
+  "site_id": "039c39ee-926f-4065-98ae-99063e13b0cc",
+  "site_name": "Busto Garolfo",
+  "latitude": 45.55606413748452,
+  "longitude": 8.85657146671883,
+  "analysis_grade": "screening_grade",
+  "summary": {
+    "radius_km": 1.0,
+    "nearby_line_count": 2,
+    "nearby_substation_count": 2,
+    "nearest_line_km": 0.776,
+    "nearest_substation_km": 0.43,
+    "max_voltage_kv": 132.0,
+    "high_voltage_assets_within_radius": 1
+  },
+  "score": null,
+  "assets": [
+    {
+      "asset_id": "osm-way-184443452",
+      "asset_type": "substation",
+      "name": "Mapped substation",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.43,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          45.556409,
+          8.851069
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-node-861492949",
+      "asset_type": "substation",
+      "name": "Mapped substation",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.726,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          45.552162,
+          8.864044
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-184443460",
+      "asset_type": "line",
+      "name": "Mapped power line",
+      "operator": null,
+      "voltage_kv": null,
+      "circuits": null,
+      "distance_km": 0.776,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          45.562375,
+          8.852306
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "osm-way-77200837",
+      "asset_type": "line",
+      "name": "Mapped 132 kV line",
+      "operator": null,
+      "voltage_kv": 132.0,
+      "circuits": null,
+      "distance_km": 0.82,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          45.549403,
+          8.861095
+        ]
+      ],
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    }
+  ],
+  "evidence_notes": [
+    {
+      "label": "Screening-grade only",
+      "detail": "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "Mapped-public OSM screening layer",
+      "detail": "This result uses OpenStreetMap-derived power features queried through an Overpass interpreter and normalized for screening use.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "No exact capacity claim",
+      "detail": "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence.",
+      "source": "mapped_public_osm_overpass",
+      "confidence": "mapped_public"
+    }
+  ],
+  "official_context_notes": [
+    "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+    "This result uses OpenStreetMap-derived power features queried through an Overpass interpreter and normalized for screening use.",
+    "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence."
+  ],
+  "source_layers": [
+    "mapped_public_osm_overpass"
+  ],
+  "confidence": "mapped_public",
+  "generated_at_utc": "2026-03-12T14:03:34.690778+00:00"
+}

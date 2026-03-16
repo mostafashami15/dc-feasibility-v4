@@ -1,0 +1,137 @@
+{
+  "site_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7",
+  "site_name": "Atessa",
+  "latitude": 42.13480186801634,
+  "longitude": 14.424249138648928,
+  "analysis_grade": "screening_grade",
+  "summary": {
+    "radius_km": 5.0,
+    "nearby_line_count": 2,
+    "nearby_substation_count": 2,
+    "nearest_line_km": 0.596,
+    "nearest_substation_km": 1.67,
+    "max_voltage_kv": 220.0,
+    "high_voltage_assets_within_radius": 4
+  },
+  "score": null,
+  "assets": [
+    {
+      "asset_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7-line-132",
+      "asset_type": "line",
+      "name": "Mapped 132 kV corridor",
+      "operator": "Mapped public placeholder",
+      "voltage_kv": 132.0,
+      "circuits": 1,
+      "distance_km": 0.596,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.123949,
+          14.429095
+        ],
+        [
+          42.155602,
+          14.436363
+        ],
+        [
+          42.172785,
+          14.438786
+        ]
+      ],
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7-line-220",
+      "asset_type": "line",
+      "name": "Mapped 220 kV transmission line",
+      "operator": "Mapped public placeholder",
+      "voltage_kv": 220.0,
+      "circuits": 2,
+      "distance_km": 1.625,
+      "geometry_type": "line",
+      "coordinates": [
+        [
+          42.112193,
+          14.400022
+        ],
+        [
+          42.143846,
+          14.406079
+        ],
+        [
+          42.172785,
+          14.414558
+        ]
+      ],
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7-substation-132",
+      "asset_type": "substation",
+      "name": "Mapped 132 kV substation",
+      "operator": "Mapped public placeholder",
+      "voltage_kv": 132.0,
+      "circuits": null,
+      "distance_km": 1.67,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          42.147463,
+          14.413347
+        ]
+      ],
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    },
+    {
+      "asset_id": "265ca21c-a882-4c5e-b974-01ccecfe42d7-substation-220",
+      "asset_type": "substation",
+      "name": "Mapped 220 kV switching station",
+      "operator": "Mapped public placeholder",
+      "voltage_kv": 220.0,
+      "circuits": null,
+      "distance_km": 4.458,
+      "geometry_type": "point",
+      "coordinates": [
+        [
+          42.169168,
+          14.452111
+        ]
+      ],
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    }
+  ],
+  "evidence_notes": [
+    {
+      "label": "Screening-grade only",
+      "detail": "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "Mapped-public placeholder provider",
+      "detail": "This first backend slice uses a deterministic fixture provider shaped like mapped-public grid data until real ingestion is connected.",
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    },
+    {
+      "label": "No exact capacity claim",
+      "detail": "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence.",
+      "source": "mapped_public_fixture",
+      "confidence": "mapped_public"
+    }
+  ],
+  "official_context_notes": [
+    "Grid Context results are screening-grade and should be used to decide whether deeper utility engagement is worthwhile.",
+    "This first backend slice uses a deterministic fixture provider shaped like mapped-public grid data until real ingestion is connected.",
+    "Nearby lines or substations do not imply spare connection capacity; exact available MW requires official utility or TSO evidence."
+  ],
+  "source_layers": [
+    "mapped_public_fixture"
+  ],
+  "confidence": "mapped_public",
+  "generated_at_utc": "2026-03-12T13:10:26.552239+00:00"
+}

@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Keep pytest temp output in one hidden folder.
+# Pytest's cache provider creates inaccessible temp dirs in this workspace on Windows,
+# so we disable it instead of letting it scatter failed cache folders through `backend/`.
+addopts = "--basetemp=data/.pytest/tmp -p no:cacheprovider"
+tmp_path_retention_policy = "failed"
