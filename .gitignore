@@ -41,3 +41,7 @@ backend/data/test-export-temp/
 # Local-only
 backups/
 .claude/
+
+# Local-only
+backups/
+.claude/
