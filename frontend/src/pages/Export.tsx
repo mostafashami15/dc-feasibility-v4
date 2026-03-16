@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, Loader2 } from "lucide-react";
 import * as api from "../api/client";
 import { loadSessionState } from "../lib/sessionState";
 import { useAppStore } from "../store/useAppStore";
@@ -385,24 +385,13 @@ export default function Export() {
         </p>
       </div>
 
-      <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-xl flex items-start gap-3">
-        <AlertCircle size={20} className="text-sky-600 shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-sky-900">Milestone 1 export scope is now explicit</p>
-          <p className="text-xs text-sky-800 mt-1">
-            Reports no longer export all saved sites by default. Select the studied sites you want,
-            then choose one primary scenario/result for each selected site from the current batch results.
-          </p>
-        </div>
-      </div>
-
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <h3 className="font-semibold text-gray-800">Study Scope</h3>
               <p className="text-xs text-gray-500 mt-1">
-                Only sites present in the current batch results can be selected in Milestone 1.
+                Select sites from the current batch results to include in the report.
               </p>
             </div>
             <div className="text-right text-xs text-gray-500">
@@ -475,8 +464,7 @@ export default function Export() {
                           })}
                         </select>
                         <p className="text-xs text-gray-500 mt-2">
-                          Milestone 1 exports only this selected primary result for the site. Full multi-scenario
-                          report design remains in later milestones.
+                          This primary result will be featured in the report for this site.
                         </p>
                       </div>
                     )}

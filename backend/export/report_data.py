@@ -32,7 +32,11 @@ from engine.models import GridContextResult, ScenarioResult, Site
 from engine.pue_engine import build_hourly_facility_factors, simulate_hourly
 from engine.ranking import LoadMixResult
 from engine.sensitivity import SENSITIVITY_PARAMETERS, compute_break_even, compute_tornado
-from export.terrain_map import generate_terrain_base64
+from export.terrain_map import (
+    generate_grid_context_base64,
+    generate_site_location_base64,
+    generate_terrain_base64,
+)
 from export.visual_assets import (
     build_free_cooling_chart,
     build_grid_context_map_visual,
@@ -876,16 +880,19 @@ def _build_site_specifics_chapter(
     power = site_data["power"]
     imported_geometry = site_data["imported_geometry"]
 
-    # Generate terrain imagery if coordinates are available
+    # Generate map imagery if coordinates are available
     terrain_image_uri = None
+    location_map_uri = None
     lat = location.get("latitude")
     lon = location.get("longitude")
     if lat is not None and lon is not None:
         terrain_image_uri = generate_terrain_base64(lat, lon)
+        location_map_uri = generate_site_location_base64(lat, lon)
 
     return {
         "title": "Site Specifics and Properties",
         "terrain_image": terrain_image_uri,
+        "location_map": location_map_uri,
         "map_visual": build_site_map_visual(
             site_data,
             primary_color=primary_color,
@@ -1078,9 +1085,22 @@ def _build_grid_context_chapter(
     if grid_context.get("message"):
         evidence_notes.append(grid_context["message"])
 
+    # Generate real tile-based grid context map
+    grid_map_uri = None
+    grid_lat = selected.get("latitude") or site_data["location"].get("latitude")
+    grid_lon = selected.get("longitude") or site_data["location"].get("longitude")
+    if grid_lat is not None and grid_lon is not None:
+        grid_map_uri = generate_grid_context_base64(
+            grid_lat,
+            grid_lon,
+            assets=display_assets,
+            radius_km=summary.get("radius_km"),
+        )
+
     return {
         "title": "Grid Context / Power Access Context",
         "included": True,
+        "grid_context_map": grid_map_uri,
         "map_visual": build_grid_context_map_visual(
             site_data,
             grid_center=(selected.get("latitude"), selected.get("longitude")),
