@@ -536,6 +536,7 @@ export interface ReportConfig {
   secondary_color?: string;
   logo_url?: string | null;
   font_family?: string;
+  include_all_scenarios?: boolean;
 }
 
 

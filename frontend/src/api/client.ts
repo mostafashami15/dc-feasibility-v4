@@ -580,28 +580,51 @@ export async function simulateScenarioGreen(request: {
   return data;
 }
 
+/** Extracts a human-readable message from an axios error response. */
+function extractApiError(err: unknown): Error {
+  if (err && typeof err === "object" && "response" in err) {
+    const response = (err as { response?: { data?: unknown; status?: number } }).response;
+    if (response?.data) {
+      const data = response.data;
+      if (typeof data === "string" && data.length < 500) return new Error(data);
+      if (typeof data === "object" && data !== null && "detail" in data) {
+        const detail = (data as { detail: unknown }).detail;
+        if (typeof detail === "string") return new Error(detail.slice(0, 400));
+      }
+    }
+  }
+  if (err instanceof Error) return err;
+  return new Error("Unknown error");
+}
+
 /** HTML preview report for explicitly selected studied sites -> POST /api/export/html */
 export async function exportHtmlReport(config: ReportConfig): Promise<string> {
-  const { data } = await api.post("/api/export/html", config, {
-    responseType: "text",
-  });
-  return data as string;
+  try {
+    const { data } = await api.post("/api/export/html", config, { responseType: "text" });
+    return data as string;
+  } catch (err) {
+    throw extractApiError(err);
+  }
 }
 
 /** PDF report for explicitly selected studied sites -> POST /api/export/pdf */
 export async function exportPdfReport(config: ReportConfig): Promise<Blob> {
-  const { data } = await api.post("/api/export/pdf", config, {
-    responseType: "blob",
-  });
-  return data as Blob;
+  try {
+    const { data } = await api.post("/api/export/pdf", config, { responseType: "blob" });
+    return data as Blob;
+  } catch (err) {
+    throw extractApiError(err);
+  }
 }
 
 /** Excel workbook for explicitly selected studied sites -> POST /api/export/excel */
 export async function exportExcelReport(config: ReportConfig): Promise<Blob> {
-  const { data } = await api.post("/api/export/excel", config, {
-    responseType: "blob",
-  });
-  return data as Blob;
+  try {
+    const { data } = await api.post("/api/export/excel", config, { responseType: "blob" });
+    return data as Blob;
+  } catch (err) {
+    throw extractApiError(err);
+  }
 }
 
 /** Get terrain preview image URL for a site */

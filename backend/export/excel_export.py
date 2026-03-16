@@ -487,6 +487,7 @@ def build_excel_bytes(
     primary_result_keys: dict[str, str] | None = None,
     load_mix_results: dict[str, object] | None = None,
     green_energy_results: dict[str, object] | None = None,
+    include_all_scenarios: bool = True,
 ) -> bytes:
     context = build_report_context(
         report_type=report_type,
@@ -501,6 +502,7 @@ def build_excel_bytes(
         primary_result_keys=primary_result_keys,
         load_mix_results=load_mix_results,
         green_energy_results=green_energy_results,
+        include_all_scenarios=include_all_scenarios,
     )
     bundle = context["report_bundle"]
     studied_sites = bundle["studied_sites"]

@@ -47,6 +47,7 @@ def render_report_html(
     primary_result_keys: dict[str, str] | None = None,
     load_mix_results: dict[str, Any] | None = None,
     green_energy_results: dict[str, Any] | None = None,
+    include_all_scenarios: bool = True,
 ) -> str:
     context = build_report_context(
         report_type=report_type,
@@ -61,6 +62,7 @@ def render_report_html(
         primary_result_keys=primary_result_keys,
         load_mix_results=load_mix_results,
         green_energy_results=green_energy_results,
+        include_all_scenarios=include_all_scenarios,
     )
     template_name = (
         "executive_summary.html"

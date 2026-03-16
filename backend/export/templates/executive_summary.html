@@ -1,110 +1,42 @@
 {% extends "base.html" %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header %}
 
 {% block content %}
-{# ── Macros ──────────────────────────────────────────────── #}
-{% macro rag_badge(status) -%}
-  {% set s = status | lower %}
-  <span class="rag-badge {% if 'green' in s %}rag-green{% elif 'amber' in s or 'yellow' in s %}rag-amber{% else %}rag-red{% endif %}">{{ status }}</span>
-{%- endmacro %}
+{# ── COVER ─────────────────────────────────────────────────────── #}
+{% include "_cover.html" %}
 
-{% macro fact_rows(items) -%}
-  {% for item in items %}
-    <div class="fact-row">
-      <span class="fact-label">{{ item.label }}</span>
-      <span class="fact-value">{{ item.value }}</span>
-    </div>
-  {% endfor %}
-{%- endmacro %}
-
-{# ── COVER PAGE ─────────────────────────────────────────── #}
-<section class="cover">
-  <div class="cover-content">
-    <div class="cover-left">
-      {% if theme.logo_url %}
-        <img class="cover-logo" src="{{ theme.logo_url }}" alt="Logo" />
-      {% endif %}
-      <div class="cover-kicker">Data Center Feasibility Study</div>
-      <h1 class="cover-title">{{ report.title }}</h1>
-      <p class="cover-subtitle">
-        Executive summary of site feasibility analysis covering power capacity, climate suitability, and infrastructure readiness.
-      </p>
-
-      <div class="cover-meta">
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Report Date</div>
-          <div class="cover-meta-value">{{ report.generated_on }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Sites Studied</div>
-          <div class="cover-meta-value">{{ summary.site_count }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Scenarios</div>
-          <div class="cover-meta-value">{{ summary.primary_result_count }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Report Type</div>
-          <div class="cover-meta-value">Executive</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cover-right">
-      <div class="scope-title">Study Scope</div>
-      <div class="fact-row">
-        <span class="fact-label">Sites</span>
-        <span class="fact-value">{{ study_scope.studied_site_names | join(", ") }}</span>
-      </div>
-      {% if study_scope.selected_primary_results %}
-        <div class="subsection-title" style="margin-top: 16px;">Selected Scenarios</div>
-        {% for result in study_scope.selected_primary_results %}
-          <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
-            <div style="font-size: 8.5pt; color: var(--muted);">{{ result.site_name }}</div>
-            <div style="font-size: 10pt; font-weight: 600;">{{ result.label }}</div>
-          </div>
-        {% endfor %}
-      {% endif %}
-    </div>
-  </div>
-</section>
-
-{# ── PER-SITE EXECUTIVE SUMMARY ─────────────────────────── #}
+{# ── PER-SITE EXECUTIVE SUMMARY ───────────────────────────────── #}
 {% for site_bundle in report_bundle.studied_sites %}
-  {% set site = site_bundle.site_data %}
-  {% set ch = site_bundle.chapters %}
+  {% set site           = site_bundle.site_data %}
+  {% set ch             = site_bundle.chapters %}
   {% set site_specifics = ch.site_specifics %}
-  {% set grid_context = ch.grid_context %}
-  {% set climate = ch.climate %}
+  {% set grid_context   = ch.grid_context %}
+  {% set climate        = ch.climate %}
   {% set selected_scenario = ch.selected_scenario %}
-  {% set deep_dive = ch.deep_dive %}
+  {% set deep_dive      = ch.deep_dive %}
 
   <section class="page-break">
-    <div class="section-header">
-      <div class="section-number">Site {{ loop.index }}</div>
-      <h2 class="section-title">{{ site.name }}</h2>
-      <div class="section-subtitle">
-        {% if site.location.city or site.location.country %}
-          {{ site.location.city }}{% if site.location.city and site.location.country %}, {% endif %}{{ site.location.country }}
-        {% endif %}
-        &nbsp; <span class="badge">{{ site.site_type }}</span>
-        {% if deep_dive.available and deep_dive.status_items %}
-          &nbsp; {{ rag_badge(deep_dive.status_items[0].value) }}
-        {% endif %}
-      </div>
-    </div>
+    {{ chapter_header(
+        "Site " ~ loop.index,
+        site.name,
+        subtitle=(site.location.city or '') ~ (', ' if site.location.city and site.location.country else '') ~ (site.location.country or ''),
+        tag=site.site_type,
+        badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.available and deep_dive.status_items else ""]
+    ) }}
 
-    {# Site map #}
+    {# Site map (compact) #}
     {% if site_specifics.location_map %}
-      <div class="map-container" style="max-height: 200px; overflow: hidden;">
-        <img src="{{ site_specifics.location_map }}" alt="Site location" style="width: 100%; object-fit: cover; max-height: 200px;" />
+      <div class="map-container" style="max-height:180px; overflow:hidden;">
+        <img src="{{ site_specifics.location_map }}" alt="Site location"
+             style="width:100%; object-fit:cover; max-height:180px;" />
       </div>
     {% endif %}
 
-    {# Key Findings #}
+    {# Key metrics #}
     {% if deep_dive.available %}
-      <div class="metric-row metric-row-4 mt-md">
+      <div class="metric-row metric-row-4 mt-sm">
         {% for item in deep_dive.headline_metrics[:4] %}
-          <div class="metric-card">
+          <div class="metric-card {% if loop.first %}featured{% endif %}">
             <div class="metric-label">{{ item.label }}</div>
             <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
           </div>
@@ -112,8 +44,7 @@
       </div>
     {% endif %}
 
-    <div class="fact-grid">
-      {# Site essentials #}
+    <div class="fact-grid mt-sm">
       <div class="fact-panel">
         <div class="fact-panel-title">Site Essentials</div>
         <div class="fact-row">
@@ -130,29 +61,26 @@
         </div>
         {% if selected_scenario.available %}
           <div class="fact-row">
-            <span class="fact-label">Scenario</span>
-            <span class="fact-value">{{ selected_scenario.label }}</span>
+            <span class="fact-label">Primary Scenario</span>
+            <span class="fact-value" style="font-size:8pt;">{{ selected_scenario.label }}</span>
           </div>
         {% endif %}
       </div>
 
-      {# Feasibility verdict #}
       {% if deep_dive.available %}
         <div class="fact-panel">
           <div class="fact-panel-title">Feasibility Assessment</div>
           {{ fact_rows(deep_dive.status_items) }}
           {% if deep_dive.status_reasons %}
-            <ul class="note-list mt-sm">
-              {% for reason in deep_dive.status_reasons %}
-                <li>{{ reason }}</li>
-              {% endfor %}
+            <ul class="note-list mt-xs">
+              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
             </ul>
           {% endif %}
         </div>
       {% endif %}
     </div>
 
-    {# Grid + Climate summary #}
+    {# Grid + Climate summary row #}
     <div class="fact-grid mt-sm">
       {% if grid_context.included and grid_context.score_items %}
         <div class="fact-panel">
@@ -175,19 +103,18 @@
       {% endif %}
     </div>
 
-    {# Narrative if available #}
+    {# Narrative summary #}
     {% if deep_dive.narrative and deep_dive.narrative.available %}
-      <div class="callout mt-md">
-        {% for paragraph in deep_dive.narrative.paragraphs %}
-          <p>{{ paragraph }}</p>
-        {% endfor %}
+      <div class="callout mt-sm">
+        {% for p in deep_dive.narrative.paragraphs %}<p>{{ p }}</p>{% endfor %}
       </div>
     {% endif %}
   </section>
 {% endfor %}
 
-{# ── FOOTER ──────────────────────────────────────────────── #}
+{# ── FOOTER ────────────────────────────────────────────────────── #}
 <div class="report-footer">
-  Generated by DC Feasibility Tool v4 on {{ report.generated_on }}
+  <span>Generated by DC Feasibility Tool v4 · {{ report.generated_on }}</span>
+  <span>Executive Summary</span>
 </div>
 {% endblock %}

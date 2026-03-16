@@ -1,130 +1,116 @@
-{# ── Macros ──────────────────────────────────────────────── #}
-{% macro narrative(obj) -%}
-  {% if obj and obj.available %}
-    <div class="callout">
-      {% for paragraph in obj.paragraphs %}
-        <p>{{ paragraph }}</p>
-      {% endfor %}
-    </div>
-  {% endif %}
-{%- endmacro %}
+{# ================================================================
+   DC Feasibility Tool v4 — Core Report Body
+   Included by detailed_report.html and executive_summary.html.
+   Macros are imported from _macros.html.
+   ================================================================ #}
 
-{% macro rag_badge(status) -%}
-  {% set s = status | lower %}
-  <span class="rag-badge {% if 'green' in s %}rag-green{% elif 'amber' in s or 'yellow' in s %}rag-amber{% else %}rag-red{% endif %}">{{ status }}</span>
-{%- endmacro %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, data_table, scenario_pills %}
 
-{% macro fact_rows(items) -%}
-  {% for item in items %}
-    <div class="fact-row">
-      <span class="fact-label">{{ item.label }}</span>
-      <span class="fact-value">{{ item.value }}</span>
+{# ── COVER ──────────────────────────────────────────────────────── #}
+{% include "_cover.html" %}
+
+{# ── TABLE OF CONTENTS (detailed only) ─────────────────────────── #}
+{% if report.type == "detailed" %}
+<section class="page-break toc-page">
+  <div class="toc-title">Contents</div>
+  {% for site_bundle in report_bundle.studied_sites %}
+    {% set site = site_bundle.site_data %}
+    {% set ch   = site_bundle.chapters %}
+    <div class="toc-site-group">
+      <div class="toc-site-name">{{ site.name }}</div>
+      <div class="toc-entry">
+        <span class="toc-entry-num">{{ loop.index }}.1</span>
+        <span class="toc-entry-label">Site Profile</span>
+        <span class="toc-entry-dots"></span>
+      </div>
+      {% if ch.grid_context.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.2</span>
+          <span class="toc-entry-label">Grid Infrastructure</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if ch.climate.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.3</span>
+          <span class="toc-entry-label">Climate Analysis</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if ch.selected_scenario.available %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.4</span>
+          <span class="toc-entry-label">Scenario Results</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+        {% if ch.deep_dive.available and ch.deep_dive.advanced_blocks %}
+          <div class="toc-entry">
+            <span class="toc-entry-num">{{ loop.index }}.5</span>
+            <span class="toc-entry-label">Advanced Analysis</span>
+            <span class="toc-entry-dots"></span>
+          </div>
+        {% endif %}
+      {% endif %}
+      {% if ch.load_mix.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.6</span>
+          <span class="toc-entry-label">Load Mix Analysis</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if ch.green_energy.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.7</span>
+          <span class="toc-entry-label">Green Energy Dispatch</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
     </div>
   {% endfor %}
-{%- endmacro %}
-
-{# ── COVER PAGE ─────────────────────────────────────────── #}
-<section class="cover">
-  <div class="cover-content">
-    <div class="cover-left">
-      {% if theme.logo_url %}
-        <img class="cover-logo" src="{{ theme.logo_url }}" alt="Logo" />
-      {% endif %}
-      <div class="cover-kicker">Data Center Feasibility Study</div>
-      <h1 class="cover-title">{{ report.title }}</h1>
-      <p class="cover-subtitle">
-        {% if report.type == "executive" %}
-          Executive summary of site feasibility analysis covering power capacity, climate suitability, and infrastructure readiness.
-        {% else %}
-          Comprehensive technical feasibility assessment including site analysis, climate study, grid infrastructure, and scenario modelling results.
-        {% endif %}
-      </p>
-
-      <div class="cover-meta">
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Report Date</div>
-          <div class="cover-meta-value">{{ report.generated_on }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Sites Studied</div>
-          <div class="cover-meta-value">{{ summary.site_count }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Scenarios</div>
-          <div class="cover-meta-value">{{ summary.primary_result_count }}</div>
-        </div>
-        <div class="cover-meta-item">
-          <div class="cover-meta-label">Report Type</div>
-          <div class="cover-meta-value">{{ "Executive" if report.type == "executive" else "Detailed" }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cover-right">
-      <div class="scope-title">Study Scope</div>
-      <div class="fact-row">
-        <span class="fact-label">Sites</span>
-        <span class="fact-value">{{ study_scope.studied_site_names | join(", ") }}</span>
-      </div>
-      {% if study_scope.selected_primary_results %}
-        <div class="subsection-title" style="margin-top: 16px;">Selected Scenarios</div>
-        {% for result in study_scope.selected_primary_results %}
-          <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
-            <div style="font-size: 8.5pt; color: var(--muted);">{{ result.site_name }}</div>
-            <div style="font-size: 10pt; font-weight: 600;">{{ result.label }}</div>
-          </div>
-        {% endfor %}
-      {% endif %}
-    </div>
-  </div>
 </section>
+{% endif %}
 
-{# ── PER-SITE SECTIONS ─────────────────────────────────── #}
+{# ── PER-SITE SECTIONS ──────────────────────────────────────────── #}
 {% for site_bundle in report_bundle.studied_sites %}
-  {% set site = site_bundle.site_data %}
-  {% set ch = site_bundle.chapters %}
+  {% set site           = site_bundle.site_data %}
+  {% set ch             = site_bundle.chapters %}
   {% set site_specifics = ch.site_specifics %}
-  {% set grid_context = ch.grid_context %}
-  {% set climate = ch.climate %}
+  {% set grid_context   = ch.grid_context %}
+  {% set climate        = ch.climate %}
   {% set selected_scenario = ch.selected_scenario %}
-  {% set deep_dive = ch.deep_dive %}
-  {% set load_mix = ch.load_mix %}
-  {% set green_energy = ch.green_energy %}
+  {% set deep_dive      = ch.deep_dive %}
+  {% set load_mix       = ch.load_mix %}
+  {% set green_energy   = ch.green_energy %}
 
-  {# ── 1. SITE PROFILE ──────────────────────────────────── #}
+  {# ────────────── 1. SITE PROFILE ──────────────────────────────── #}
   <section class="page-break">
-    <div class="section-header">
-      <div class="section-number">Section {{ loop.index }}.1</div>
-      <h2 class="section-title">Site Profile — {{ site.name }}</h2>
-      <div class="section-subtitle">
-        {% if site.location.city or site.location.country %}
-          {{ site.location.city }}{% if site.location.city and site.location.country %}, {% endif %}{{ site.location.country }}
-        {% endif %}
-        &nbsp; <span class="badge">{{ site.site_type }}</span>
-      </div>
-    </div>
+    {{ chapter_header(
+        loop.index ~ ".1",
+        "Site Profile — " ~ site.name,
+        subtitle=(site.location.city or '') ~ (', ' if site.location.city and site.location.country else '') ~ (site.location.country or ''),
+        tag="Site Analysis"
+    ) }}
 
     {{ narrative(site_specifics.narrative) }}
 
-    {# Location map (real tiles) #}
+    {# Location map #}
     {% if site_specifics.location_map %}
       <div class="map-container">
         <img src="{{ site_specifics.location_map }}" alt="Site location map" />
-        <div class="map-caption">Site location — OpenStreetMap</div>
+        <div class="map-caption">Site location · OpenStreetMap tiles</div>
       </div>
     {% elif site_specifics.terrain_image %}
       <div class="map-container">
         <img src="{{ site_specifics.terrain_image }}" alt="Terrain map" />
-        <div class="map-caption">Site terrain — OpenTopoMap</div>
+        <div class="map-caption">Site terrain · OpenTopoMap</div>
       </div>
     {% endif %}
 
     <div class="fact-grid">
       <div class="fact-panel">
-        <div class="fact-panel-title">Location & Identity</div>
+        <div class="fact-panel-title">Location &amp; Identity</div>
         {{ fact_rows(site_specifics.identity_items + site_specifics.location_items) }}
       </div>
-
       <div class="fact-panel">
         <div class="fact-panel-title">Power Declaration</div>
         {{ fact_rows(site_specifics.power_items) }}
@@ -133,39 +119,36 @@
 
     <div class="fact-grid">
       <div class="fact-panel">
-        <div class="fact-panel-title">Land & Building</div>
+        <div class="fact-panel-title">Land &amp; Building</div>
         {{ fact_rows(site_specifics.property_items) }}
       </div>
-
       {% if site_specifics.notes %}
         <div class="fact-panel">
           <div class="fact-panel-title">Analyst Notes</div>
-          <p style="font-size: 9.5pt; color: var(--text); line-height: 1.55;">{{ site_specifics.notes }}</p>
+          <p style="font-size:9.5pt; color:var(--text); line-height:1.6;">{{ site_specifics.notes }}</p>
         </div>
       {% endif %}
     </div>
   </section>
 
-  {# ── 2. GRID INFRASTRUCTURE ────────────────────────────── #}
+  {# ────────────── 2. GRID INFRASTRUCTURE ───────────────────────── #}
   {% if grid_context.included %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.2</div>
-        <h2 class="section-title">Grid Infrastructure</h2>
-        <div class="section-subtitle">
-          Power access screening for {{ site.name }}
-          &nbsp; <span class="badge">{{ grid_context.asset_count }} asset(s) mapped</span>
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".2",
+          "Grid Infrastructure",
+          subtitle="Power access screening for " ~ site.name,
+          tag="Grid Context",
+          badges=["<span class='badge'>" ~ grid_context.asset_count ~ " asset(s) mapped</span>"]
+      ) }}
 
       {{ narrative(grid_context.narrative) }}
 
-      {# Grid context map (real tiles with asset markers) #}
       {% if grid_context.grid_context_map %}
         <div class="map-container">
           <img src="{{ grid_context.grid_context_map }}" alt="Grid context map" />
           <div class="map-caption">
-            Nearby grid infrastructure — site (dark blue), substations (orange/red), power lines
+            Nearby grid infrastructure — site (dark), substations (orange/red), power lines
           </div>
         </div>
       {% endif %}
@@ -175,16 +158,13 @@
           <div class="fact-panel-title">Network Overview</div>
           {{ fact_rows(grid_context.summary_items) }}
         </div>
-
         {% if grid_context.score_items %}
           <div class="fact-panel">
             <div class="fact-panel-title">Heuristic Score</div>
             {{ fact_rows(grid_context.score_items) }}
             {% if grid_context.score_notes %}
-              <ul class="note-list mt-sm">
-                {% for note in grid_context.score_notes %}
-                  <li>{{ note }}</li>
-                {% endfor %}
+              <ul class="note-list mt-xs">
+                {% for note in grid_context.score_notes %}<li>{{ note }}</li>{% endfor %}
               </ul>
             {% endif %}
           </div>
@@ -192,8 +172,8 @@
       </div>
 
       {% if grid_context.official_items %}
-        <div class="fact-panel mt-md" style="max-width: 50%;">
-          <div class="fact-panel-title">Official Evidence</div>
+        <div class="subsection-title">Official Evidence</div>
+        <div class="fact-panel" style="max-width:55%;">
           {{ fact_rows(grid_context.official_items) }}
         </div>
       {% endif %}
@@ -204,12 +184,8 @@
           <table>
             <thead>
               <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Operator</th>
-                <th>Voltage</th>
-                <th>Distance</th>
-                <th>Confidence</th>
+                <th>Type</th><th>Name</th><th>Operator</th>
+                <th>Voltage</th><th>Distance</th><th>Confidence</th>
               </tr>
             </thead>
             <tbody>
@@ -226,29 +202,31 @@
             </tbody>
           </table>
         </div>
+        {% if grid_context.omitted_asset_count > 0 %}
+          <p class="note-list mt-xs" style="list-style:none; padding-left:0;">
+            {{ grid_context.omitted_asset_count }} additional asset(s) omitted — included in the Excel export.
+          </p>
+        {% endif %}
       {% endif %}
 
       {% if grid_context.evidence_notes %}
         <div class="subsection-title">Evidence Notes</div>
         <ul class="note-list">
-          {% for note in grid_context.evidence_notes %}
-            <li>{{ note }}</li>
-          {% endfor %}
+          {% for note in grid_context.evidence_notes %}<li>{{ note }}</li>{% endfor %}
         </ul>
       {% endif %}
     </section>
   {% endif %}
 
-  {# ── 3. CLIMATE ANALYSIS ───────────────────────────────── #}
+  {# ────────────── 3. CLIMATE ANALYSIS ──────────────────────────── #}
   {% if climate.included %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.3</div>
-        <h2 class="section-title">Climate Analysis</h2>
-        <div class="section-subtitle">
-          Weather data and cooling suitability for {{ site.name }}
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".3",
+          "Climate Analysis",
+          subtitle="Weather data and cooling suitability for " ~ site.name,
+          tag="Climate"
+      ) }}
 
       {{ narrative(climate.narrative) }}
 
@@ -257,7 +235,6 @@
           <div class="fact-panel-title">Weather Source</div>
           {{ fact_rows(climate.weather_items) }}
         </div>
-
         <div class="fact-panel">
           <div class="fact-panel-title">Temperature Statistics</div>
           {{ fact_rows(climate.temperature_items) }}
@@ -265,13 +242,12 @@
       </div>
 
       {% if climate.best_free_cooling_summary %}
-        <div class="fact-panel mt-sm" style="max-width: 50%;">
+        <div class="fact-panel mt-sm" style="max-width:50%;">
           <div class="fact-panel-title">Best Free-Cooling Result</div>
           {{ fact_rows(climate.best_free_cooling_summary) }}
         </div>
       {% endif %}
 
-      {# Charts side by side #}
       <div class="chart-pair mt-md">
         {% if climate.monthly_chart_visual.available %}
           <div class="chart-container">
@@ -279,7 +255,6 @@
             {{ climate.monthly_chart_visual.svg_markup | safe }}
           </div>
         {% endif %}
-
         {% if climate.free_cooling_chart_visual.available %}
           <div class="chart-container">
             <div class="chart-title">Free Cooling Hours by Topology</div>
@@ -288,24 +263,17 @@
         {% endif %}
       </div>
 
-      {# Free cooling table #}
       {% if climate.free_cooling_rows %}
         <div class="subsection-title">Free Cooling Analysis</div>
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>Cooling Type</th>
-                <th>Threshold</th>
-                <th>Hours</th>
-                <th>Fraction</th>
-                <th>Suitability</th>
-              </tr>
+              <tr><th>Cooling Type</th><th>Threshold</th><th>Hours</th><th>Fraction</th><th>Suitability</th></tr>
             </thead>
             <tbody>
               {% for item in climate.free_cooling_rows %}
                 <tr>
-                  <td>{{ item.cooling_type }}{% if item.is_selected %} <span class="badge">selected</span>{% endif %}</td>
+                  <td>{{ item.cooling_type }}{% if item.is_selected %}&nbsp;<span class="badge badge-primary">selected</span>{% endif %}</td>
                   <td>{{ item.threshold }}</td>
                   <td>{{ item.free_cooling_hours }}</td>
                   <td>{{ item.free_cooling_fraction }}</td>
@@ -317,7 +285,6 @@
         </div>
       {% endif %}
 
-      {# Monthly + Delta tables side by side #}
       {% if report.type == "detailed" %}
         <div class="two-col mt-md">
           {% if climate.monthly_rows %}
@@ -335,7 +302,6 @@
               </div>
             </div>
           {% endif %}
-
           {% if climate.delta_rows %}
             <div>
               <div class="subsection-title">Climate Delta Projections</div>
@@ -345,10 +311,8 @@
                   <tbody>
                     {% for row in climate.delta_rows %}
                       <tr>
-                        <td>{{ row.delta }}</td>
-                        <td>{{ row.cooling_type }}</td>
-                        <td>{{ row.free_cooling_hours }}</td>
-                        <td>{{ row.free_cooling_fraction }}</td>
+                        <td>{{ row.delta }}</td><td>{{ row.cooling_type }}</td>
+                        <td>{{ row.free_cooling_hours }}</td><td>{{ row.free_cooling_fraction }}</td>
                         <td>{{ row.suitability }}</td>
                       </tr>
                     {% endfor %}
@@ -362,65 +326,62 @@
     </section>
   {% endif %}
 
-  {# ── 4. SCENARIO RESULTS ───────────────────────────────── #}
+  {# ────────────── 4. SCENARIO RESULTS ──────────────────────────── #}
   {% if selected_scenario.available and deep_dive.available %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.4</div>
-        <h2 class="section-title">Scenario Results</h2>
-        <div class="section-subtitle">
-          {{ selected_scenario.label }} — {{ site.name }}
-          &nbsp; {% if deep_dive.status_items %}{{ rag_badge(deep_dive.status_items[0].value) }}{% endif %}
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".4",
+          "Scenario Results",
+          subtitle=selected_scenario.label ~ " — " ~ site.name,
+          tag="Feasibility",
+          badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
+      ) }}
 
       {{ narrative(deep_dive.narrative) }}
 
+      {# Scenario config pills #}
+      {% if selected_scenario.available %}
+        {{ scenario_pills(site_bundle.results.primary.scenario) }}
+      {% endif %}
+
       {# Headline metrics #}
-      <div class="metric-row metric-row-5">
+      <div class="metric-row metric-row-{% if deep_dive.headline_metrics | length >= 5 %}5{% else %}{{ deep_dive.headline_metrics | length }}{% endif %}">
         {% for item in deep_dive.headline_metrics %}
-          <div class="metric-card">
+          <div class="metric-card {% if loop.first %}featured{% endif %}">
             <div class="metric-label">{{ item.label }}</div>
             <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
           </div>
         {% endfor %}
       </div>
 
-      {# Scenario config + Feasibility status #}
       <div class="fact-grid">
         <div class="fact-panel">
           <div class="fact-panel-title">Scenario Configuration</div>
           {{ fact_rows(selected_scenario.summary_items) }}
         </div>
-
         <div class="fact-panel">
           <div class="fact-panel-title">Feasibility Status</div>
           {{ fact_rows(deep_dive.status_items) }}
           {% if deep_dive.status_reasons %}
-            <ul class="note-list mt-sm">
-              {% for reason in deep_dive.status_reasons %}
-                <li>{{ reason }}</li>
-              {% endfor %}
+            <ul class="note-list mt-xs">
+              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
             </ul>
           {% endif %}
         </div>
       </div>
 
-      {# Capacity + Power #}
       <div class="fact-grid">
         <div class="fact-panel">
           <div class="fact-panel-title">IT Capacity</div>
           {{ fact_rows(deep_dive.capacity_items) }}
         </div>
-
         <div class="fact-panel">
           <div class="fact-panel-title">Power Chain</div>
           {{ fact_rows(deep_dive.power_items) }}
         </div>
       </div>
 
-      {# Space #}
-      {% if report.type == "detailed" %}
+      {% if report.type == "detailed" and deep_dive.space_items %}
         <div class="fact-grid">
           <div class="fact-panel">
             <div class="fact-panel-title">Physical Deployment</div>
@@ -429,28 +390,82 @@
           <div></div>
         </div>
       {% endif %}
+
+      {# Scenario comparison / ranked alternatives #}
+      {% if report.include_all_scenarios and site_bundle.results.all_ranked | length > 1 %}
+        <div class="subsection-title">Scenario Comparison</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Configuration</th><th>IT Load</th>
+                <th>PUE</th><th>Score</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in site_bundle.results.all_ranked %}
+                <tr {% if r.is_primary %}style="background:#eff6ff;font-weight:600;"{% endif %}>
+                  <td><span class="rank-badge {% if r.rank_within_site == 1 %}rank-1{% elif r.rank_within_site == 2 %}rank-2{% elif r.rank_within_site == 3 %}rank-3{% endif %}">{{ r.rank_within_site }}</span></td>
+                  <td style="font-size:8.5pt;">
+                    {{ r.scenario.load_type }} · {{ r.scenario.cooling_type }} ·
+                    {{ r.scenario.redundancy }}
+                    {% if r.is_primary %}<span style="font-size:7.5pt;color:#2563eb;margin-left:4px;">(primary)</span>{% endif %}
+                  </td>
+                  <td>{{ r.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
+                  <td>{{ r.metrics.pue | default(0) | round(3) }}</td>
+                  <td>{{ r.metrics.score | default(0) | round(1) }}</td>
+                  <td>{{ rag_badge(r.status.rag_status) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% elif site_bundle.results.alternatives %}
+        <div class="subsection-title">Ranked Alternatives</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Configuration</th><th>IT Load</th>
+                <th>PUE</th><th>Score</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for alt in site_bundle.results.alternatives[:5] %}
+                <tr>
+                  <td><span class="rank-badge {% if alt.rank_within_site == 1 %}rank-1{% elif alt.rank_within_site == 2 %}rank-2{% elif alt.rank_within_site == 3 %}rank-3{% endif %}">{{ alt.rank_within_site }}</span></td>
+                  <td style="font-size:8.5pt;">
+                    {{ alt.scenario.load_type }} · {{ alt.scenario.cooling_type }} ·
+                    {{ alt.scenario.redundancy }}
+                  </td>
+                  <td>{{ alt.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
+                  <td>{{ alt.metrics.pue | default(0) | round(3) }}</td>
+                  <td>{{ alt.metrics.score | default(0) | round(1) }}</td>
+                  <td>{{ rag_badge(alt.status.rag_status) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     </section>
+
   {% elif not selected_scenario.available %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.4</div>
-        <h2 class="section-title">Scenario Results</h2>
-        <div class="section-subtitle">{{ site.name }}</div>
-      </div>
+      {{ chapter_header(loop.index ~ ".4", "Scenario Results", subtitle=site.name, tag="Feasibility") }}
       <div class="empty-state">{{ selected_scenario.message | default("No primary scenario results available.") }}</div>
     </section>
   {% endif %}
 
-  {# ── 5. ADVANCED ANALYSIS (Detailed only) ──────────────── #}
+  {# ────────────── 5. ADVANCED ANALYSIS (detailed only) ─────────── #}
   {% if report.type == "detailed" and deep_dive.available and deep_dive.advanced_blocks %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.5</div>
-        <h2 class="section-title">Advanced Analysis</h2>
-        <div class="section-subtitle">
-          Detailed modelling outputs for {{ site.name }}
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".5",
+          "Advanced Analysis",
+          subtitle="Detailed modelling outputs for " ~ site.name,
+          tag="Deep Dive"
+      ) }}
 
       {% for block in deep_dive.advanced_blocks %}
         <div class="subsection-title">{{ block.title }}</div>
@@ -467,49 +482,27 @@
         {% endif %}
 
         {% for table in block.tables %}
-          <div class="table-wrap mt-sm">
-            <table>
-              <thead>
-                <tr>
-                  {% for column in table.columns %}
-                    <th>{{ column.label }}</th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in table.rows %}
-                  <tr>
-                    {% for column in table.columns %}
-                      <td>{{ row[column.key] }}</td>
-                    {% endfor %}
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+          {{ data_table(table) }}
         {% endfor %}
 
         {% if block.notes %}
-          <ul class="note-list mt-sm">
-            {% for note in block.notes %}
-              <li>{{ note }}</li>
-            {% endfor %}
+          <ul class="note-list mt-xs">
+            {% for note in block.notes %}<li>{{ note }}</li>{% endfor %}
           </ul>
         {% endif %}
       {% endfor %}
     </section>
   {% endif %}
 
-  {# ── 6. LOAD MIX (if available) ───────────────────────── #}
+  {# ────────────── 6. LOAD MIX ───────────────────────────────────── #}
   {% if load_mix.included %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.6</div>
-        <h2 class="section-title">Load Mix Analysis</h2>
-        <div class="section-subtitle">
-          Workload allocation optimiser output for {{ site.name }}
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".6",
+          "Load Mix Analysis",
+          subtitle="Workload allocation optimiser output for " ~ site.name,
+          tag="Load Mix"
+      ) }}
 
       {{ narrative(load_mix.narrative) }}
 
@@ -518,7 +511,6 @@
           <div class="fact-panel-title">Optimiser Inputs</div>
           {{ fact_rows(load_mix.input_items) }}
         </div>
-
         {% if load_mix.has_candidates %}
           <div class="fact-panel">
             <div class="fact-panel-title">Top Candidate</div>
@@ -529,49 +521,11 @@
 
       {% if load_mix.has_candidates %}
         <div class="subsection-title">{{ load_mix.top_candidate_table.title }}</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                {% for column in load_mix.top_candidate_table.columns %}
-                  <th>{{ column.label }}</th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in load_mix.top_candidate_table.rows %}
-                <tr>
-                  {% for column in load_mix.top_candidate_table.columns %}
-                    <td>{{ row[column.key] }}</td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        {{ data_table(load_mix.top_candidate_table) }}
 
         {% if report.type == "detailed" %}
           <div class="subsection-title">{{ load_mix.ranked_candidates_table.title }}</div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  {% for column in load_mix.ranked_candidates_table.columns %}
-                    <th>{{ column.label }}</th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in load_mix.ranked_candidates_table.rows %}
-                  <tr>
-                    {% for column in load_mix.ranked_candidates_table.columns %}
-                      <td>{{ row[column.key] }}</td>
-                    {% endfor %}
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+          {{ data_table(load_mix.ranked_candidates_table) }}
         {% endif %}
       {% else %}
         <div class="empty-state">{{ load_mix.message }}</div>
@@ -579,24 +533,23 @@
     </section>
   {% endif %}
 
-  {# ── 7. GREEN ENERGY (if available) ────────────────────── #}
+  {# ────────────── 7. GREEN ENERGY ───────────────────────────────── #}
   {% if green_energy.included %}
     <section class="page-break">
-      <div class="section-header">
-        <div class="section-number">Section {{ loop.index }}.7</div>
-        <h2 class="section-title">Green Energy Dispatch</h2>
-        <div class="section-subtitle">
-          Renewable energy analysis for {{ site.name }}
-        </div>
-      </div>
+      {{ chapter_header(
+          loop.index ~ ".7",
+          "Green Energy Dispatch",
+          subtitle="Renewable energy analysis for " ~ site.name,
+          tag="Green Energy"
+      ) }}
 
       {{ narrative(green_energy.narrative) }}
 
       <div class="metric-row metric-row-{{ [green_energy.headline_items | length, 5] | min }}">
         {% for item in green_energy.headline_items %}
-          <div class="metric-card">
+          <div class="metric-card {% if loop.first %}featured{% endif %}">
             <div class="metric-label">{{ item.label }}</div>
-            <div class="metric-value">{{ item.value }}</div>
+            <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
           </div>
         {% endfor %}
       </div>
@@ -606,47 +559,28 @@
           <div class="fact-panel-title">Dispatch Configuration</div>
           {{ fact_rows(green_energy.configuration_items) }}
         </div>
-
         <div class="fact-panel">
           <div class="fact-panel-title">Operating Context</div>
           {{ fact_rows(green_energy.context_items) }}
         </div>
       </div>
 
-      {% if report.type == "detailed" %}
-        <div class="fact-panel mt-md" style="max-width: 50%;">
+      {% if report.type == "detailed" and green_energy.provenance_items %}
+        <div class="fact-panel mt-sm" style="max-width:52%;">
           <div class="fact-panel-title">PV Source Provenance</div>
           {{ fact_rows(green_energy.provenance_items) }}
         </div>
       {% endif %}
 
       <div class="subsection-title">{{ green_energy.energy_breakdown_table.title }}</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              {% for column in green_energy.energy_breakdown_table.columns %}
-                <th>{{ column.label }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in green_energy.energy_breakdown_table.rows %}
-              <tr>
-                {% for column in green_energy.energy_breakdown_table.columns %}
-                  <td>{{ row[column.key] }}</td>
-                {% endfor %}
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      {{ data_table(green_energy.energy_breakdown_table) }}
     </section>
   {% endif %}
 
 {% endfor %}
 
-{# ── REPORT FOOTER ──────────────────────────────────────── #}
+{# ── REPORT FOOTER ──────────────────────────────────────────────── #}
 <div class="report-footer">
-  Generated by DC Feasibility Tool v4 on {{ report.generated_on }}
+  <span>Generated by DC Feasibility Tool v4 · {{ report.generated_on }}</span>
+  <span>Confidential — Do not distribute without authorization</span>
 </div>

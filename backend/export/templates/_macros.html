@@ -1,0 +1,74 @@
+{# ================================================================
+   DC Feasibility Tool v4 — Jinja2 Macros
+   Included once by each report template. No duplication.
+   ================================================================ #}
+
+{# ── narrative callout ─────────────────────────────────────────── #}
+{% macro narrative(obj) -%}
+  {% if obj and obj.available %}
+    <div class="callout">
+      {% for p in obj.paragraphs %}<p>{{ p }}</p>{% endfor %}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{# ── RAG status badge ──────────────────────────────────────────── #}
+{% macro rag_badge(status) -%}
+  {% set s = (status or '') | lower %}
+  <span class="rag-badge {% if 'green' in s %}rag-green{% elif 'amber' in s or 'yellow' in s %}rag-amber{% else %}rag-red{% endif %}">{{ status }}</span>
+{%- endmacro %}
+
+{# ── key-value rows inside a fact panel ───────────────────────── #}
+{% macro fact_rows(items) -%}
+  {% for item in items %}
+    <div class="fact-row">
+      <span class="fact-label">{{ item.label }}</span>
+      <span class="fact-value">{{ item.value }}</span>
+    </div>
+  {% endfor %}
+{%- endmacro %}
+
+{# ── chapter section header ───────────────────────────────────── #}
+{% macro chapter_header(number, title, subtitle='', tag='', badges=[]) -%}
+  <div class="chapter-header">
+    <div class="chapter-eyebrow">
+      <span class="chapter-eyebrow-num">{{ number }}</span>
+      {% if tag %}<span class="chapter-eyebrow-tag">{{ tag }}</span>{% endif %}
+      {% for b in badges %}{{ b | safe }}{% endfor %}
+    </div>
+    <h2 class="chapter-title">{{ title }}</h2>
+    {% if subtitle %}<p class="chapter-subtitle">{{ subtitle }}</p>{% endif %}
+    <hr class="chapter-rule" />
+  </div>
+{%- endmacro %}
+
+{# ── generic table from columns+rows dicts ────────────────────── #}
+{% macro data_table(table) -%}
+  {% if table and table.rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>{% for col in table.columns %}<th>{{ col.label }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+            <tr>{% for col in table.columns %}<td>{{ row[col.key] }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">No data available for this table.</div>
+  {% endif %}
+{%- endmacro %}
+
+{# ── scenario pill strip ───────────────────────────────────────── #}
+{% macro scenario_pills(scenario, active=true) -%}
+  <div class="scenario-pills">
+    <span class="scenario-pill {% if active %}active{% endif %}">{{ scenario.load_type }}</span>
+    <span class="scenario-pill {% if active %}active{% endif %}">{{ scenario.cooling_type }}</span>
+    <span class="scenario-pill {% if active %}active{% endif %}">{{ scenario.redundancy }}</span>
+    <span class="scenario-pill {% if active %}active{% endif %}">{{ scenario.density_scenario }}</span>
+    <span class="scenario-pill {% if active %}active{% endif %}">{{ scenario.backup_power }}</span>
+  </div>
+{%- endmacro %}

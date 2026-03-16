@@ -1,0 +1,72 @@
+{# ================================================================
+   DC Feasibility Tool v4 — Cover Page (shared by all report types)
+   ================================================================ #}
+<section class="cover">
+  <div class="cover-accent-bar"></div>
+
+  <div class="cover-body">
+    {% if theme.logo_url %}
+      <div class="cover-logo-wrap">
+        <img class="cover-logo" src="{{ theme.logo_url }}" alt="Logo" />
+      </div>
+    {% endif %}
+
+    <div class="cover-eyebrow">Data Center Feasibility Study</div>
+
+    <h1 class="cover-title">{{ report.title }}</h1>
+
+    <p class="cover-description">
+      {% if report.type == "executive" %}
+        Executive summary of site feasibility analysis — power capacity,
+        climate suitability, and infrastructure readiness for the selected studied sites.
+      {% else %}
+        Comprehensive technical feasibility assessment including site analysis,
+        climate study, grid infrastructure screening, and full scenario modelling results.
+      {% endif %}
+    </p>
+
+    <div class="cover-divider"></div>
+
+    <div class="cover-stats">
+      <div class="cover-stat">
+        <div class="cover-stat-label">Report Date</div>
+        <div class="cover-stat-value" style="font-size:13pt; margin-top:4px;">{{ report.generated_on }}</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Sites Studied</div>
+        <div class="cover-stat-value">{{ summary.site_count }}</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Primary Scenarios</div>
+        <div class="cover-stat-value">{{ summary.primary_result_count }}</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Report Type</div>
+        <div class="cover-stat-value" style="font-size:11pt; margin-top:6px;">
+          {{ "Executive" if report.type == "executive" else "Detailed" }}
+        </div>
+      </div>
+    </div>
+
+    <div class="cover-scope">
+      <div class="cover-scope-title">Study Scope</div>
+      <div class="cover-scope-item">
+        <span class="cover-scope-key">Sites included</span>
+        <span class="cover-scope-val">{{ study_scope.studied_site_names | join(", ") }}</span>
+      </div>
+      {% if study_scope.selected_primary_results %}
+        {% for r in study_scope.selected_primary_results %}
+          <div class="cover-scope-item">
+            <span class="cover-scope-key">{{ r.site_name }}</span>
+            <span class="cover-scope-val">{{ r.label }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span class="cover-footer-text">Generated {{ report.generated_on }} · Confidential</span>
+    <span class="cover-footer-brand">DC Feasibility Tool v4</span>
+  </div>
+</section>

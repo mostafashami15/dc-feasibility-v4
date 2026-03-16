@@ -51,35 +51,28 @@ class ReportConfig(BaseModel):
         default=None,
         description=(
             "Optional request-provided load-mix analyses keyed by site ID. "
-            "Ignored when absent or when the payload does not match the selected "
-            "primary result."
+            "Ignored when absent or when the payload does not match the selected primary result."
         ),
     )
     green_energy_results: Optional[dict[str, dict]] = Field(
         default=None,
         description=(
             "Optional request-provided green-energy analyses keyed by site ID. "
-            "Ignored when absent or when the payload does not match the selected "
-            "primary result."
+            "Ignored when absent or when the payload does not match the selected primary result."
         ),
     )
-    primary_color: str = Field(
-        default="#1a365d",
-        description="Primary brand color (hex). Default: dark blue",
+    include_all_scenarios: bool = Field(
+        default=True,
+        description="Include all scenario results per site for comparison. "
+        "When False, only the selected primary result is included.",
     )
-    secondary_color: str = Field(
-        default="#2b6cb0",
-        description="Secondary brand color (hex)",
-    )
-    logo_url: Optional[str] = Field(
-        default=None,
-        description="URL or path to company logo",
-    )
-    font_family: str = Field(
-        default="Inter, sans-serif",
-        description="Report font family",
-    )
+    primary_color: str = Field(default="#1a365d", description="Primary brand color (hex)")
+    secondary_color: str = Field(default="#2b6cb0", description="Secondary brand color (hex)")
+    logo_url: Optional[str] = Field(default=None, description="URL or path to company logo")
+    font_family: str = Field(default="Inter, sans-serif", description="Report font family")
 
+
+# ── Private helpers ──────────────────────────────────────────────────────────
 
 def _normalize_results(raw_results: Optional[list[dict]]) -> list[ScenarioResult]:
     if not raw_results:
@@ -87,7 +80,7 @@ def _normalize_results(raw_results: Optional[list[dict]]) -> list[ScenarioResult
     return [ScenarioResult(**item) for item in raw_results]
 
 
-def _load_sites(site_ids: list[str]):
+def _load_sites(site_ids: list[str]) -> list[tuple[str, Site]]:
     site_entries = []
     for site_id in site_ids:
         loaded = get_site(site_id)
@@ -98,11 +91,11 @@ def _load_sites(site_ids: list[str]):
 
 
 def _make_filename(report_type: str, extension: str) -> str:
-    safe_report_type = report_type.lower().replace(" ", "-")
-    return f"dc-feasibility-{safe_report_type}-report.{extension}"
+    safe = report_type.lower().replace(" ", "-")
+    return f"dc-feasibility-{safe}-report.{extension}"
 
 
-def _prepare_report_inputs(
+def _prepare_inputs(
     config: ReportConfig,
 ) -> tuple[list[tuple[str, Site]], list[ScenarioResult]]:
     if not config.studied_site_ids:
@@ -110,7 +103,6 @@ def _prepare_report_inputs(
             status_code=400,
             detail="Select at least one studied site before exporting a report.",
         )
-
     scenario_results = _normalize_results(config.scenario_results)
     try:
         validate_report_selection(
@@ -125,12 +117,10 @@ def _prepare_report_inputs(
     return site_entries, scenario_results
 
 
-@router.post("/html", response_class=HTMLResponse)
-async def export_html_endpoint(config: ReportConfig):
-    """Generate an HTML report preview."""
-    site_entries, scenario_results = _prepare_report_inputs(config)
-
-    html = render_report_html(
+def _build_html(config: ReportConfig) -> str:
+    """Shared HTML rendering used by both HTML preview and PDF conversion."""
+    site_entries, scenario_results = _prepare_inputs(config)
+    return render_report_html(
         report_type=config.report_type,
         primary_color=config.primary_color,
         secondary_color=config.secondary_color,
@@ -143,52 +133,50 @@ async def export_html_endpoint(config: ReportConfig):
         primary_result_keys=config.primary_result_keys,
         load_mix_results=config.load_mix_results,
         green_energy_results=config.green_energy_results,
+        include_all_scenarios=config.include_all_scenarios,
     )
-    return HTMLResponse(content=html)
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+@router.post("/html", response_class=HTMLResponse)
+async def export_html_endpoint(config: ReportConfig):
+    """Generate an HTML report preview."""
+    try:
+        return HTMLResponse(content=_build_html(config))
+    except Exception as exc:
+        import traceback
+        raise HTTPException(status_code=500, detail=traceback.format_exc()) from exc
 
 
 @router.post("/pdf")
 async def export_pdf_endpoint(config: ReportConfig):
     """Generate a downloadable PDF report."""
-    site_entries, scenario_results = _prepare_report_inputs(config)
-
-    html = render_report_html(
-        report_type=config.report_type,
-        primary_color=config.primary_color,
-        secondary_color=config.secondary_color,
-        font_family=config.font_family,
-        logo_url=config.logo_url,
-        site_entries=site_entries,
-        scenario_results=scenario_results,
-        layout_mode=config.layout_mode,
-        studied_site_ids=config.studied_site_ids,
-        primary_result_keys=config.primary_result_keys,
-        load_mix_results=config.load_mix_results,
-        green_energy_results=config.green_energy_results,
-    )
+    html = _build_html(config)
     try:
         pdf_bytes = html_to_pdf_bytes(html)
     except OSError as exc:
         raise HTTPException(
             status_code=500,
             detail=(
-                "PDF export requires the Windows GTK/Pango runtime for WeasyPrint. "
+                "PDF export requires the WeasyPrint runtime (GTK/Pango on Windows). "
                 f"Original error: {exc}"
             ),
         ) from exc
-    filename = _make_filename(config.report_type, "pdf")
 
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{_make_filename(config.report_type, "pdf")}"'
+        },
     )
 
 
 @router.post("/excel")
 async def export_excel_endpoint(config: ReportConfig):
     """Generate an Excel workbook with site and scenario summaries."""
-    site_entries, scenario_results = _prepare_report_inputs(config)
+    site_entries, scenario_results = _prepare_inputs(config)
 
     excel_bytes = build_excel_bytes(
         report_type=config.report_type,
@@ -203,15 +191,15 @@ async def export_excel_endpoint(config: ReportConfig):
         primary_result_keys=config.primary_result_keys,
         load_mix_results=config.load_mix_results,
         green_energy_results=config.green_energy_results,
+        include_all_scenarios=config.include_all_scenarios,
     )
-    filename = _make_filename(config.report_type, "xlsx")
 
     return StreamingResponse(
         BytesIO(excel_bytes),
-        media_type=(
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        ),
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_make_filename(config.report_type, "xlsx")}"'
+        },
     )
 
 
@@ -222,14 +210,12 @@ async def terrain_preview_endpoint(site_id: str):
     if loaded is None:
         raise HTTPException(status_code=404, detail=f"Site not found: {site_id}")
     _, site = loaded
-    lat = site.latitude
-    lon = site.longitude
-    if lat is None or lon is None:
+    if site.latitude is None or site.longitude is None:
         raise HTTPException(
             status_code=400,
             detail="Site does not have coordinates for terrain rendering.",
         )
-    png_bytes = generate_terrain_image(lat, lon)
+    png_bytes = generate_terrain_image(site.latitude, site.longitude)
     if png_bytes is None:
         raise HTTPException(
             status_code=503,
