@@ -4,8 +4,8 @@ import {
   ChevronRight,
   Download,
   Eye,
-  FileText,
   Loader2,
+  Printer,
   Settings,
   Sliders,
   Table2,
@@ -301,7 +301,7 @@ export default function Export() {
   // Step 3: Export
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeFormat, setActiveFormat] = useState<"html" | "pdf" | "excel" | null>(null);
+  const [activeFormat, setActiveFormat] = useState<"html" | "print" | "excel" | null>(null);
 
   const studiedSiteOptions = buildStudiedSiteOptions(sites, batchResults);
   const orderedSelectedSiteIds = studiedSiteOptions
@@ -425,21 +425,42 @@ export default function Export() {
     }
   }
 
-  async function handleDownload(format: "pdf" | "excel") {
+  async function handlePrintPdf() {
     if (!canExport) return;
     setError(null);
-    setStatus(`Generating ${format.toUpperCase()}…`);
-    setActiveFormat(format);
+    setStatus("Generating printable report…");
+    setActiveFormat("print");
     try {
-      const blob =
-        format === "pdf"
-          ? await api.exportPdfReport(buildConfig())
-          : await api.exportExcelReport(buildConfig());
-      const ext = format === "pdf" ? "pdf" : "xlsx";
-      downloadBlob(blob, `dc-feasibility-${reportType}-report.${ext}`);
-      setStatus(`${format.toUpperCase()} download started.`);
+      const html = await api.exportHtmlReport(buildConfig());
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, "_blank");
+      if (printWindow) {
+        printWindow.addEventListener("load", () => {
+          printWindow.print();
+        });
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setStatus("Print dialog opened — use 'Save as PDF' to export as PDF.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to export ${format.toUpperCase()}.`);
+      setError(err instanceof Error ? err.message : "Failed to generate printable report.");
+      setStatus(null);
+    } finally {
+      setActiveFormat(null);
+    }
+  }
+
+  async function handleDownloadExcel() {
+    if (!canExport) return;
+    setError(null);
+    setStatus("Generating Excel…");
+    setActiveFormat("excel");
+    try {
+      const blob = await api.exportExcelReport(buildConfig());
+      downloadBlob(blob, `dc-feasibility-${reportType}-report.xlsx`);
+      setStatus("Excel download started.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export Excel.");
       setStatus(null);
     } finally {
       setActiveFormat(null);
@@ -475,7 +496,7 @@ export default function Export() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Reports &amp; Export</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Configure your report, select sites and scenarios, then download in HTML, PDF, or Excel.
+          Configure your report, select sites and scenarios, then preview, print, or download.
         </p>
       </div>
 
@@ -865,23 +886,23 @@ export default function Export() {
               </button>
 
               <button
-                onClick={() => handleDownload("pdf")}
+                onClick={handlePrintPdf}
                 disabled={!canExport || activeFormat !== null}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-sm font-medium text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {activeFormat === "pdf" ? (
+                {activeFormat === "print" ? (
                   <Loader2 size={22} className="animate-spin" />
                 ) : (
-                  <FileText size={22} />
+                  <Printer size={22} />
                 )}
-                <span>Download PDF</span>
+                <span>Print / Save as PDF</span>
                 <span className="text-xs font-normal text-blue-400">
-                  {reportType === "executive" ? "2–3 pages" : "8–15 pages"}
+                  Choose orientation in print dialog
                 </span>
               </button>
 
               <button
-                onClick={() => handleDownload("excel")}
+                onClick={handleDownloadExcel}
                 disabled={!canExport || activeFormat !== null}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 text-sm font-medium text-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >

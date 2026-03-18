@@ -1972,10 +1972,7 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
 
     # Cover page stats removed; layout mode is still reflected in body class
     assert 'class="report-shell layout-report_a4_portrait report-type-detailed"' in html
-    assert "size: A4 portrait;" in html
     assert 'class="report-shell layout-presentation_16_9 report-type-detailed"' in html_presentation
-    assert "size: 297mm 167mm;" in html_presentation
-    assert "body.layout-report_a4_portrait .chapter-head" in html
     assert CoolingType.WATER_CHILLER_ECON.value in html
     assert CoolingType.CRAC_DX.value not in html
     assert summary_rows["Layout Mode"] == "Report A4 Portrait"

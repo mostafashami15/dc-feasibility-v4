@@ -35,17 +35,9 @@
     }
 
     /* ── @page / print ─────────────────────────────────────────────── */
-    {% if report.layout_mode == "presentation_16_9" %}
     @page {
-      size: 297mm 167mm;
-      margin: 12mm 16mm 14mm;
+      margin: 10mm 12mm 14mm;
     }
-    {% else %}
-    @page {
-      size: A4 portrait;
-      margin: 16mm 18mm 20mm;
-    }
-    {% endif %}
 
     @page :first {
       margin: 0;
@@ -54,6 +46,10 @@
     @media print {
       body { background: white; }
       .no-print { display: none !important; }
+      .cover { height: 100vh; }
+      .page-break { page-break-before: always; }
+      .break-inside-avoid { page-break-inside: avoid; }
+      img { max-width: 100% !important; }
     }
 
     /* ── Reset & Base ──────────────────────────────────────────────── */

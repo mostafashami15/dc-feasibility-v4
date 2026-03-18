@@ -621,16 +621,6 @@ export async function exportHtmlReport(config: ReportConfig): Promise<string> {
   }
 }
 
-/** PDF report for explicitly selected studied sites -> POST /api/export/pdf */
-export async function exportPdfReport(config: ReportConfig): Promise<Blob> {
-  try {
-    const { data } = await api.post("/api/export/pdf", config, { responseType: "blob" });
-    return data as Blob;
-  } catch (err) {
-    throw extractApiError(err);
-  }
-}
-
 /** Excel workbook for explicitly selected studied sites -> POST /api/export/excel */
 export async function exportExcelReport(config: ReportConfig): Promise<Blob> {
   try {
