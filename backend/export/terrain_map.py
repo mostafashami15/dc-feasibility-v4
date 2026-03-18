@@ -216,6 +216,34 @@ def _auto_zoom_for_radius(radius_km: float) -> int:
     return 8
 
 
+def _is_within_radius(
+    point_lat: float, point_lon: float,
+    center_lat: float, center_lon: float,
+    radius_km: float, margin: float = 1.3,
+) -> bool:
+    """Check if a point is roughly within radius * margin of center."""
+    import math
+    lat_delta = abs(point_lat - center_lat) * 110.574
+    lon_delta = abs(point_lon - center_lon) * 111.32 * max(
+        math.cos(math.radians(center_lat)), 0.01
+    )
+    dist = math.sqrt(lat_delta**2 + lon_delta**2)
+    return dist <= radius_km * margin
+
+
+def _clip_line_to_radius(
+    points: list[tuple[float, float]],
+    center_lat: float, center_lon: float,
+    radius_km: float, margin: float = 1.5,
+) -> list[tuple[float, float]]:
+    """Keep only the portion of line points within the radius (with margin)."""
+    return [
+        (plon, plat)
+        for plon, plat in points
+        if _is_within_radius(plat, plon, center_lat, center_lon, radius_km, margin)
+    ]
+
+
 def generate_grid_context_image(
     lat: float,
     lon: float,
@@ -225,7 +253,7 @@ def generate_grid_context_image(
     width: int = 800,
     height: int = 500,
 ) -> Optional[bytes]:
-    """Return a PNG map showing the site, radius circle, and ALL grid infrastructure."""
+    """Return a PNG map showing the site, radius circle, and grid infrastructure."""
     if not _HAS_STATICMAP:
         return None
 
@@ -237,13 +265,15 @@ def generate_grid_context_image(
             _auto_zoom_for_radius(radius_km) if radius_km else 12
         )
 
-        # Draw radius circle (dashed border approximated by closely spaced line)
+        # Draw radius circle first — this defines the viewport bounds
         if radius_km and radius_km > 0:
             circle_pts = _radius_circle_points(lat, lon, radius_km)
             circle_line = staticmap.Line(circle_pts, "#1d4ed8", 2)
             m.add_line(circle_line)
 
-        # Draw ALL infrastructure assets
+        effective_radius = radius_km or 10.0
+
+        # Draw infrastructure assets (clipped to radius area)
         for asset in (assets or []):
             coords = asset.get("coordinates") or []
             if not coords:
@@ -262,25 +292,30 @@ def generate_grid_context_image(
             if not valid_points:
                 continue
 
+            # Clip points to within the radius area so they don't shift the viewport
+            clipped = _clip_line_to_radius(
+                valid_points, lat, lon, effective_radius
+            )
+
             geom_type = asset.get("geometry_type", "")
 
-            if geom_type == "polygon" and len(valid_points) >= 3:
-                # Close the polygon and draw as a line outline
-                closed = valid_points + [valid_points[0]]
-                m.add_line(staticmap.Line(closed, color, 2))
-            elif (geom_type == "line" or len(valid_points) > 1) and len(valid_points) >= 2:
-                line_width = 4 if asset_type == "line" else 2
-                m.add_line(staticmap.Line(valid_points, color, line_width))
+            if clipped and len(clipped) >= 2:
+                if geom_type == "polygon" and len(clipped) >= 3:
+                    closed = clipped + [clipped[0]]
+                    m.add_line(staticmap.Line(closed, color, 2))
+                else:
+                    line_width = 4 if asset_type == "line" else 2
+                    m.add_line(staticmap.Line(clipped, color, line_width))
 
-            # Always add point markers for substations, or for point assets
+            # Add point markers for substations/point assets within radius
             if asset_type == "substation" or geom_type == "point":
                 lon_a, lat_a = valid_points[0]
-                marker_size = 12 if asset_type == "substation" else 7
-                m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, marker_size))
-                if asset_type == "substation":
-                    # White inner ring for substations (like frontend)
-                    m.add_marker(staticmap.CircleMarker((lon_a, lat_a), "white", 6))
-                    m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, 4))
+                if _is_within_radius(lat_a, lon_a, lat, lon, effective_radius):
+                    marker_size = 12 if asset_type == "substation" else 7
+                    m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, marker_size))
+                    if asset_type == "substation":
+                        m.add_marker(staticmap.CircleMarker((lon_a, lat_a), "white", 6))
+                        m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, 4))
 
         # Site marker on top (prominent)
         m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 16))
