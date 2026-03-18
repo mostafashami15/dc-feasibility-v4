@@ -36,6 +36,8 @@ from export.report._utils import (
     _table,
 )
 from export.visual_assets import (
+    build_daily_profile_chart,
+    build_firm_capacity_chart,
     build_it_capacity_spectrum_chart,
     build_power_chain_waterfall,
     build_pue_breakdown_chart,
@@ -97,7 +99,7 @@ def _build_pue_decomposition_block(
     component_rows = [
         {
             "component": item["label"],
-            "energy_kwh": _display_number(item["energy_kwh"], digits=0, suffix="kWh"),
+            "energy_mwh": _display_number(item["energy_kwh"] / 1000, digits=1, suffix="MWh"),
             "share_of_overhead": _display_percent(
                 item["energy_kwh"] / total_overhead if total_overhead > 0 else 0.0,
                 digits=1,
@@ -129,19 +131,19 @@ def _build_pue_decomposition_block(
         "PUE Decomposition",
         summary_items=[
             _fact("Annual PUE", _display_number(sim.annual_pue, digits=3)),
-            _fact("Total overhead", _display_number(total_overhead, digits=0, suffix="kWh")),
+            _fact("Total overhead", _display_number(total_overhead / 1000, digits=1, suffix="MWh")),
             _fact(
                 "Facility energy",
-                _display_number(sim.total_facility_kwh, digits=0, suffix="kWh"),
+                _display_number(sim.total_facility_kwh / 1000, digits=1, suffix="MWh"),
             ),
-            _fact("IT energy", _display_number(sim.total_it_kwh, digits=0, suffix="kWh")),
+            _fact("IT energy", _display_number(sim.total_it_kwh / 1000, digits=1, suffix="MWh")),
         ],
         tables=[
             _table(
                 "Annual overhead components",
                 [
                     ("component", "Component"),
-                    ("energy_kwh", "Energy"),
+                    ("energy_mwh", "Energy"),
                     ("share_of_overhead", "Share of overhead"),
                 ],
                 component_rows,
@@ -1093,6 +1095,55 @@ def _build_selected_scenario_chapter(primary_result: dict[str, Any] | None) -> d
     }
 
 
+def _build_daily_profile_chart_visual(
+    *,
+    site: Site | None,
+    primary_scenario_result: ScenarioResult | None,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Build daily profile chart from hourly analysis."""
+    _empty = {"available": False, "title": "Daily Operating Profiles", "message": "No hourly data.", "svg_markup": None}
+    if site is None or primary_scenario_result is None:
+        return _empty
+    hourly_analysis = _load_hourly_analysis(primary_scenario_result.site_id, site, primary_scenario_result)
+    if hourly_analysis is None:
+        return _empty
+    return build_daily_profile_chart(
+        hourly_analysis["daily_profiles"],
+        primary_color=primary_color,
+        secondary_color=secondary_color,
+    )
+
+
+def _build_firm_capacity_chart_visual(
+    *,
+    site: Site | None,
+    primary_scenario_result: ScenarioResult | None,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Build firm capacity spectrum chart from hourly analysis."""
+    _empty = {"available": False, "title": "Firm Capacity", "message": "No hourly data.", "svg_markup": None}
+    if site is None or primary_scenario_result is None:
+        return _empty
+    hourly_analysis = _load_hourly_analysis(primary_scenario_result.site_id, site, primary_scenario_result)
+    if hourly_analysis is None:
+        return _empty
+    sim = hourly_analysis["sim"]
+    advisory_data = {
+        "firm_capacity_mw": round(sim.it_capacity_p99_kw / 1000, 3) if sim.it_capacity_p99_kw else 0,
+        "mean_capacity_mw": round(sim.annual_mean_it_kw / 1000, 3) if hasattr(sim, "annual_mean_it_kw") and sim.annual_mean_it_kw else round(sum(sim.hourly_it_kw) / len(sim.hourly_it_kw) / 1000, 3) if sim.hourly_it_kw else 0,
+        "worst_capacity_mw": round(sim.it_capacity_worst_kw / 1000, 3) if sim.it_capacity_worst_kw else 0,
+        "best_capacity_mw": round(sim.it_capacity_best_kw / 1000, 3) if sim.it_capacity_best_kw else 0,
+    }
+    return build_firm_capacity_chart(
+        advisory_data,
+        primary_color=primary_color,
+        secondary_color=secondary_color,
+    )
+
+
 def _build_deep_dive_chapter(
     primary_result: dict[str, Any] | None,
     site_data: dict[str, Any],
@@ -1309,6 +1360,18 @@ def _build_deep_dive_chapter(
         ),
         "power_chain_chart_visual": build_power_chain_waterfall(
             power,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "daily_profile_chart_visual": _build_daily_profile_chart_visual(
+            site=site,
+            primary_scenario_result=primary_scenario_result,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "firm_capacity_chart_visual": _build_firm_capacity_chart_visual(
+            site=site,
+            primary_scenario_result=primary_scenario_result,
             primary_color=primary_color,
             secondary_color=secondary_color,
         ),

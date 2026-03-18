@@ -1285,3 +1285,186 @@ def build_scenario_comparison_chart(
             body=body,
         ),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DAILY OPERATING PROFILE CHART
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def build_daily_profile_chart(
+    daily_profiles: dict[str, Any],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Line chart showing daily IT load and PUE ranges across the year."""
+    days = daily_profiles.get("days") or []
+    if not days or len(days) < 2:
+        return {"available": False, "title": "Daily Operating Profiles", "message": "Insufficient data.", "svg_markup": None}
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+
+    w, h = CHART_WIDTH, CHART_HEIGHT + 20
+    plot_left = 70
+    plot_right = w - 50
+    plot_top = _PAD_TOP + 5
+    plot_bottom = h - 40
+    plot_w = plot_right - plot_left
+    plot_h = plot_bottom - plot_top
+
+    # Extract data
+    it_mins = [d["it_min_mw"] for d in days]
+    it_maxs = [d["it_max_mw"] for d in days]
+    it_avgs = [d["it_avg_mw"] for d in days]
+    pue_avgs = [d["pue_avg"] for d in days]
+    n = len(days)
+
+    # Y-axis scales
+    it_max_val = max(it_maxs) * 1.1 if max(it_maxs) > 0 else 1.0
+    it_min_val = min(it_mins) * 0.95 if min(it_mins) > 0 else 0.0
+    pue_max_val = max(d["pue_max"] for d in days) * 1.02
+    pue_min_val = min(d["pue_min"] for d in days) * 0.98
+
+    def x_pos(i: int) -> float:
+        return plot_left + (i / max(n - 1, 1)) * plot_w
+
+    def y_it(val: float) -> float:
+        if it_max_val == it_min_val:
+            return plot_top + plot_h / 2
+        return plot_bottom - ((val - it_min_val) / (it_max_val - it_min_val)) * plot_h
+
+    # Build IT range band (filled area between min and max)
+    band_top = " ".join(f"{x_pos(i):.1f},{y_it(it_maxs[i]):.1f}" for i in range(n))
+    band_bottom = " ".join(f"{x_pos(i):.1f},{y_it(it_mins[i]):.1f}" for i in range(n - 1, -1, -1))
+    band = f'<polygon points="{band_top} {band_bottom}" fill="{primary}" opacity="0.15" />'
+
+    # IT average line
+    avg_points = " ".join(f"{x_pos(i):.1f},{y_it(it_avgs[i]):.1f}" for i in range(n))
+    avg_line = f'<polyline points="{avg_points}" fill="none" stroke="{primary}" stroke-width="2" />'
+
+    # Y-axis ticks for IT
+    tick_parts: list[str] = []
+    for i in range(5):
+        frac = i / 4
+        val = it_min_val + (it_max_val - it_min_val) * frac
+        y = plot_bottom - frac * plot_h
+        tick_parts.append(
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#f3f4f6" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'font-size="8" text-anchor="end">{val:.1f}</text>'
+        )
+
+    # X-axis month labels
+    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    x_labels: list[str] = []
+    for m in range(12):
+        day_idx = int(m * 30.4)
+        if day_idx < n:
+            x_labels.append(
+                f'<text x="{x_pos(day_idx):.1f}" y="{plot_bottom + 14:.1f}" fill="#9ca3af" '
+                f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="middle">{month_labels[m]}</text>'
+            )
+
+    # Y-axis label
+    y_label = (
+        f'<text x="14" y="{(plot_top + plot_bottom) / 2:.1f}" fill="#6b7280" '
+        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle" '
+        f'transform="rotate(-90 14 {(plot_top + plot_bottom) / 2:.1f})">IT Load (MW)</text>'
+    )
+
+    body = "".join(tick_parts) + band + avg_line + "".join(x_labels) + y_label
+    return {
+        "available": True,
+        "title": "Daily Operating Profiles",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w, height=h,
+            title="Daily IT Load Profile",
+            subtitle="Range (band) and average (line) of IT capacity across the year.",
+            body=body,
+        ),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FIRM CAPACITY CHART
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def build_firm_capacity_chart(
+    advisory: dict[str, Any],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Bar chart showing firm capacity gap and mitigation strategies."""
+    strategies = advisory.get("strategies") or []
+    firm_mw = advisory.get("firm_capacity_mw", 0)
+    mean_mw = advisory.get("mean_capacity_mw", 0)
+    worst_mw = advisory.get("worst_capacity_mw", 0)
+    best_mw = advisory.get("best_capacity_mw", 0)
+
+    if firm_mw <= 0 and mean_mw <= 0:
+        return {"available": False, "title": "Firm Capacity", "message": "No data.", "svg_markup": None}
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+    palette = [primary, "#16a34a", "#ea580c", "#8b5cf6"]
+
+    # Capacity spectrum bars
+    items = [
+        ("Worst", worst_mw, "#ef4444"),
+        ("P99 (Firm)", firm_mw, primary),
+        ("Mean", mean_mw, secondary),
+        ("Best", best_mw, "#16a34a"),
+    ]
+    items = [(label, val, color) for label, val, color in items if val and val > 0]
+
+    w, h = CHART_WIDTH, CHART_HEIGHT
+    plot_left = 100
+    plot_right = w - _PAD_OUTER
+    plot_top = _PAD_TOP + 5
+    plot_bottom = h - 45
+    plot_w = plot_right - plot_left
+    plot_h = plot_bottom - plot_top
+    upper = max(val for _, val, _ in items) * 1.15 if items else 1.0
+    n = len(items)
+    bar_group_w = plot_w / max(n, 1)
+    bar_w = min(bar_group_w * 0.55, 60)
+
+    tick_parts: list[str] = []
+    for i in range(5):
+        val = upper * i / 4
+        y = plot_bottom - (val / upper) * plot_h
+        tick_parts.append(
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#f3f4f6" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'font-size="8" text-anchor="end">{val:.1f} MW</text>'
+        )
+
+    bar_parts: list[str] = []
+    for idx, (label, val, color) in enumerate(items):
+        cx = plot_left + bar_group_w * idx + bar_group_w / 2
+        bx = cx - bar_w / 2
+        bar_h_px = (val / upper) * plot_h
+        by = plot_bottom - bar_h_px
+        bar_parts.append(
+            f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bar_h_px:.1f}" rx="3" fill="{color}" opacity="0.85" />'
+            f'<text x="{cx:.1f}" y="{by - 6:.1f}" fill="{color}" font-family="system-ui,sans-serif" '
+            f'font-size="9" font-weight="700" text-anchor="middle">{val:.2f} MW</text>'
+            f'<text x="{cx:.1f}" y="{plot_bottom + 14:.1f}" fill="#374151" font-family="system-ui,sans-serif" '
+            f'font-size="8" text-anchor="middle">{escape(label)}</text>'
+        )
+
+    body = "".join(tick_parts) + "".join(bar_parts)
+    return {
+        "available": True,
+        "title": "Firm Capacity Spectrum",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w, height=h,
+            title="IT Capacity Spectrum",
+            subtitle=f"Firm (P99): {firm_mw:.2f} MW — Gap to mean: {max(0, mean_mw - firm_mw):.2f} MW",
+            body=body,
+        ),
+    }

@@ -74,8 +74,16 @@ def _build_site_specifics_chapter(
                 _display_percent(land["site_coverage_ratio"], digits=0),
             ),
             _fact(
-                "Buildable area",
-                _display_number(land["buildable_area_m2"], digits=0, suffix="m2"),
+                "Buildable footprint",
+                _display_number(
+                    land["buildable_area_m2"]
+                    if land["buildable_area_m2"] is not None
+                    else (land["land_area_m2"] * land["site_coverage_ratio"]
+                          if land["land_area_m2"] and land["site_coverage_ratio"]
+                          else None),
+                    digits=0,
+                    suffix="m2",
+                ),
             ),
             _fact(
                 "Maximum building height",

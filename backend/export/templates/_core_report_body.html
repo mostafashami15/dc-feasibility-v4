@@ -130,8 +130,6 @@
       </div>
     {% endif %}
 
-    {{ narrative(site_specifics.narrative) }}
-
     {# Site specification table - all properties #}
     <div class="subsection-title">Site Properties</div>
     <div class="fact-grid">
@@ -177,8 +175,6 @@
           badges=["<span class='badge'>" ~ grid_context.asset_count ~ " asset(s) mapped</span>"]
       ) }}
 
-      {{ narrative(grid_context.narrative) }}
-
       {# Grid context map #}
       {% if grid_context.grid_context_map %}
         <div class="subsection-title">Grid Context Map</div>
@@ -200,25 +196,7 @@
           <div class="fact-panel-title">Network Overview</div>
           {{ fact_rows(grid_context.summary_items) }}
         </div>
-        {% if grid_context.score_items %}
-          <div class="fact-panel">
-            <div class="fact-panel-title">Heuristic Score</div>
-            {{ fact_rows(grid_context.score_items) }}
-            {% if grid_context.score_notes %}
-              <ul class="note-list mt-xs">
-                {% for note in grid_context.score_notes %}<li>{{ note }}</li>{% endfor %}
-              </ul>
-            {% endif %}
-          </div>
-        {% endif %}
       </div>
-
-      {% if grid_context.official_items %}
-        <div class="subsection-title">Official Evidence</div>
-        <div class="fact-panel" style="max-width:55%;">
-          {{ fact_rows(grid_context.official_items) }}
-        </div>
-      {% endif %}
 
       {% if grid_context.asset_rows %}
         <div class="subsection-title">Mapped Infrastructure Assets</div>
@@ -251,12 +229,6 @@
         {% endif %}
       {% endif %}
 
-      {% if grid_context.evidence_notes %}
-        <div class="subsection-title">Evidence Notes</div>
-        <ul class="note-list">
-          {% for note in grid_context.evidence_notes %}<li>{{ note }}</li>{% endfor %}
-        </ul>
-      {% endif %}
     </section>
   {% endif %}
 
@@ -272,8 +244,6 @@
           subtitle="Climate suitability assessment for " ~ site.name,
           tag="Climate"
       ) }}
-
-      {{ narrative(climate.narrative) }}
 
       {# Weather summary #}
       <div class="fact-grid">
@@ -297,24 +267,11 @@
         {% endif %}
         {% if climate.cooling_suitability_chart_visual.available %}
           <div class="chart-container">
-            <div class="chart-title">Cooling Topology Suitability</div>
+            <div class="chart-title">Free Cooling Hours by Topology</div>
             {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
           </div>
         {% endif %}
       </div>
-      {% if climate.free_cooling_chart_visual.available %}
-        <div class="chart-container">
-          <div class="chart-title">Free Cooling Hours by Topology</div>
-          {{ climate.free_cooling_chart_visual.svg_markup | safe }}
-        </div>
-      {% endif %}
-
-      {% if climate.best_free_cooling_summary %}
-        <div class="fact-panel mt-sm" style="max-width:50%;">
-          <div class="fact-panel-title">Best Free-Cooling Result</div>
-          {{ fact_rows(climate.best_free_cooling_summary) }}
-        </div>
-      {% endif %}
 
       {# Free cooling analysis table #}
       {% if climate.free_cooling_rows %}
@@ -395,9 +352,6 @@
           badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
       ) }}
 
-      {{ narrative(selected_scenario.narrative) }}
-      {{ narrative(deep_dive.narrative) }}
-
       {# Scenario config pills #}
       {% if selected_scenario.available %}
         {{ scenario_pills(site_bundle.results.primary.scenario) }}
@@ -436,6 +390,22 @@
           {{ deep_dive.power_chain_chart_visual.svg_markup | safe }}
         </div>
       {% endif %}
+
+      {# Daily operating profiles and firm capacity #}
+      <div class="chart-pair">
+        {% if deep_dive.daily_profile_chart_visual is defined and deep_dive.daily_profile_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">Daily IT Load Profile</div>
+            {{ deep_dive.daily_profile_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+        {% if deep_dive.firm_capacity_chart_visual is defined and deep_dive.firm_capacity_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">Firm Capacity Spectrum</div>
+            {{ deep_dive.firm_capacity_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+      </div>
 
       <div class="fact-grid">
         <div class="fact-panel">

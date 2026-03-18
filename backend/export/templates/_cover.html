@@ -71,15 +71,6 @@
     </div>
   </div>
 
-  {% if report.narrative and report.narrative.available %}
-    <div class="callout" style="margin: 0 52px 20px;">
-      {% for p in report.narrative.paragraphs %}<p>{{ p }}</p>{% endfor %}
-      {% if report.narrative.basis_labels %}
-        <p style="font-size:8pt;color:var(--text-light);margin-top:6px;">Structured basis: {{ report.narrative.basis_labels | join(', ') }}.</p>
-      {% endif %}
-    </div>
-  {% endif %}
-
   <div class="cover-footer">
     <span class="cover-footer-text">Generated {{ report.generated_on }} · Confidential</span>
     <span class="cover-footer-brand">DC Feasibility Tool v4</span>
