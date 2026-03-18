@@ -1,11 +1,49 @@
 {% extends "base.html" %}
-{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills %}
 
 {% block content %}
 {# ── COVER ─────────────────────────────────────────────────────── #}
 {% include "_cover.html" %}
 
-{# ── PER-SITE EXECUTIVE SUMMARY ───────────────────────────────── #}
+{# ── TABLE OF CONTENTS ─────────────────────────────────────────── #}
+<section class="page-break toc-page">
+  <div class="toc-title">Table of Contents</div>
+  {% for site_bundle in report_bundle.studied_sites %}
+    {% set site = site_bundle.site_data %}
+    {% set ch   = site_bundle.chapters %}
+    <div class="toc-site-group">
+      <div class="toc-site-name">{{ site.name }}</div>
+      <div class="toc-entry">
+        <span class="toc-entry-num">{{ loop.index }}.1</span>
+        <span class="toc-entry-label">Site Specifications</span>
+        <span class="toc-entry-dots"></span>
+      </div>
+      {% if ch.grid_context.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.2</span>
+          <span class="toc-entry-label">Grid Infrastructure</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if ch.climate.included %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.3</span>
+          <span class="toc-entry-label">Weather &amp; Climate</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if ch.selected_scenario.available %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.4</span>
+          <span class="toc-entry-label">Scenario Results</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>
+
+{# ── PER-SITE SECTIONS ─────────────────────────────────────────── #}
 {% for site_bundle in report_bundle.studied_sites %}
   {% set site           = site_bundle.site_data %}
   {% set ch             = site_bundle.chapters %}
@@ -15,20 +53,43 @@
   {% set selected_scenario = ch.selected_scenario %}
   {% set deep_dive      = ch.deep_dive %}
 
+  {# ── SITE SPECIFICATIONS ─────────────────────────────────────── #}
   <section class="page-break">
     {{ chapter_header(
-        "Site " ~ loop.index,
-        site.name,
-        subtitle=(site.location.city or '') ~ (', ' if site.location.city and site.location.country else '') ~ (site.location.country or ''),
-        tag=site.site_type,
+        loop.index ~ ".1",
+        "Site Specifications",
+        subtitle=(site.location.city or '') ~ (', ' if site.location.city and site.location.country else '') ~ (site.location.country or '') ~ ' — ' ~ site.name,
+        tag="Site Profile",
         badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.available and deep_dive.status_items else ""]
     ) }}
 
-    {# Site map (compact) #}
-    {% if site_specifics.location_map %}
-      <div class="map-container" style="max-height:180px; overflow:hidden;">
-        <img src="{{ site_specifics.location_map }}" alt="Site location"
-             style="width:100%; object-fit:cover; max-height:180px;" />
+    {# Three maps side by side #}
+    {% if site_specifics.country_overview or site_specifics.location_map or site_specifics.terrain_image %}
+      <div class="map-strip">
+        {% if site_specifics.country_overview %}
+          <div class="map-container">
+            <img src="{{ site_specifics.country_overview }}" alt="Country overview" />
+            <div class="map-caption">Country Overview</div>
+          </div>
+        {% else %}
+          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Overview</div>
+        {% endif %}
+        {% if site_specifics.location_map %}
+          <div class="map-container">
+            <img src="{{ site_specifics.location_map }}" alt="Site area" />
+            <div class="map-caption">Site Area</div>
+          </div>
+        {% else %}
+          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Street map</div>
+        {% endif %}
+        {% if site_specifics.terrain_image %}
+          <div class="map-container">
+            <img src="{{ site_specifics.terrain_image }}" alt="Terrain" />
+            <div class="map-caption">Terrain</div>
+          </div>
+        {% else %}
+          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Terrain</div>
+        {% endif %}
       </div>
     {% endif %}
 
@@ -47,18 +108,7 @@
     <div class="fact-grid mt-sm">
       <div class="fact-panel">
         <div class="fact-panel-title">Site Essentials</div>
-        <div class="fact-row">
-          <span class="fact-label">Available Power</span>
-          <span class="fact-value">{{ site_specifics.power_items[0].value if site_specifics.power_items else "N/A" }}</span>
-        </div>
-        <div class="fact-row">
-          <span class="fact-label">Land Area</span>
-          <span class="fact-value">{{ site_specifics.property_items[0].value if site_specifics.property_items else "N/A" }}</span>
-        </div>
-        <div class="fact-row">
-          <span class="fact-label">Coordinates</span>
-          <span class="fact-value">{{ site_specifics.location_items[2].value if site_specifics.location_items | length > 2 else "N/A" }}</span>
-        </div>
+        {{ fact_rows(site_specifics.power_items[:2] + site_specifics.property_items[:2]) }}
         {% if selected_scenario.available %}
           <div class="fact-row">
             <span class="fact-label">Primary Scenario</span>
@@ -66,7 +116,6 @@
           </div>
         {% endif %}
       </div>
-
       {% if deep_dive.available %}
         <div class="fact-panel">
           <div class="fact-panel-title">Feasibility Assessment</div>
@@ -79,42 +128,182 @@
         </div>
       {% endif %}
     </div>
-
-    {# Grid + Climate summary row #}
-    <div class="fact-grid mt-sm">
-      {% if grid_context.included and grid_context.score_items %}
-        <div class="fact-panel">
-          <div class="fact-panel-title">Grid Infrastructure</div>
-          {{ fact_rows(grid_context.score_items[:3]) }}
-          {% if grid_context.summary_items %}
-            {{ fact_rows(grid_context.summary_items[:3]) }}
-          {% endif %}
-        </div>
-      {% endif %}
-
-      {% if climate.included %}
-        <div class="fact-panel">
-          <div class="fact-panel-title">Climate Suitability</div>
-          {{ fact_rows(climate.temperature_items[:3]) }}
-          {% if climate.best_free_cooling_summary %}
-            {{ fact_rows(climate.best_free_cooling_summary[:2]) }}
-          {% endif %}
-        </div>
-      {% endif %}
-    </div>
-
-    {# Narrative summary #}
-    {% if deep_dive.narrative and deep_dive.narrative.available %}
-      <div class="callout mt-sm">
-        {% for p in deep_dive.narrative.paragraphs %}<p>{{ p }}</p>{% endfor %}
-      </div>
-    {% endif %}
   </section>
+
+  {# ── GRID INFRASTRUCTURE (compact) ─────────────────────────── #}
+  {% if grid_context.included %}
+    <section class="page-break">
+      {{ chapter_header(
+          loop.index ~ ".2",
+          "Grid Infrastructure",
+          subtitle="Power access screening for " ~ site.name,
+          tag="Grid Context"
+      ) }}
+
+      {{ narrative(grid_context.narrative) }}
+
+      {% if grid_context.grid_context_map %}
+        <div class="map-container" style="max-height:220px; overflow:hidden;">
+          <img src="{{ grid_context.grid_context_map }}" alt="Grid context map"
+               style="width:100%; object-fit:cover; max-height:220px;" />
+        </div>
+      {% endif %}
+
+      <div class="fact-grid">
+        {% if grid_context.score_items %}
+          <div class="fact-panel">
+            <div class="fact-panel-title">Grid Score</div>
+            {{ fact_rows(grid_context.score_items[:3]) }}
+          </div>
+        {% endif %}
+        <div class="fact-panel">
+          <div class="fact-panel-title">Network Summary</div>
+          {{ fact_rows(grid_context.summary_items[:5]) }}
+        </div>
+      </div>
+
+      {% if grid_context.asset_rows %}
+        <div class="subsection-title">Key Infrastructure Assets</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Type</th><th>Name</th><th>Voltage</th><th>Distance</th></tr>
+            </thead>
+            <tbody>
+              {% for asset in grid_context.asset_rows[:4] %}
+                <tr>
+                  <td>{{ asset.asset_type }}</td><td>{{ asset.name }}</td>
+                  <td>{{ asset.voltage }}</td><td>{{ asset.distance }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {# ── WEATHER & CLIMATE (compact) ────────────────────────────── #}
+  {% if climate.included %}
+    <section class="page-break">
+      {{ chapter_header(
+          loop.index ~ ".3",
+          "Weather &amp; Climate",
+          subtitle="Climate suitability for " ~ site.name,
+          tag="Climate"
+      ) }}
+
+      {{ narrative(climate.narrative) }}
+
+      <div class="fact-grid">
+        <div class="fact-panel">
+          <div class="fact-panel-title">Temperature Summary</div>
+          {{ fact_rows(climate.temperature_items[:4]) }}
+        </div>
+        {% if climate.best_free_cooling_summary %}
+          <div class="fact-panel">
+            <div class="fact-panel-title">Best Free Cooling</div>
+            {{ fact_rows(climate.best_free_cooling_summary) }}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="chart-pair">
+        {% if climate.monthly_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">Monthly Temperature</div>
+            {{ climate.monthly_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+        {% if climate.cooling_suitability_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">Cooling Suitability</div>
+            {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
+          </div>
+        {% elif climate.free_cooling_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">Free Cooling Hours</div>
+            {{ climate.free_cooling_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  {# ── SCENARIO RESULTS ─────────────────────────────────────────── #}
+  {% if selected_scenario.available and deep_dive.available %}
+    <section class="page-break">
+      {{ chapter_header(
+          loop.index ~ ".4",
+          "Scenario Results",
+          subtitle=selected_scenario.label ~ " — " ~ site.name,
+          tag="Feasibility",
+          badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
+      ) }}
+
+      {% if selected_scenario.available %}
+        {{ scenario_pills(site_bundle.results.primary.scenario) }}
+      {% endif %}
+
+      {# Charts #}
+      <div class="chart-pair">
+        {% if deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">IT Capacity Spectrum</div>
+            {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
+          <div class="chart-container">
+            <div class="chart-title">PUE Breakdown</div>
+            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="fact-grid">
+        <div class="fact-panel">
+          <div class="fact-panel-title">IT Capacity</div>
+          {{ fact_rows(deep_dive.capacity_items[:5]) }}
+        </div>
+        <div class="fact-panel">
+          <div class="fact-panel-title">Power Chain</div>
+          {{ fact_rows(deep_dive.power_items[:5]) }}
+        </div>
+      </div>
+
+      {# Scenario comparison #}
+      {% if report.include_all_scenarios and site_bundle.results.all_ranked | length > 1 %}
+        <div class="subsection-title">Scenario Comparison</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Configuration</th><th>IT Load</th><th>PUE</th><th>Score</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {% for r in site_bundle.results.all_ranked %}
+                <tr {% if r.is_primary %}style="background:#eff6ff;font-weight:600;"{% endif %}>
+                  <td><span class="rank-badge {% if r.rank_within_site == 1 %}rank-1{% elif r.rank_within_site == 2 %}rank-2{% elif r.rank_within_site == 3 %}rank-3{% endif %}">{{ r.rank_within_site }}</span></td>
+                  <td style="font-size:8.5pt;">{{ r.scenario.load_type }} / {{ r.scenario.cooling_type }} / {{ r.scenario.redundancy }}{% if r.is_primary %} <span style="font-size:7.5pt;color:#2563eb;">(primary)</span>{% endif %}</td>
+                  <td>{{ r.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
+                  <td>{{ r.metrics.pue | default(0) | round(3) }}</td>
+                  <td>{{ r.metrics.score | default(0) | round(1) }}</td>
+                  <td>{{ rag_badge(r.status.rag_status) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      {{ narrative(deep_dive.narrative) }}
+    </section>
+  {% endif %}
 {% endfor %}
 
 {# ── FOOTER ────────────────────────────────────────────────────── #}
 <div class="report-footer">
-  <span>Generated by DC Feasibility Tool v4 · {{ report.generated_on }}</span>
+  <span>Generated by DC Feasibility Tool v4 &middot; {{ report.generated_on }}</span>
   <span>Executive Summary</span>
 </div>
 {% endblock %}

@@ -35,6 +35,11 @@ from export.report._utils import (
     _fact,
     _table,
 )
+from export.visual_assets import (
+    build_it_capacity_spectrum_chart,
+    build_power_chain_waterfall,
+    build_pue_breakdown_chart,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1094,6 +1099,8 @@ def _build_deep_dive_chapter(
     *,
     site: Site | None = None,
     primary_scenario_result: ScenarioResult | None = None,
+    primary_color: str = "#1a365d",
+    secondary_color: str = "#2b6cb0",
 ) -> dict[str, Any]:
     if primary_result is None:
         return {
@@ -1289,6 +1296,22 @@ def _build_deep_dive_chapter(
                 _display_bool(feature_flags["has_assumption_overrides"]),
             ),
         ],
+        "it_capacity_chart_visual": build_it_capacity_spectrum_chart(
+            metrics,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "pue_breakdown_chart_visual": build_pue_breakdown_chart(
+            metrics.get("pue"),
+            power,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "power_chain_chart_visual": build_power_chain_waterfall(
+            power,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
         "advanced_blocks": advanced_blocks,
         "advanced_block_count": len(advanced_blocks),
         "narrative": _build_deep_dive_narrative(

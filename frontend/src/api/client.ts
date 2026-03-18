@@ -50,6 +50,7 @@ import type {
   PUEBreakdownResult,
   FootprintResult,
   FirmCapacityResult,
+  FirmCapacityAdvisoryResult,
   GreenDispatchResult,
   ScenarioGreenDispatchResult,
   LoadMixResult,
@@ -454,6 +455,19 @@ export async function computeFirmCapacity(request: {
 }): Promise<FirmCapacityResult> {
   const { data } = await api.post<FirmCapacityResult>(
     "/api/green/firm-capacity",
+    request
+  );
+  return data;
+}
+
+
+/** Auto-computed firm capacity advisory → POST /api/scenarios/firm-capacity-advisory */
+export async function computeFirmCapacityAdvisory(request: {
+  site_id: string;
+  scenario: RunSingleRequest["scenario"];
+}): Promise<FirmCapacityAdvisoryResult> {
+  const { data } = await api.post<FirmCapacityAdvisoryResult>(
+    "/api/scenarios/firm-capacity-advisory",
     request
   );
   return data;

@@ -715,7 +715,7 @@ def test_build_report_bundle_matches_export_shape_fixture(
         expected["green_energy"]
     )
     assert bundle["summary"]["primary_result_count"] == 1
-    assert bundle["summary"]["scenario_count"] == 1
+    assert bundle["summary"]["scenario_count"] == expected["full_matrix_rows"]
     assert bundle["summary"]["available_scenario_count"] == expected["full_matrix_rows"]
 
 
@@ -726,37 +726,37 @@ def test_build_report_bundle_matches_export_shape_fixture(
             "site_only_export_case",
             set(),
             {
-                "Grid Context / Power Access Context",
-                "Climate Study",
-                "Load Mix Scenario",
-                "Green Energy",
+                "Grid Infrastructure",
+                "Weather &amp; Climate",
+                "Load Mix Analysis",
+                "Green Energy Dispatch",
             },
         ),
         (
             "site_plus_grid_export_case",
-            {"Grid Context / Power Access Context", "Grid Context Map"},
+            {"Grid Infrastructure", "Grid Context Map"},
             {
-                "Climate Study",
-                "Load Mix Scenario",
-                "Green Energy",
+                "Weather &amp; Climate",
+                "Load Mix Analysis",
+                "Green Energy Dispatch",
             },
         ),
         (
             "site_plus_climate_export_case",
-            {"Climate Study", "Monthly Temperature Chart", "Free Cooling Chart"},
+            {"Weather &amp; Climate", "Monthly Temperature Profile", "Free Cooling Hours by Topology"},
             {
-                "Grid Context / Power Access Context",
-                "Load Mix Scenario",
-                "Green Energy",
+                "Grid Infrastructure",
+                "Load Mix Analysis",
+                "Green Energy Dispatch",
             },
         ),
         (
             "full_analysis_export_case",
             {
-                "Grid Context / Power Access Context",
-                "Climate Study",
-                "Load Mix Scenario",
-                "Green Energy",
+                "Grid Infrastructure",
+                "Weather &amp; Climate",
+                "Load Mix Analysis",
+                "Green Energy Dispatch",
             },
             set(),
         ),
@@ -775,10 +775,8 @@ def test_render_report_html_matches_export_shape_fixture_sections(
     html = render_report_html(**case.export_kwargs())
 
     assert case.site_entries[0][1].name in html
-    assert "Site Specifics and Properties" in html
-    assert "Selected Scenario" in html
-    assert "Scenario Results Deep Dive" in html
-    assert "Structured basis:" in html
+    assert "Site Specifications" in html
+    assert "Scenario Results" in html
     for section_title in present_sections:
         assert section_title in html
     for section_title in absent_sections:
@@ -800,7 +798,7 @@ def test_render_report_html_matches_export_shape_fixture_sections(
                 "Load Mix Candidates",
                 "Green Energy",
             },
-            {"grid": 0, "climate": 0, "load_mix": 0, "green_energy": 0, "full_matrix": 1},
+            {"grid": 0, "climate": 0, "load_mix": 0, "green_energy": 0, "full_matrix": 1, "displayed": 1},
         ),
         (
             "site_plus_grid_export_case",
@@ -812,7 +810,7 @@ def test_render_report_html_matches_export_shape_fixture_sections(
                 "Load Mix Candidates",
                 "Green Energy",
             },
-            {"grid": 1, "climate": 0, "load_mix": 0, "green_energy": 0, "full_matrix": 1},
+            {"grid": 1, "climate": 0, "load_mix": 0, "green_energy": 0, "full_matrix": 1, "displayed": 1},
         ),
         (
             "site_plus_climate_export_case",
@@ -824,7 +822,7 @@ def test_render_report_html_matches_export_shape_fixture_sections(
                 "Load Mix Candidates",
                 "Green Energy",
             },
-            {"grid": 0, "climate": 1, "load_mix": 0, "green_energy": 0, "full_matrix": 1},
+            {"grid": 0, "climate": 1, "load_mix": 0, "green_energy": 0, "full_matrix": 1, "displayed": 1},
         ),
         (
             "full_analysis_export_case",
@@ -840,7 +838,7 @@ def test_render_report_html_matches_export_shape_fixture_sections(
                 "Appx Tables",
             },
             set(),
-            {"grid": 1, "climate": 1, "load_mix": 1, "green_energy": 1, "full_matrix": 2},
+            {"grid": 1, "climate": 1, "load_mix": 1, "green_energy": 1, "full_matrix": 2, "displayed": 2},
         ),
     ],
 )
@@ -865,7 +863,7 @@ def test_build_excel_bytes_matches_export_shape_fixture_sheets(
     )
     assert present_sheets.issubset(sheet_names)
     assert absent_sheets.isdisjoint(sheet_names)
-    assert summary_rows["Scenario Results Included"] == 1
+    assert summary_rows["Scenario Results Included"] == expected_counts["displayed"]
     assert summary_rows["Full Scenario Matrix Rows"] == expected_counts["full_matrix"]
     assert summary_rows["Grid Context Sites Available"] == expected_counts["grid"]
     assert summary_rows["Climate Sites Available"] == expected_counts["climate"]
@@ -884,14 +882,15 @@ def test_full_analysis_export_keeps_primary_story_and_full_matrix_depth(
 
     assert CoolingType.WATER_CHILLER_ECON.value in html
     assert LoadType.HYPERSCALE.value in html
-    assert LoadType.EDGE_TELCO.value not in html
+    # With include_all_scenarios=True (default), all scenarios appear in the HTML comparison table
+    assert LoadType.EDGE_TELCO.value in html
     assert {
         row["Cooling Type"] for row in workbook_sheet_rows(workbook, "Scenarios")
     } == {
         CoolingType.WATER_CHILLER_ECON.value,
         CoolingType.CRAC_DX.value,
     }
-    assert workbook_summary_rows(workbook)["Scenario Results Included"] == 1
+    assert workbook_summary_rows(workbook)["Scenario Results Included"] == 2
     assert workbook_summary_rows(workbook)["Full Scenario Matrix Rows"] == 2
 
 
@@ -996,7 +995,8 @@ def test_build_excel_bytes_uses_full_studied_site_scenario_matrix():
     site_rows = workbook_sheet_rows(workbook, "Sites")
     metadata_rows = workbook_sheet_rows(workbook, "Metadata")
 
-    assert summary_rows["Scenario Results Included"] == 2
+    # With include_all_scenarios=True (default), all studied-site results are displayed
+    assert summary_rows["Scenario Results Included"] == 3
     assert summary_rows["Full Scenario Matrix Rows"] == 3
     assert len(primary_rows) == 2
     assert len(scenario_rows) == 3
@@ -1208,13 +1208,10 @@ def test_build_report_context_filters_to_selected_primary_results():
         },
     )
 
-    assert len(context["ranked_results"]) == 2
+    # With include_all_scenarios=True (default), all results for studied sites are included
+    assert len(context["ranked_results"]) == 3
     assert {result.site_id for result in context["ranked_results"]} == {"site-1", "site-2"}
-    assert all(
-        result.scenario.cooling_type != CoolingType.CRAC_DX
-        for result in context["ranked_results"]
-    )
-    assert context["site_sections"][0]["result_count"] == 1
+    assert context["site_sections"][0]["result_count"] == 2
     assert (
         context["site_sections"][0]["selected_result"].scenario.cooling_type
         == CoolingType.WATER_CHILLER_ECON
@@ -1701,14 +1698,12 @@ def test_export_still_works_when_optional_analyses_are_missing(monkeypatch):
     assert site_bundle["grid_context"]["status"] == "missing"
     assert site_bundle["climate"]["status"] == "missing"
     assert "Alpha Campus" in html
-    assert "Grid Context / Power Access Context" not in html
-    assert "Climate Study" not in html
-    assert "Site Specifics and Properties" in html
-    assert "Site Map" in html
-    assert "Selected Scenario" in html
-    assert "Scenario Results Deep Dive" in html
-    assert "Load Mix Scenario" not in html
-    assert "Green Energy" not in html
+    assert "Grid Infrastructure" not in html
+    assert "Weather &amp; Climate" not in html
+    assert "Site Specifications" in html
+    assert "Scenario Results" in html
+    assert "Load Mix Analysis" not in html
+    assert "Green Energy Dispatch" not in html
     assert workbook[:2] == b"PK"
 
 
@@ -1814,18 +1809,16 @@ def test_render_report_html_includes_core_chapters_when_optional_analyses_exist(
         primary_result_keys={"site-1": get_result_selection_key(primary)},
     )
 
-    assert "Site Specifics and Properties" in html
+    assert "Site Specifications" in html
     assert "Site Map" in html
-    assert "Grid Context / Power Access Context" in html
+    assert "Grid Infrastructure" in html
     assert "Grid Context Map" in html
-    assert "Climate Study" in html
-    assert "Monthly Temperature Chart" in html
-    assert "Free Cooling Chart" in html
-    assert "Selected Scenario" in html
-    assert "Scenario Results Deep Dive" in html
-    assert "Mapped assets shown in the core report" in html
-    assert "Free cooling analysis" in html
-    assert "Structured basis:" in html
+    assert "Weather &amp; Climate" in html
+    assert "Monthly Temperature Profile" in html
+    assert "Cooling Topology Suitability" in html
+    assert "Scenario Results" in html
+    assert "Mapped Infrastructure Assets" in html
+    assert "Free Cooling Analysis" in html
     assert CoolingType.WATER_CHILLER_ECON.value in html
 
 
@@ -1861,10 +1854,10 @@ def test_render_report_html_includes_milestone_six_optional_chapters(monkeypatch
         },
     )
 
-    assert "Load Mix Scenario" in html
+    assert "Load Mix Analysis" in html
     assert "Top candidate mix" in html
     assert "Ranked candidate overview" in html
-    assert "Green Energy" in html
+    assert "Green Energy Dispatch" in html
     assert "Annual energy breakdown" in html
     assert "Cached PVGIS normalized profile" in html
     assert "Renewable fraction" in html
@@ -1941,6 +1934,7 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
         layout_mode="report_a4_portrait",
         studied_site_ids=["site-1"],
         primary_result_keys={"site-1": get_result_selection_key(site_one_primary)},
+        include_all_scenarios=False,
     )
 
     html_presentation = render_report_html(
@@ -1954,6 +1948,7 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
         layout_mode="presentation_16_9",
         studied_site_ids=["site-1"],
         primary_result_keys={"site-1": get_result_selection_key(site_one_primary)},
+        include_all_scenarios=False,
     )
 
     workbook = build_excel_bytes(
@@ -1967,6 +1962,7 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
         layout_mode="report_a4_portrait",
         studied_site_ids=["site-1"],
         primary_result_keys={"site-1": get_result_selection_key(site_one_primary)},
+        include_all_scenarios=False,
     )
 
     summary_sheet = load_workbook(BytesIO(workbook))["Summary"]

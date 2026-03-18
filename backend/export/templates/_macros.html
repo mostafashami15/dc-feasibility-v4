@@ -8,6 +8,9 @@
   {% if obj and obj.available %}
     <div class="callout">
       {% for p in obj.paragraphs %}<p>{{ p }}</p>{% endfor %}
+      {% if obj.basis_labels %}
+        <p style="font-size:8pt;color:var(--text-light);margin-top:6px;">Structured basis: {{ obj.basis_labels | join(', ') }}.</p>
+      {% endif %}
     </div>
   {% endif %}
 {%- endmacro %}

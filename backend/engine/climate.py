@@ -74,12 +74,16 @@ class FreeCoolingAnalysis:
         cooling_type: The cooling type analysed.
         threshold_description: Human-readable threshold description.
         free_cooling_hours: Number of hours in ECON_FULL mode.
+        partial_hours: Number of hours in ECON_PART mode.
+        mechanical_hours: Number of hours in MECH mode.
         free_cooling_fraction: free_cooling_hours / total_hours.
         suitability: Climate suitability rating.
     """
     cooling_type: str
     threshold_description: str
     free_cooling_hours: int
+    partial_hours: int
+    mechanical_hours: int
     free_cooling_fraction: float
     suitability: str  # EXCELLENT / GOOD / MARGINAL / NOT_RECOMMENDED
 
@@ -245,16 +249,17 @@ def _get_free_cooling_threshold(cooling_type: str) -> tuple[str, float | None, s
     return ("none", None, f"Unknown topology '{topology}'")
 
 
-def count_free_cooling_hours(
+def count_cooling_mode_hours(
     temperatures: list[float],
     cooling_type: str,
     humidities: list[float] | None = None,
     delta_C: float = 0.0,
-) -> int:
-    """Count hours where full free cooling (ECON_FULL) is available.
+) -> tuple[int, int, int]:
+    """Count hours in each cooling mode: ECON_FULL, ECON_PART, and MECH.
 
-    This counts hours where the compressor can be completely off —
-    the economizer handles the full cooling load alone.
+    Uses the actual per-topology thresholds from COOLING_PROFILES via
+    determine_cooling_mode(), so each cooling type gets its correct
+    economizer thresholds rather than a single shared threshold.
 
     Args:
         temperatures: Dry-bulb temperatures in °C.
@@ -265,41 +270,58 @@ def count_free_cooling_hours(
             Source: Architecture Agreement Section 3.10 — CIBSE TM49.
 
     Returns:
+        Tuple of (econ_full_hours, econ_part_hours, mech_hours).
+    """
+    econ_full = 0
+    econ_part = 0
+    mech = 0
+
+    profile = COOLING_PROFILES[cooling_type]
+
+    # For topologies without an economizer, all hours are mechanical
+    if profile["topology"] == "mechanical_only":
+        return (0, 0, len(temperatures))
+
+    for i, T in enumerate(temperatures):
+        T_shifted = T + delta_C
+        RH = humidities[i] if humidities is not None else None
+        mode = determine_cooling_mode(T_shifted, RH, cooling_type)
+        if mode == CoolingMode.ECON_FULL:
+            econ_full += 1
+        elif mode == CoolingMode.ECON_PART:
+            econ_part += 1
+        else:
+            mech += 1
+
+    return (econ_full, econ_part, mech)
+
+
+def count_free_cooling_hours(
+    temperatures: list[float],
+    cooling_type: str,
+    humidities: list[float] | None = None,
+    delta_C: float = 0.0,
+) -> int:
+    """Count hours where full free cooling (ECON_FULL) is available.
+
+    This counts hours where the compressor can be completely off --
+    the economizer handles the full cooling load alone.
+
+    Args:
+        temperatures: Dry-bulb temperatures in °C.
+        cooling_type: Key from COOLING_PROFILES.
+        humidities: Relative humidity in % (required for water-cooled).
+        delta_C: Temperature delta for climate projection.
+            Applied uniformly to all hours.
+            Source: Architecture Agreement Section 3.10 -- CIBSE TM49.
+
+    Returns:
         Number of free cooling hours.
     """
-    driver, threshold, _ = _get_free_cooling_threshold(cooling_type)
-
-    if driver == "hybrid":
-        count = 0
-        for i, T in enumerate(temperatures):
-            RH = humidities[i] if humidities is not None else None
-            if determine_cooling_mode(T + delta_C, RH, cooling_type) == CoolingMode.ECON_FULL:
-                count += 1
-        return count
-
-    if driver == "none" or threshold is None:
-        return 0  # No economizer → 0 free cooling hours
-
-    count = 0
-
-    if driver == "drybulb":
-        for T in temperatures:
-            if (T + delta_C) <= threshold:
-                count += 1
-
-    elif driver == "wetbulb":
-        if humidities is None:
-            raise ValueError(
-                f"Humidity data required for water-cooled free cooling analysis "
-                f"({cooling_type})"
-            )
-        for T, RH in zip(temperatures, humidities):
-            T_shifted = T + delta_C
-            T_wb = compute_wet_bulb(T_shifted, RH)
-            if T_wb <= threshold:
-                count += 1
-
-    return count
+    econ_full, _, _ = count_cooling_mode_hours(
+        temperatures, cooling_type, humidities, delta_C
+    )
+    return econ_full
 
 
 # ═════════════════════════════════════════════════════════════
@@ -342,6 +364,9 @@ def analyse_free_cooling(
 ) -> FreeCoolingAnalysis:
     """Analyse free cooling potential for a specific cooling type.
 
+    Computes hours in each cooling mode (ECON_FULL, ECON_PART, MECH)
+    using the actual per-topology thresholds from COOLING_PROFILES.
+
     Args:
         temperatures: Dry-bulb temperatures in °C.
         cooling_type: Key from COOLING_PROFILES.
@@ -349,22 +374,24 @@ def analyse_free_cooling(
         delta_C: Climate change temperature delta.
 
     Returns:
-        FreeCoolingAnalysis with hours, fraction, and suitability.
+        FreeCoolingAnalysis with hours per mode, fraction, and suitability.
     """
     _, _, description = _get_free_cooling_threshold(cooling_type)
     total_hours = len(temperatures)
 
-    hours = count_free_cooling_hours(
+    econ_full, econ_part, mech = count_cooling_mode_hours(
         temperatures, cooling_type, humidities, delta_C
     )
 
-    fraction = hours / total_hours if total_hours > 0 else 0.0
-    suitability = classify_suitability(hours)
+    fraction = econ_full / total_hours if total_hours > 0 else 0.0
+    suitability = classify_suitability(econ_full)
 
     return FreeCoolingAnalysis(
         cooling_type=cooling_type,
         threshold_description=description,
-        free_cooling_hours=hours,
+        free_cooling_hours=econ_full,
+        partial_hours=econ_part,
+        mechanical_hours=mech,
         free_cooling_fraction=round(fraction, 4),
         suitability=suitability,
     )

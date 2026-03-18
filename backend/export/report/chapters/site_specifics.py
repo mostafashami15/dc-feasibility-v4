@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from export.terrain_map import generate_site_location_base64, generate_terrain_base64
+from export.terrain_map import (
+    generate_country_overview_base64,
+    generate_site_location_base64,
+    generate_terrain_base64,
+)
 from export.visual_assets import build_site_map_visual
 
 from export.report._narratives import _build_site_specifics_narrative
@@ -32,16 +36,19 @@ def _build_site_specifics_chapter(
     # Generate map imagery if coordinates are available
     terrain_image_uri = None
     location_map_uri = None
+    country_overview_uri = None
     lat = location.get("latitude")
     lon = location.get("longitude")
     if lat is not None and lon is not None:
-        terrain_image_uri = generate_terrain_base64(lat, lon)
-        location_map_uri = generate_site_location_base64(lat, lon)
+        terrain_image_uri = generate_terrain_base64(lat, lon, width=400, height=300)
+        location_map_uri = generate_site_location_base64(lat, lon, width=400, height=300)
+        country_overview_uri = generate_country_overview_base64(lat, lon, width=400, height=300)
 
     return {
         "title": "Site Specifics and Properties",
         "terrain_image": terrain_image_uri,
         "location_map": location_map_uri,
+        "country_overview": country_overview_uri,
         "map_visual": build_site_map_visual(
             site_data,
             primary_color=primary_color,

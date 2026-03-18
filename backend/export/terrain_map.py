@@ -123,6 +123,50 @@ def generate_site_location_base64(
 
 
 # ---------------------------------------------------------------------------
+# Country overview map (zoomed-out showing site location in context)
+# ---------------------------------------------------------------------------
+
+def generate_country_overview_image(
+    lat: float,
+    lon: float,
+    zoom: int = 6,
+    width: int = 400,
+    height: int = 400,
+) -> Optional[bytes]:
+    """Return a PNG country-level overview map showing the site location marker."""
+    if not _HAS_STATICMAP:
+        return None
+
+    try:
+        m = staticmap.StaticMap(width, height, url_template=OSM_URL)
+        # Large marker visible at country zoom
+        m.add_marker(staticmap.CircleMarker((lon, lat), "#dc2626", 12))
+        m.add_marker(staticmap.CircleMarker((lon, lat), "white", 6))
+        m.add_marker(staticmap.CircleMarker((lon, lat), "#dc2626", 4))
+        image = m.render(zoom=zoom)
+
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:
+        logger.exception(
+            "Failed to generate country overview map for (%.4f, %.4f)", lat, lon
+        )
+        return None
+
+
+def generate_country_overview_base64(
+    lat: float,
+    lon: float,
+    zoom: int = 6,
+    width: int = 400,
+    height: int = 400,
+) -> Optional[str]:
+    """Return a base64-encoded country overview map for HTML embedding."""
+    return _to_base64(generate_country_overview_image(lat, lon, zoom, width, height))
+
+
+# ---------------------------------------------------------------------------
 # Grid context map (OSM with infrastructure markers)
 # ---------------------------------------------------------------------------
 

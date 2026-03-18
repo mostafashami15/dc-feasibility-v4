@@ -604,7 +604,13 @@ async def scenario_dispatch_endpoint(request: ScenarioGreenDispatchRequest):
     del space  # Only the hourly facility and IT arrays are needed here.
 
     try:
-        if site.power_confirmed and site.available_power_mw > 0:
+        # When binding constraint is AREA, the space-derived IT load is the
+        # true cap — run in area-constrained mode even if power is confirmed.
+        if (
+            site.power_confirmed
+            and site.available_power_mw > 0
+            and power.binding_constraint == "POWER"
+        ):
             hourly = simulate_hourly(
                 temperatures=temperatures,
                 humidities=humidities,

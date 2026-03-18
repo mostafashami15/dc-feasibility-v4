@@ -144,24 +144,46 @@ async def export_html_endpoint(config: ReportConfig):
     """Generate an HTML report preview."""
     try:
         return HTMLResponse(content=_build_html(config))
+    except HTTPException:
+        raise
     except Exception as exc:
+        import logging
         import traceback
+        logging.getLogger(__name__).exception("HTML export failed")
         raise HTTPException(status_code=500, detail=traceback.format_exc()) from exc
 
 
 @router.post("/pdf")
 async def export_pdf_endpoint(config: ReportConfig):
     """Generate a downloadable PDF report."""
-    html = _build_html(config)
+    try:
+        html = _build_html(config)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import logging
+        import traceback
+        logging.getLogger(__name__).exception("HTML rendering failed during PDF export")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Report rendering failed: {traceback.format_exc()}"
+        ) from exc
+
     try:
         pdf_bytes = html_to_pdf_bytes(html)
     except OSError as exc:
         raise HTTPException(
             status_code=500,
             detail=(
-                "PDF export requires the WeasyPrint runtime (GTK/Pango on Windows). "
-                f"Original error: {exc}"
+                "PDF export requires WeasyPrint and its system dependencies. "
+                "Install with: pip install weasyprint (and brew install pango on macOS). "
+                f"Error: {exc}"
             ),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {exc}",
         ) from exc
 
     return StreamingResponse(

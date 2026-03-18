@@ -18,6 +18,7 @@ Endpoints:
     POST /api/scenarios/break-even     — Break-even solver (Section 3.11)
     POST /api/scenarios/backup-power   — Backup power comparison (Section 3.8)
     POST /api/scenarios/footprint      — Infrastructure footprint (Section 3.13)
+    POST /api/scenarios/firm-capacity-advisory — Auto-computed firm capacity advisory
 
 Engine functions used:
     engine.power.solve                     — Space + power chain
@@ -55,7 +56,7 @@ from engine.power import solve, apply_hourly_rag_adjustments
 from engine.pue_engine import simulate_hourly
 from engine.ranking import score_scenario, optimize_load_mix
 from engine.sensitivity import compute_tornado, compute_break_even
-from engine.backup_power import compare_technologies
+from engine.backup_power import compare_technologies, compute_firm_capacity_advisory
 from engine.expansion import compute_expansion_advisory
 from engine.footprint import compute_footprint
 from engine.assumptions import (
@@ -310,6 +311,17 @@ class HourlyProfilesRequest(BaseModel):
     scenario: Scenario = Field(description="Scenario configuration")
 
 
+class FirmCapacityAdvisoryRequest(BaseModel):
+    """Request for auto-computed firm capacity advisory.
+
+    No user input for BESS/fuel cell/backup sizes required.
+    The backend uses preset engineering assumptions to auto-suggest
+    mitigation strategies and their costs.
+    """
+    site_id: str = Field(description="UUID of the saved site")
+    scenario: Scenario = Field(description="Scenario configuration")
+
+
 # ─────────────────────────────────────────────────────────────
 # Helper: Run one scenario (used by both single and batch)
 # ─────────────────────────────────────────────────────────────
@@ -359,7 +371,15 @@ def _run_single_scenario(
             eta_chain = power.eta_chain
 
             # Determine simulation mode
-            if site.power_confirmed and site.available_power_mw > 0:
+            # When binding constraint is AREA, the space-derived IT load
+            # is the true cap — run in area-constrained mode even if
+            # power is confirmed, otherwise the hourly engine would
+            # compute IT values that far exceed the space limit.
+            if (
+                site.power_confirmed
+                and site.available_power_mw > 0
+                and power.binding_constraint == "POWER"
+            ):
                 # Power-constrained: facility power is fixed
                 sim = simulate_hourly(
                     temperatures=temperatures,
@@ -383,11 +403,16 @@ def _run_single_scenario(
             annual_pue = round(sim.annual_pue, 4)
             overtemperature_hours = sim.overtemperature_hours
             pue_source = "hourly"
-            it_worst = round(sim.it_capacity_worst_kw / 1000, 3)
-            it_p99 = round(sim.it_capacity_p99_kw / 1000, 3)
-            it_p90 = round(sim.it_capacity_p90_kw / 1000, 3)
-            it_mean = round(sim.it_capacity_mean_kw / 1000, 3)
-            it_best = round(sim.it_capacity_best_kw / 1000, 3)
+
+            # Cap IT capacity spectrum at the space-derived IT load.
+            # In power-constrained mode the hourly sim may report
+            # values that exceed what the physical space can host.
+            space_cap_mw = power.it_load_mw  # Already min(power, space)
+            it_worst = min(round(sim.it_capacity_worst_kw / 1000, 3), space_cap_mw)
+            it_p99 = min(round(sim.it_capacity_p99_kw / 1000, 3), space_cap_mw)
+            it_p90 = min(round(sim.it_capacity_p90_kw / 1000, 3), space_cap_mw)
+            it_mean = min(round(sim.it_capacity_mean_kw / 1000, 3), space_cap_mw)
+            it_best = min(round(sim.it_capacity_best_kw / 1000, 3), space_cap_mw)
             hourly_simulated = True
             power = apply_hourly_rag_adjustments(
                 power=power,
@@ -446,7 +471,13 @@ def _simulate_for_breakdown(site_id: str, site: Site, scenario: Scenario):
     temperatures = weather["temperatures"]
     humidities = weather.get("humidities")
 
-    if site.power_confirmed and site.available_power_mw > 0:
+    # When binding constraint is AREA, the space-derived IT load is the true
+    # cap — run in area-constrained mode even if power is confirmed.
+    if (
+        site.power_confirmed
+        and site.available_power_mw > 0
+        and power.binding_constraint == "POWER"
+    ):
         return simulate_hourly(
             temperatures=temperatures,
             humidities=humidities,
@@ -1183,4 +1214,117 @@ async def combination_count_endpoint(request: BatchRequest):
         "total_combinations": total,
         "incompatible": incompatible,
         "to_compute": total - incompatible,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Firm Capacity Advisory (Preset Methodology)
+# ─────────────────────────────────────────────────────────────
+
+@router.post("/firm-capacity-advisory")
+async def firm_capacity_advisory_endpoint(request: FirmCapacityAdvisoryRequest):
+    """Auto-compute firm capacity advisory with preset engineering assumptions.
+
+    Unlike POST /api/green/firm-capacity which requires manual user input
+    for BESS/fuel cell/backup sizes, this endpoint uses built-in engineering
+    methodology to automatically suggest mitigation strategies.
+
+    Requires:
+        - Confirmed site power
+        - Cached weather data (for hourly PUE simulation)
+
+    Returns:
+        - Firm capacity (P99 from hourly sim)
+        - Capacity gap (mean - P99)
+        - Recommended mitigation strategies with quantities and costs
+        - How much additional IT capacity each strategy unlocks
+    """
+    from dataclasses import asdict
+
+    result = get_site(request.site_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Site '{request.site_id}' not found"
+        )
+    _, site = result
+
+    if not site.power_confirmed or site.available_power_mw <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Firm capacity advisory requires confirmed available power"
+        )
+
+    weather = get_weather(request.site_id)
+    if weather is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Hourly weather data is required for firm capacity advisory. "
+                   "Fetch or upload weather on the Climate & Weather page first."
+        )
+
+    compatibility_status, compatibility_reasons = evaluate_compatibility(
+        request.scenario.load_type.value,
+        request.scenario.cooling_type.value,
+        density_scenario=request.scenario.density_scenario.value,
+    )
+    if compatibility_status == "incompatible":
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(compatibility_reasons),
+        )
+
+    space, power = solve(site, request.scenario)
+    temperatures = weather["temperatures"]
+    humidities = weather.get("humidities")
+
+    try:
+        sim = simulate_hourly(
+            temperatures=temperatures,
+            humidities=humidities,
+            cooling_type=request.scenario.cooling_type.value,
+            eta_chain=power.eta_chain,
+            facility_power_kw=power.facility_power_mw * 1000,
+            override_preset_key=request.scenario.assumption_override_preset_key,
+        )
+
+        advisory = compute_firm_capacity_advisory(
+            hourly_it_kw=sim.hourly_it_kw,
+            facility_power_kw=power.facility_power_mw * 1000,
+            annual_pue=sim.annual_pue,
+            cooling_type=request.scenario.cooling_type.value,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "firm_capacity_mw": advisory.firm_capacity_mw,
+        "firm_capacity_kw": advisory.firm_capacity_kw,
+        "mean_capacity_mw": advisory.mean_capacity_mw,
+        "mean_capacity_kw": advisory.mean_capacity_kw,
+        "worst_capacity_mw": advisory.worst_capacity_mw,
+        "worst_capacity_kw": advisory.worst_capacity_kw,
+        "best_capacity_mw": advisory.best_capacity_mw,
+        "best_capacity_kw": advisory.best_capacity_kw,
+        "capacity_gap_mw": advisory.capacity_gap_mw,
+        "capacity_gap_kw": advisory.capacity_gap_kw,
+        "peak_deficit_mw": advisory.peak_deficit_mw,
+        "peak_deficit_kw": advisory.peak_deficit_kw,
+        "deficit_hours": advisory.deficit_hours,
+        "deficit_energy_kwh": advisory.deficit_energy_kwh,
+        "annual_pue": round(sim.annual_pue, 4),
+        "facility_power_mw": round(power.facility_power_mw, 3),
+        "strategies": [
+            {
+                "key": s.key,
+                "label": s.label,
+                "description": s.description,
+                "capacity_kw": s.capacity_kw,
+                "capacity_mw": s.capacity_mw,
+                "estimated_capex_usd": s.estimated_capex_usd,
+                "sizing_summary": s.sizing_summary,
+                "notes": s.notes,
+            }
+            for s in advisory.strategies
+        ],
     }

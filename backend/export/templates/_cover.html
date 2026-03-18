@@ -46,6 +46,12 @@
           {{ "Executive" if report.type == "executive" else "Detailed" }}
         </div>
       </div>
+      <div class="cover-stat">
+        <div class="cover-stat-label">Layout</div>
+        <div class="cover-stat-value" style="font-size:11pt; margin-top:6px;">
+          {{ report.layout_mode_label }}
+        </div>
+      </div>
     </div>
 
     <div class="cover-scope">
@@ -64,6 +70,15 @@
       {% endif %}
     </div>
   </div>
+
+  {% if report.narrative and report.narrative.available %}
+    <div class="callout" style="margin: 0 52px 20px;">
+      {% for p in report.narrative.paragraphs %}<p>{{ p }}</p>{% endfor %}
+      {% if report.narrative.basis_labels %}
+        <p style="font-size:8pt;color:var(--text-light);margin-top:6px;">Structured basis: {{ report.narrative.basis_labels | join(', ') }}.</p>
+      {% endif %}
+    </div>
+  {% endif %}
 
   <div class="cover-footer">
     <span class="cover-footer-text">Generated {{ report.generated_on }} · Confidential</span>

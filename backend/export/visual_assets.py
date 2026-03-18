@@ -14,6 +14,7 @@ Design principles:
 from __future__ import annotations
 
 from html import escape
+import math
 from math import cos, radians
 from typing import Any
 
@@ -617,6 +618,118 @@ def build_monthly_temperature_chart(
     }
 
 
+def build_cooling_suitability_chart(
+    free_cooling_rows: list[dict[str, Any]],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Grouped bar chart showing cooling suitability with DIFFERENT values per topology."""
+    if not free_cooling_rows:
+        return {
+            "available": False,
+            "title": "Cooling Topology Suitability",
+            "message": "No free-cooling data available.",
+            "svg_markup": None,
+        }
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+
+    # Colors for different topologies
+    palette = [primary, secondary, "#16a34a", "#ea580c", "#8b5cf6", "#0891b2"]
+
+    max_hours = max(float(item.get("free_cooling_hours") or 0.0) for item in free_cooling_rows)
+    max_fraction = max(float(item.get("free_cooling_fraction") or 0.0) for item in free_cooling_rows)
+    upper_h = max(max_hours * 1.15, 1.0)
+
+    w, h = CHART_WIDTH, CHART_HEIGHT + 40
+    plot_left = 100
+    plot_right = w - _PAD_OUTER
+    plot_top = _PAD_TOP + 10
+    plot_bottom = h - 50
+    plot_w = plot_right - plot_left
+    plot_h = plot_bottom - plot_top
+    n = len(free_cooling_rows)
+    bar_group_w = plot_w / max(n, 1)
+    bar_w = min(bar_group_w * 0.55, 48)
+
+    # Y-axis ticks
+    tick_parts: list[str] = []
+    for i in range(5):
+        val = upper_h * i / 4
+        y = plot_bottom - (val / upper_h) * plot_h
+        tick_parts.append(
+            f'<line x1="{plot_left}" y1="{y:.1f}" '
+            f'x2="{plot_right}" y2="{y:.1f}" '
+            'stroke="#f3f4f6" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">{val:.0f}h</text>'
+        )
+
+    bar_parts: list[str] = []
+    for idx, item in enumerate(free_cooling_rows):
+        hours = float(item.get("free_cooling_hours") or 0.0)
+        fraction = float(item.get("free_cooling_fraction") or 0.0)
+        suitability = str(item.get("suitability") or "")
+        color = palette[idx % len(palette)]
+        cx = plot_left + bar_group_w * idx + bar_group_w / 2
+        bx = cx - bar_w / 2
+        bar_h_px = (hours / upper_h) * plot_h
+        by = plot_bottom - bar_h_px
+
+        # Bar
+        bar_parts.append(
+            f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bar_h_px:.1f}" '
+            f'rx="3" fill="{color}" opacity="0.85" />'
+        )
+        # Hours label above bar
+        bar_parts.append(
+            f'<text x="{cx:.1f}" y="{by - 12:.1f}" fill="{color}" '
+            f'font-family="system-ui,sans-serif" font-size="9" font-weight="700" '
+            f'text-anchor="middle">{hours:.0f}h</text>'
+        )
+        # Fraction label
+        bar_parts.append(
+            f'<text x="{cx:.1f}" y="{by - 3:.1f}" fill="#6b7280" '
+            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'text-anchor="middle">{fraction * 100:.1f}%</text>'
+        )
+        # Cooling type label
+        label = str(item.get("cooling_type") or "")
+        wrapped = _wrap_label(label, max_chars=12, max_lines=2)
+        for li, line in enumerate(wrapped):
+            bar_parts.append(
+                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 10:.1f}" fill="#374151" '
+                f'font-family="system-ui,sans-serif" font-size="7.5" '
+                f'text-anchor="middle">{escape(line)}</text>'
+            )
+        # Suitability badge
+        suit_color = "#16a34a" if "excellent" in suitability.lower() or "good" in suitability.lower() else (
+            "#ea580c" if "moderate" in suitability.lower() or "marginal" in suitability.lower() else "#6b7280"
+        )
+        bar_parts.append(
+            f'<text x="{cx:.1f}" y="{plot_bottom + 14 + len(wrapped) * 10 + 2:.1f}" fill="{suit_color}" '
+            f'font-family="system-ui,sans-serif" font-size="6.5" font-weight="600" '
+            f'text-anchor="middle">{escape(suitability)}</text>'
+        )
+
+    body = "".join(tick_parts) + "".join(bar_parts)
+
+    return {
+        "available": True,
+        "title": "Cooling Topology Suitability",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w,
+            height=h,
+            title="Cooling Topology Suitability",
+            subtitle="Free-cooling hours and fraction by cooling type — each topology has distinct values.",
+            body=body,
+        ),
+    }
+
+
 def build_free_cooling_chart(
     free_cooling_rows: list[dict[str, Any]],
     *,
@@ -724,6 +837,451 @@ def build_free_cooling_chart(
             height=CHART_HEIGHT,
             title="Free Cooling Hours by Topology",
             subtitle="Annual free-cooling hours by cooling type. Selected scenario is highlighted.",
+            body=body,
+        ),
+    }
+
+
+# ======================================================================
+# SCENARIO RESULT CHARTS
+# ======================================================================
+
+def build_it_capacity_spectrum_chart(
+    metrics: dict[str, Any],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Horizontal bar chart showing IT capacity at different statistical checkpoints."""
+    checkpoints = [
+        ("Best hour", metrics.get("it_capacity_best_mw")),
+        ("Mean", metrics.get("it_capacity_mean_mw")),
+        ("P90", metrics.get("it_capacity_p90_mw")),
+        ("P99 (Committed)", metrics.get("it_capacity_p99_mw") or metrics.get("committed_it_mw")),
+        ("Worst hour", metrics.get("it_capacity_worst_mw")),
+        ("Nominal design", metrics.get("it_load_mw")),
+    ]
+    available = [(label, float(val)) for label, val in checkpoints if val is not None]
+    if len(available) < 2:
+        return {
+            "available": False,
+            "title": "IT Capacity Spectrum",
+            "message": "Insufficient data for IT capacity spectrum chart.",
+            "svg_markup": None,
+        }
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+
+    max_val = max(v for _, v in available)
+    upper = max_val * 1.18
+
+    w, h = CHART_WIDTH, max(len(available) * 42 + _PAD_TOP + 40, 220)
+    plot_left = 120
+    plot_right = w - _PAD_OUTER - 40
+    plot_top = _PAD_TOP + 5
+    plot_w = plot_right - plot_left
+    bar_h = min(28, (h - plot_top - 30) / max(len(available), 1) - 8)
+    gap = 8
+
+    palette = ["#16a34a", "#2563eb", "#7c3aed", primary, "#dc2626", secondary]
+
+    bar_parts: list[str] = []
+    for idx, (label, value) in enumerate(available):
+        y = plot_top + idx * (bar_h + gap)
+        bw = max((value / upper) * plot_w, 2)
+        color = palette[idx % len(palette)]
+
+        # Background track
+        bar_parts.append(
+            f'<rect x="{plot_left}" y="{y:.1f}" width="{plot_w:.1f}" height="{bar_h:.1f}" '
+            f'rx="4" fill="{_rgba(color, 0.06)}" />'
+        )
+        # Filled bar
+        bar_parts.append(
+            f'<rect x="{plot_left}" y="{y:.1f}" width="{bw:.1f}" height="{bar_h:.1f}" '
+            f'rx="4" fill="{color}" opacity="0.82" />'
+        )
+        # Value label
+        label_x = plot_left + bw + 6
+        bar_parts.append(
+            f'<text x="{label_x:.1f}" y="{y + bar_h / 2 + 4:.1f}" fill="#111827" '
+            f'font-family="system-ui,sans-serif" font-size="9" font-weight="600">'
+            f'{value:.2f} MW</text>'
+        )
+        # Y-axis label
+        bar_parts.append(
+            f'<text x="{plot_left - 6}" y="{y + bar_h / 2 + 4:.1f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end" '
+            f'font-weight="{"700" if "Committed" in label or "P99" in label else "400"}">'
+            f'{escape(label)}</text>'
+        )
+
+    body = "".join(bar_parts)
+    return {
+        "available": True,
+        "title": "IT Capacity Spectrum",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w,
+            height=h,
+            title="IT Capacity Spectrum",
+            subtitle="MW capacity at different statistical checkpoints across the weather year.",
+            body=body,
+        ),
+    }
+
+
+def build_pue_breakdown_chart(
+    pue: float | None,
+    power_data: dict[str, Any],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Donut-style PUE breakdown showing IT vs overhead power components."""
+    if pue is None or pue <= 0:
+        return {
+            "available": False,
+            "title": "PUE Breakdown",
+            "message": "No PUE data available for chart.",
+            "svg_markup": None,
+        }
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+
+    it_mw = float(power_data.get("it_load_mw") or 0)
+    facility_mw = float(power_data.get("facility_power_mw") or 0)
+    overhead_mw = facility_mw - it_mw if facility_mw > it_mw else 0
+
+    if it_mw <= 0:
+        return {
+            "available": False,
+            "title": "PUE Breakdown",
+            "message": "No IT load data available.",
+            "svg_markup": None,
+        }
+
+    total = it_mw + overhead_mw
+    it_pct = (it_mw / total * 100) if total > 0 else 0
+    oh_pct = (overhead_mw / total * 100) if total > 0 else 0
+
+    w, h = 340, CHART_HEIGHT
+    cx, cy = 170, 160
+    r_outer = 80
+    r_inner = 50
+
+    # IT arc
+    it_angle = (it_pct / 100) * 2 * math.pi
+    oh_angle = (oh_pct / 100) * 2 * math.pi
+
+    def _arc(start_angle: float, end_angle: float, ro: float, ri: float) -> str:
+        x1o = cx + ro * math.cos(start_angle - math.pi / 2)
+        y1o = cy + ro * math.sin(start_angle - math.pi / 2)
+        x2o = cx + ro * math.cos(end_angle - math.pi / 2)
+        y2o = cy + ro * math.sin(end_angle - math.pi / 2)
+        x1i = cx + ri * math.cos(end_angle - math.pi / 2)
+        y1i = cy + ri * math.sin(end_angle - math.pi / 2)
+        x2i = cx + ri * math.cos(start_angle - math.pi / 2)
+        y2i = cy + ri * math.sin(start_angle - math.pi / 2)
+        large = 1 if (end_angle - start_angle) > math.pi else 0
+        return (
+            f'M {x1o:.1f},{y1o:.1f} '
+            f'A {ro},{ro} 0 {large},1 {x2o:.1f},{y2o:.1f} '
+            f'L {x1i:.1f},{y1i:.1f} '
+            f'A {ri},{ri} 0 {large},0 {x2i:.1f},{y2i:.1f} Z'
+        )
+
+    arcs = ""
+    if it_pct >= 99.5:
+        arcs = (
+            f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="{primary}" />'
+            f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="white" />'
+        )
+    elif oh_pct >= 99.5:
+        arcs = (
+            f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="{secondary}" />'
+            f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="white" />'
+        )
+    else:
+        it_path = _arc(0, it_angle, r_outer, r_inner)
+        oh_path = _arc(it_angle, it_angle + oh_angle, r_outer, r_inner)
+        arcs = (
+            f'<path d="{it_path}" fill="{primary}" />'
+            f'<path d="{oh_path}" fill="{secondary}" opacity="0.7" />'
+        )
+
+    # Center PUE text
+    center_text = (
+        f'<text x="{cx}" y="{cy - 6}" fill="{primary}" '
+        f'font-family="system-ui,sans-serif" font-size="22" font-weight="800" '
+        f'text-anchor="middle">{pue:.3f}</text>'
+        f'<text x="{cx}" y="{cy + 10}" fill="#6b7280" '
+        f'font-family="system-ui,sans-serif" font-size="8" '
+        f'text-anchor="middle">Annual PUE</text>'
+    )
+
+    # Legend
+    legend_y = cy + r_outer + 24
+    legend = (
+        f'<rect x="{cx - 80}" y="{legend_y}" width="10" height="10" rx="2" fill="{primary}" />'
+        f'<text x="{cx - 66}" y="{legend_y + 9}" fill="#374151" '
+        f'font-family="system-ui,sans-serif" font-size="8">'
+        f'IT Load {it_mw:.2f} MW ({it_pct:.1f}%)</text>'
+        f'<rect x="{cx + 10}" y="{legend_y}" width="10" height="10" rx="2" fill="{secondary}" opacity="0.7" />'
+        f'<text x="{cx + 24}" y="{legend_y + 9}" fill="#374151" '
+        f'font-family="system-ui,sans-serif" font-size="8">'
+        f'Overhead {overhead_mw:.2f} MW ({oh_pct:.1f}%)</text>'
+    )
+
+    body = arcs + center_text + legend
+
+    return {
+        "available": True,
+        "title": "PUE Breakdown",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w,
+            height=h,
+            title="PUE Breakdown",
+            subtitle=f"IT vs overhead power split — PUE {pue:.3f}",
+            body=body,
+        ),
+    }
+
+
+def build_power_chain_waterfall(
+    power_data: dict[str, Any],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Waterfall chart showing power chain from grid to IT load."""
+    facility_mw = float(power_data.get("facility_power_mw") or 0)
+    procurement_mw = float(power_data.get("procurement_power_mw") or 0)
+    it_load_mw = float(power_data.get("it_load_mw") or 0)
+    headroom_mw = float(power_data.get("power_headroom_mw") or 0)
+
+    if facility_mw <= 0 and it_load_mw <= 0:
+        return {
+            "available": False,
+            "title": "Power Chain Waterfall",
+            "message": "No power data available for waterfall chart.",
+            "svg_markup": None,
+        }
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+
+    overhead_mw = facility_mw - it_load_mw if facility_mw > it_load_mw else 0
+    procurement_overhead_mw = procurement_mw - facility_mw if procurement_mw > facility_mw else 0
+
+    stages = [
+        ("Grid / Procurement", procurement_mw, primary),
+        ("Procurement overhead", -procurement_overhead_mw, "#94a3b8"),
+        ("Facility power", facility_mw, secondary),
+        ("Cooling & electrical", -overhead_mw, "#ea580c"),
+        ("IT Load", it_load_mw, "#16a34a"),
+    ]
+    # Filter out zero stages
+    stages = [(label, val, color) for label, val, color in stages if abs(val) > 0.001]
+
+    if not stages:
+        return {
+            "available": False,
+            "title": "Power Chain Waterfall",
+            "message": "No significant power stages to display.",
+            "svg_markup": None,
+        }
+
+    max_val = max(abs(v) for _, v, _ in stages)
+    upper = max_val * 1.2
+
+    w, h = CHART_WIDTH, CHART_HEIGHT + 20
+    plot_left = 140
+    plot_right = w - _PAD_OUTER - 50
+    plot_top = _PAD_TOP + 10
+    plot_w = plot_right - plot_left
+    n = len(stages)
+    bar_group_w = plot_w / max(n, 1)
+    bar_w = min(bar_group_w * 0.6, 60)
+
+    # Baseline
+    baseline_y = plot_top + (h - plot_top - 40) * 0.5
+    parts: list[str] = []
+
+    # Horizontal baseline
+    parts.append(
+        f'<line x1="{plot_left}" y1="{baseline_y:.1f}" '
+        f'x2="{plot_right}" y2="{baseline_y:.1f}" '
+        'stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4 3" />'
+    )
+
+    running_y = baseline_y
+    for idx, (label, value, color) in enumerate(stages):
+        cx = plot_left + bar_group_w * idx + bar_group_w / 2
+        bx = cx - bar_w / 2
+        scale = (h - plot_top - 60) / 2 / max(upper, 0.001)
+
+        if value >= 0:
+            bar_px_h = value * scale
+            by = running_y - bar_px_h
+        else:
+            bar_px_h = abs(value) * scale
+            by = running_y
+
+        parts.append(
+            f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bar_px_h:.1f}" '
+            f'rx="3" fill="{color}" opacity="0.85" />'
+        )
+
+        # Value above/below bar
+        val_y = by - 5 if value >= 0 else by + bar_px_h + 12
+        parts.append(
+            f'<text x="{cx:.1f}" y="{val_y:.1f}" fill="{color}" '
+            f'font-family="system-ui,sans-serif" font-size="9" font-weight="700" '
+            f'text-anchor="middle">{abs(value):.2f} MW</text>'
+        )
+
+        # Label below
+        wrapped = _wrap_label(label, max_chars=14, max_lines=2)
+        for li, line in enumerate(wrapped):
+            parts.append(
+                f'<text x="{cx:.1f}" y="{h - 20 + li * 10:.1f}" fill="#374151" '
+                f'font-family="system-ui,sans-serif" font-size="7.5" '
+                f'text-anchor="middle">{escape(line)}</text>'
+            )
+
+        if value < 0:
+            running_y += bar_px_h
+        else:
+            running_y = by
+
+    body = "".join(parts)
+    return {
+        "available": True,
+        "title": "Power Chain Waterfall",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w,
+            height=h,
+            title="Power Chain Waterfall",
+            subtitle="Power flow from grid procurement through to IT load.",
+            body=body,
+        ),
+    }
+
+
+def build_scenario_comparison_chart(
+    results: list[dict[str, Any]],
+    *,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Grouped bar chart comparing IT load and PUE across scenarios."""
+    if not results or len(results) < 2:
+        return {
+            "available": False,
+            "title": "Scenario Comparison",
+            "message": "Need at least two scenarios for comparison chart.",
+            "svg_markup": None,
+        }
+
+    primary = _c(primary_color, "#1a365d")
+    secondary = _c(secondary_color, "#2b6cb0")
+    palette = [primary, secondary, "#16a34a", "#7c3aed", "#ea580c", "#0891b2"]
+
+    it_values = []
+    labels = []
+    for r in results[:8]:
+        metrics = r.get("metrics", {})
+        scenario = r.get("scenario", {})
+        it_mw = metrics.get("committed_it_mw") or metrics.get("it_load_mw") or 0
+        it_values.append(float(it_mw))
+        short_label = f'{scenario.get("cooling_type", "?")} / {scenario.get("redundancy", "?")}'
+        labels.append(short_label)
+
+    max_it = max(it_values) if it_values else 1
+    upper = max_it * 1.2
+
+    n = len(it_values)
+    w, h = CHART_WIDTH, CHART_HEIGHT + 30
+    plot_left = 60
+    plot_right = w - _PAD_OUTER
+    plot_top = _PAD_TOP + 10
+    plot_bottom = h - 55
+    plot_w = plot_right - plot_left
+    plot_h = plot_bottom - plot_top
+    bar_group_w = plot_w / max(n, 1)
+    bar_w = min(bar_group_w * 0.55, 50)
+
+    # Y-axis ticks
+    tick_parts: list[str] = []
+    for i in range(5):
+        val = upper * i / 4
+        y = plot_bottom - (val / upper) * plot_h
+        tick_parts.append(
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" '
+            'stroke="#f3f4f6" stroke-width="1" />'
+            f'<text x="{plot_left - 4}" y="{y + 3:.1f}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">'
+            f'{val:.1f}</text>'
+        )
+
+    bar_parts: list[str] = []
+    for idx, (it_mw, label) in enumerate(zip(it_values, labels)):
+        color = palette[idx % len(palette)]
+        cx = plot_left + bar_group_w * idx + bar_group_w / 2
+        bx = cx - bar_w / 2
+        bar_h_px = max((it_mw / upper) * plot_h, 2)
+        by = plot_bottom - bar_h_px
+
+        is_primary = results[idx].get("is_primary", False)
+
+        bar_parts.append(
+            f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bar_h_px:.1f}" '
+            f'rx="3" fill="{color}" opacity="{"0.95" if is_primary else "0.65"}" />'
+        )
+        bar_parts.append(
+            f'<text x="{cx:.1f}" y="{by - 4:.1f}" fill="{color}" '
+            f'font-family="system-ui,sans-serif" font-size="8" font-weight="700" '
+            f'text-anchor="middle">{it_mw:.2f}</text>'
+        )
+        # PUE below
+        pue = results[idx].get("metrics", {}).get("pue") or 0
+        bar_parts.append(
+            f'<text x="{cx:.1f}" y="{by - 13:.1f}" fill="#6b7280" '
+            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'text-anchor="middle">PUE {pue:.3f}</text>'
+        )
+        # Label
+        wrapped = _wrap_label(label, max_chars=12, max_lines=2)
+        for li, line in enumerate(wrapped):
+            bar_parts.append(
+                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 9:.1f}" fill="#374151" '
+                f'font-family="system-ui,sans-serif" font-size="7" '
+                f'text-anchor="middle">{escape(line)}</text>'
+            )
+
+    # Y-axis label
+    y_label = (
+        f'<text x="14" y="{(plot_top + plot_bottom) / 2:.1f}" fill="#6b7280" '
+        f'font-family="system-ui,sans-serif" font-size="8" '
+        f'text-anchor="middle" transform="rotate(-90, 14, {(plot_top + plot_bottom) / 2:.1f})">'
+        f'Committed IT (MW)</text>'
+    )
+
+    body = "".join(tick_parts) + "".join(bar_parts) + y_label
+    return {
+        "available": True,
+        "title": "Scenario Comparison",
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w,
+            height=h,
+            title="Scenario Comparison — IT Capacity & PUE",
+            subtitle="Committed IT load (MW) and PUE across evaluated scenarios.",
             body=body,
         ),
     }

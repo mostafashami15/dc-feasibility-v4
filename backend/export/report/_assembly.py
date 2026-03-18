@@ -38,6 +38,7 @@ from export.report.chapters.scenario import (
     _build_selected_scenario_chapter,
 )
 from export.report.chapters.site_specifics import _build_site_specifics_chapter
+from export.visual_assets import build_scenario_comparison_chart
 
 
 def _build_site_bundle(
@@ -107,6 +108,14 @@ def _build_site_bundle(
     annual_pues = [_result_pue(result) for result in site_results]
     scores = _score_values(site_results)
     it_loads = [result.power.it_load_mw for result in site_results]
+
+    # Build scenario comparison chart from normalized results
+    scenario_comparison_chart = build_scenario_comparison_chart(
+        normalized_all_results[:8],
+        primary_color=primary_color,
+        secondary_color=secondary_color,
+    )
+
     chapters = {
         "site_specifics": _build_site_specifics_chapter(
             normalized_site_data,
@@ -131,6 +140,8 @@ def _build_site_bundle(
             normalized_site_data,
             site=site,
             primary_scenario_result=primary_result,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
         ),
         "load_mix": _build_load_mix_chapter(load_mix, normalized_primary),
         "green_energy": _build_green_energy_chapter(green_energy),
@@ -161,6 +172,7 @@ def _build_site_bundle(
         "climate": climate,
         "load_mix": load_mix,
         "green_energy": green_energy,
+        "scenario_comparison_chart": scenario_comparison_chart,
         "chapters": chapters,
     }
 

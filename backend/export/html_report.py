@@ -6,20 +6,23 @@ Renders executive and detailed reports using Jinja2 templates.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape, Undefined
 
 from engine.models import ScenarioResult, Site
 from export.report_data import build_report_context
 
+logger = logging.getLogger(__name__)
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 _env = Environment(
     loader=FileSystemLoader(_TEMPLATES_DIR),
     autoescape=select_autoescape(["html", "xml"]),
+    undefined=Undefined,  # silently ignore undefined variables
 )
 
 
@@ -31,7 +34,13 @@ def _fmt(value: Any, digits: int = 2, default: str = "-") -> str:
     return str(value)
 
 
+def _default_if_none(value: Any, default: Any = "") -> Any:
+    """Jinja2 filter: return default if value is None."""
+    return default if value is None else value
+
+
 _env.filters["fmt"] = _fmt
+_env.filters["default_if_none"] = _default_if_none
 
 
 def render_report_html(
@@ -49,6 +58,12 @@ def render_report_html(
     green_energy_results: dict[str, Any] | None = None,
     include_all_scenarios: bool = True,
 ) -> str:
+    logger.info(
+        "Building report context: type=%s, sites=%d, results=%d",
+        report_type,
+        len(site_entries),
+        len(scenario_results),
+    )
     context = build_report_context(
         report_type=report_type,
         primary_color=primary_color,
@@ -69,4 +84,11 @@ def render_report_html(
         if report_type == "executive"
         else "detailed_report.html"
     )
-    return _env.get_template(template_name).render(**context)
+    logger.info("Rendering template: %s", template_name)
+    try:
+        html = _env.get_template(template_name).render(**context)
+        logger.info("Template rendered successfully: %d chars", len(html))
+        return html
+    except Exception:
+        logger.exception("Template rendering failed for %s", template_name)
+        raise

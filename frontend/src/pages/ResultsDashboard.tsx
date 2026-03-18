@@ -35,6 +35,7 @@ import type {
   BackupPowerType,
   PUEBreakdownResult,
   FirmCapacityResult,
+  FirmCapacityAdvisoryResult,
   ExpansionAdvisoryResponse,
   HourlyProfilesResult,
   LoadMixResult,
@@ -219,6 +220,9 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
   const [firmCapacity, setFirmCapacity] = useState<FirmCapacityResult | null>(null);
   const [firmCapacityLoading, setFirmCapacityLoading] = useState(false);
   const [firmCapacityError, setFirmCapacityError] = useState<string | null>(null);
+  const [firmAdvisory, setFirmAdvisory] = useState<FirmCapacityAdvisoryResult | null>(null);
+  const [firmAdvisoryLoading, setFirmAdvisoryLoading] = useState(false);
+  const [firmAdvisoryError, setFirmAdvisoryError] = useState<string | null>(null);
   const [supportTarget, setSupportTarget] = useState("");
   const [bessCapacityKwh, setBessCapacityKwh] = useState("0");
   const [fuelCellKw, setFuelCellKw] = useState("0");
@@ -248,6 +252,8 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
     setExpansionAdvisoryError(null);
     setFirmCapacity(null);
     setFirmCapacityError(null);
+    setFirmAdvisory(null);
+    setFirmAdvisoryError(null);
     setSupportTarget("");
     setBessCapacityKwh("0");
     setFuelCellKw("0");
@@ -404,6 +410,23 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
     setFirmCapacityLoading(false);
   }
 
+  async function loadFirmAdvisory() {
+    setFirmAdvisoryLoading(true);
+    setFirmAdvisoryError(null);
+    try {
+      const data = await api.computeFirmCapacityAdvisory({
+        site_id: r.site_id,
+        scenario: r.scenario,
+      });
+      setFirmAdvisory(data);
+    } catch (error) {
+      setFirmAdvisoryError(
+        error instanceof Error ? error.message : "Firm capacity advisory failed"
+      );
+    }
+    setFirmAdvisoryLoading(false);
+  }
+
   async function handleBreakEven() {
     if (!beTarget) return;
     setBeLoading(true);
@@ -549,6 +572,10 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
             firmCapacityLoading={firmCapacityLoading}
             firmCapacityError={firmCapacityError}
             loadFirmCapacity={loadFirmCapacity}
+            firmAdvisory={firmAdvisory}
+            firmAdvisoryLoading={firmAdvisoryLoading}
+            firmAdvisoryError={firmAdvisoryError}
+            loadFirmAdvisory={loadFirmAdvisory}
             supportTarget={supportTarget}
             setSupportTarget={setSupportTarget}
             bessCapacityKwh={bessCapacityKwh}
@@ -1332,6 +1359,7 @@ function LoadMixSection({ r }: { r: ScenarioResult }) {
 
 function FirmCapacityTab({
   r, firmCapacity, firmCapacityLoading, firmCapacityError, loadFirmCapacity,
+  firmAdvisory, firmAdvisoryLoading, firmAdvisoryError, loadFirmAdvisory,
   supportTarget, setSupportTarget, bessCapacityKwh, setBessCapacityKwh,
   fuelCellKw, setFuelCellKw, backupDispatchKw, setBackupDispatchKw,
 }: {
@@ -1340,6 +1368,10 @@ function FirmCapacityTab({
   firmCapacityLoading: boolean;
   firmCapacityError: string | null;
   loadFirmCapacity: () => void;
+  firmAdvisory: FirmCapacityAdvisoryResult | null;
+  firmAdvisoryLoading: boolean;
+  firmAdvisoryError: string | null;
+  loadFirmAdvisory: () => void;
   supportTarget: string;
   setSupportTarget: (v: string) => void;
   bessCapacityKwh: string;
@@ -1350,28 +1382,114 @@ function FirmCapacityTab({
   setBackupDispatchKw: (v: string) => void;
 }) {
   return (
-    <SectionCard
-      title="Firm Capacity with Peak Support"
-      icon={<Target size={16} className="text-emerald-500" />}
-      action={(
-        <button type="button" onClick={loadFirmCapacity}
-          disabled={firmCapacityLoading || r.pue_source !== "hourly"}
-          className="text-xs px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
-        >
-          {firmCapacityLoading ? <Loader2 size={12} className="animate-spin" /> : "Compute"}
-        </button>
-      )}
-    >
-      {r.pue_source !== "hourly" && (
-        <p className="text-xs text-gray-500">
-          Hourly weather simulation is required to analyse firm IT capacity with peak support.
-        </p>
-      )}
+    <div className="space-y-4">
+      {/* Auto-Advisory Section (no user input required) */}
+      <SectionCard
+        title="Firm Capacity Advisory"
+        icon={<Target size={16} className="text-emerald-500" />}
+        action={(
+          <button type="button" onClick={loadFirmAdvisory}
+            disabled={firmAdvisoryLoading || r.pue_source !== "hourly"}
+            className="text-xs px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {firmAdvisoryLoading ? <Loader2 size={12} className="animate-spin" /> : "Auto-Analyse"}
+          </button>
+        )}
+      >
+        {r.pue_source !== "hourly" && (
+          <p className="text-xs text-gray-500">
+            Hourly weather simulation is required. Run a scenario with weather data first.
+          </p>
+        )}
+        {r.pue_source === "hourly" && !firmAdvisory && !firmAdvisoryLoading && !firmAdvisoryError && (
+          <p className="text-xs text-gray-500">
+            Click "Auto-Analyse" for a preset engineering assessment of firm IT capacity
+            with recommended mitigation strategies and costs. No manual input required.
+          </p>
+        )}
+        {firmAdvisoryError && <p className="text-xs text-red-600 mt-2">{firmAdvisoryError}</p>}
+        {firmAdvisory && (
+          <div className="space-y-4 mt-2">
+            {/* Capacity spectrum */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Metric label="Firm Capacity (P99)" value={`${firmAdvisory.firm_capacity_mw.toFixed(2)} MW`} />
+              <Metric label="Mean Capacity" value={`${firmAdvisory.mean_capacity_mw.toFixed(2)} MW`} />
+              <Metric label="Worst Hour" value={`${firmAdvisory.worst_capacity_mw.toFixed(2)} MW`} />
+              <Metric label="Best Hour" value={`${firmAdvisory.best_capacity_mw.toFixed(2)} MW`} />
+              <Metric label="Capacity Gap" value={`${firmAdvisory.capacity_gap_mw.toFixed(2)} MW`}
+                sub="Mean minus Firm (opportunity)" />
+              <Metric label="Peak Deficit" value={`${firmAdvisory.peak_deficit_mw.toFixed(2)} MW`}
+                sub="Firm minus Worst (to bridge)" />
+              <Metric label="Deficit Hours" value={firmAdvisory.deficit_hours.toLocaleString()}
+                sub={`${(firmAdvisory.deficit_hours / 8760 * 100).toFixed(1)}% of year`} />
+              <Metric label="Deficit Energy" value={`${(firmAdvisory.deficit_energy_kwh / 1000).toFixed(1)} MWh`} />
+            </div>
+
+            {/* Mitigation strategies */}
+            {firmAdvisory.strategies.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">Recommended Mitigation Strategies</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {firmAdvisory.strategies.map((s) => (
+                    <div key={s.key} className="rounded-lg border border-gray-200 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{s.label}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          +{s.capacity_mw.toFixed(2)} MW
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Metric label="IT Capacity Unlocked" value={`${s.capacity_mw.toFixed(2)} MW`} />
+                        <Metric label="Estimated CapEx" value={
+                          s.estimated_capex_usd > 0
+                            ? `$${(s.estimated_capex_usd / 1000).toFixed(0)}k`
+                            : "No CapEx"
+                        } />
+                      </div>
+                      <p className="text-xs text-gray-600 font-mono bg-gray-50 rounded px-2 py-1">{s.sizing_summary}</p>
+                      <div className="text-xs text-gray-500 space-y-0.5">
+                        {s.notes.map((note, i) => (
+                          <p key={i} className="flex items-start gap-1.5">
+                            <AlertCircle size={10} className="mt-0.5 shrink-0 text-gray-400" />
+                            <span>{note}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {firmAdvisory.strategies.length === 0 && (
+              <p className="text-xs text-green-700 bg-green-50 rounded-lg p-3">
+                No mitigation needed. The firm capacity is close to the mean capacity, indicating
+                minimal hourly variation in cooling overhead for this site and cooling topology.
+              </p>
+            )}
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Manual Firm Capacity Section (existing, now secondary) */}
+      <SectionCard
+        title="Custom Peak Support Analysis"
+        icon={<Target size={16} className="text-gray-400" />}
+        action={(
+          <button type="button" onClick={loadFirmCapacity}
+            disabled={firmCapacityLoading || r.pue_source !== "hourly"}
+            className="text-xs px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+          >
+            {firmCapacityLoading ? <Loader2 size={12} className="animate-spin" /> : "Compute"}
+          </button>
+        )}
+      >
       {r.pue_source === "hourly" && (
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
-            With this site's fixed grid limit, what constant IT load could you guarantee all year?
-            Support assets fill the hottest-hour cooling deficits.
+            Advanced: manually specify support assets (BESS, fuel cell, backup) to test custom configurations.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
@@ -1515,6 +1633,7 @@ function FirmCapacityTab({
         </div>
       )}
     </SectionCard>
+    </div>
   );
 }
 

@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from api.store import GRID_CONTEXT_DIR, get_weather
+import export.report_data as _report_data_mod
 from engine.climate import analyse_climate
 from engine.models import GridContextResult, ScenarioResult
 from engine.pue_engine import build_hourly_facility_factors, simulate_hourly
@@ -38,7 +38,7 @@ def _grid_context_preference_key(result: GridContextResult) -> tuple[str, float,
 
 
 def _load_grid_context_block(site_id: str) -> dict[str, Any]:
-    site_dir = Path(GRID_CONTEXT_DIR) / site_id
+    site_dir = Path(_report_data_mod.GRID_CONTEXT_DIR) / site_id
     if not site_dir.exists():
         return {
             "status": "missing",
@@ -148,7 +148,7 @@ def _load_climate_block(
     site_results: list[ScenarioResult],
     primary_result: ScenarioResult | None,
 ) -> dict[str, Any]:
-    weather = get_weather(site_id)
+    weather = _report_data_mod.get_weather(site_id)
     if weather is None:
         return {
             "status": "missing",
@@ -394,7 +394,7 @@ def _load_hourly_analysis(
     if not result.compatible_combination or result.power.it_load_mw <= 0:
         return None
 
-    weather = get_weather(site_id)
+    weather = _report_data_mod.get_weather(site_id)
     if weather is None:
         return None
 
@@ -404,7 +404,13 @@ def _load_hourly_analysis(
         return None
 
     try:
-        if site.power_confirmed and site.available_power_mw > 0:
+        # When binding constraint is AREA, the space-derived IT load is the
+        # true cap — run in area-constrained mode even if power is confirmed.
+        if (
+            site.power_confirmed
+            and site.available_power_mw > 0
+            and result.power.binding_constraint == "POWER"
+        ):
             sim = simulate_hourly(
                 temperatures=temperatures,
                 humidities=humidities,

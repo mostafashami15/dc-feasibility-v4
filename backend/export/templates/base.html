@@ -33,10 +33,17 @@
     }
 
     /* ── @page / print ─────────────────────────────────────────────── */
+    {% if report.layout_mode == "presentation_16_9" %}
+    @page {
+      size: 297mm 167mm;
+      margin: 12mm 16mm 14mm;
+    }
+    {% else %}
     @page {
       size: A4 portrait;
       margin: 16mm 18mm 20mm;
     }
+    {% endif %}
 
     @page :first {
       margin-top: 0;
@@ -459,7 +466,7 @@
     }
 
     .badge-primary {
-      background: color-mix(in srgb, var(--primary) 12%, white);
+      background: rgba(26, 54, 93, 0.12);
       color: var(--primary);
     }
 
@@ -572,6 +579,35 @@
       margin: 14px 0;
     }
 
+    /* ── MAP STRIP (3 maps side by side) ──────────────────────────── */
+    .map-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .map-strip .map-container {
+      margin: 0;
+    }
+    .map-strip .map-container img {
+      height: 180px;
+      object-fit: cover;
+    }
+
+    /* ── CHART ROW (2 charts side by side, flexible) ──────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 14px 0;
+    }
+    .chart-row-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+
     /* ── LAYOUT HELPERS ────────────────────────────────────────────── */
     .two-col   { display: grid; grid-template-columns: 1fr 1fr;       gap: 14px; }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -594,6 +630,14 @@
       align-items: center;
       font-size: 7.5pt;
       color: var(--text-light);
+    }
+
+    /* ── LAYOUT MODE OVERRIDES ────────────────────────────────────── */
+    body.layout-report_a4_portrait .chapter-head {
+      padding-top: 24px;
+    }
+    body.layout-presentation_16_9 .chapter-head {
+      padding-top: 14px;
     }
 
     /* ── RANKING TABLE (alternatives) ──────────────────────────────── */
@@ -628,13 +672,13 @@
       color: var(--text-muted);
     }
     .scenario-pill.active {
-      background: color-mix(in srgb, var(--primary) 10%, white);
+      background: rgba(26, 54, 93, 0.10);
       color: var(--primary);
-      border: 1px solid color-mix(in srgb, var(--primary) 25%, white);
+      border: 1px solid rgba(26, 54, 93, 0.25);
     }
   </style>
 </head>
-<body>
+<body class="report-shell layout-{{ report.layout_mode }} report-type-{{ report.type }}">
   {% block content %}{% endblock %}
 </body>
 </html>

@@ -7,6 +7,7 @@ from export.report import (
     get_result_display_label,
 )
 from export.report._constants import NARRATIVE_POLICY, LAYOUT_MODE_LABELS
+from api.store import GRID_CONTEXT_DIR, get_weather
 
 __all__ = [
     "build_report_context",
@@ -16,4 +17,6 @@ __all__ = [
     "get_result_display_label",
     "NARRATIVE_POLICY",
     "LAYOUT_MODE_LABELS",
+    "GRID_CONTEXT_DIR",
+    "get_weather",
 ]

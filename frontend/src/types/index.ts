@@ -876,6 +876,42 @@ export interface FirmCapacityResult {
 
 
 // ---------------------------------------------------------------------------
+// Firm Capacity Advisory (Preset Methodology)
+// ---------------------------------------------------------------------------
+
+export interface MitigationStrategy {
+  key: string;
+  label: string;
+  description: string;
+  capacity_kw: number;
+  capacity_mw: number;
+  estimated_capex_usd: number;
+  sizing_summary: string;
+  notes: string[];
+}
+
+export interface FirmCapacityAdvisoryResult {
+  firm_capacity_mw: number;
+  firm_capacity_kw: number;
+  mean_capacity_mw: number;
+  mean_capacity_kw: number;
+  worst_capacity_mw: number;
+  worst_capacity_kw: number;
+  best_capacity_mw: number;
+  best_capacity_kw: number;
+  capacity_gap_mw: number;
+  capacity_gap_kw: number;
+  peak_deficit_mw: number;
+  peak_deficit_kw: number;
+  deficit_hours: number;
+  deficit_energy_kwh: number;
+  annual_pue: number;
+  facility_power_mw: number;
+  strategies: MitigationStrategy[];
+}
+
+
+// ---------------------------------------------------------------------------
 // Settings / Runtime Operations
 // ---------------------------------------------------------------------------
 

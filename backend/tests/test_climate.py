@@ -21,6 +21,7 @@ from engine.climate import (
     compute_temperature_stats,
     compute_monthly_stats,
     count_free_cooling_hours,
+    count_cooling_mode_hours,
     classify_suitability,
     analyse_free_cooling,
     analyse_climate,
@@ -206,7 +207,7 @@ class TestFreeCoolingHours:
 
     def test_water_chiller_requires_rh(self):
         """Water Chiller without RH raises ValueError."""
-        with pytest.raises(ValueError, match="Humidity data required"):
+        with pytest.raises(ValueError, match="RH required"):
             count_free_cooling_hours(
                 self.temps, "Water-Cooled Chiller + Economizer"
             )
@@ -499,3 +500,106 @@ class TestEdgeCases:
         h_air = count_free_cooling_hours(temps, "Air-Cooled Chiller + Economizer")
         h_rdhx = count_free_cooling_hours(temps, "Rear Door Heat Exchanger (RDHx)")
         assert h_air == h_rdhx
+
+
+# ═════════════════════════════════════════════════════════════
+# 8. COOLING MODE HOURS (ECON_FULL + ECON_PART + MECH)
+# ═════════════════════════════════════════════════════════════
+
+class TestCoolingModeHours:
+    """Test count_cooling_mode_hours returns correct per-mode breakdown."""
+
+    def setup_method(self):
+        self.temps = make_8760_dataset()
+
+    def test_air_chiller_three_modes(self):
+        """Air Chiller + Econ has three modes: ECON_FULL, ECON_PART, MECH.
+
+        Thresholds from assumptions.py:
+            ECON_FULL: T_db <= 14 (CHWS=16 - ECO_full_approach=2)
+            ECON_PART: 14 < T_db <= 22 (CHWR=24 - ECO_enable_dT=2)
+            MECH: T_db > 22
+
+        Dataset: 5500 @ 10, 2000 @ 18, 1260 @ 30
+            10 <= 14 -> ECON_FULL: 5500
+            18 > 14 and 18 <= 22 -> ECON_PART: 2000
+            30 > 22 -> MECH: 1260
+        """
+        full, part, mech = count_cooling_mode_hours(
+            self.temps, "Air-Cooled Chiller + Economizer"
+        )
+        assert full == 5500
+        assert part == 2000
+        assert mech == 1260
+        assert full + part + mech == 8760
+
+    def test_immersion_three_modes(self):
+        """Immersion has wider economizer window.
+
+        Thresholds: ECON_FULL <= 28 (CHWS=34 - ECO_full_approach=6),
+                    ECON_PART 28 < T <= 39 (CHWR=45 - ECO_enable_dT=6)
+                    MECH > 39
+
+        Dataset: 5500 @ 10, 2000 @ 18, 1260 @ 30
+            10 <= 28 -> ECON_FULL: 5500
+            18 <= 28 -> ECON_FULL: 2000
+            30 > 28 and 30 <= 39 -> ECON_PART: 1260
+        """
+        full, part, mech = count_cooling_mode_hours(
+            self.temps, "Immersion Cooling (Single-Phase)"
+        )
+        assert full == 7500
+        assert part == 1260
+        assert mech == 0
+        assert full + part + mech == 8760
+
+    def test_dry_cooler_two_modes(self):
+        """Dry Cooler (air_side_economizer) has only ECON_FULL and MECH.
+
+        Threshold: ASE_DB = 30. Dataset max = 30. All hours <= 30 -> ECON_FULL.
+        """
+        full, part, mech = count_cooling_mode_hours(
+            self.temps, "Free Cooling — Dry Cooler (Chiller-less)"
+        )
+        assert full == 8760
+        assert part == 0
+        assert full + part + mech == 8760
+
+    def test_crac_all_mechanical(self):
+        """CRAC (mechanical_only) has no economizer -- all hours are MECH."""
+        full, part, mech = count_cooling_mode_hours(
+            self.temps, "Air-Cooled CRAC (DX)"
+        )
+        assert full == 0
+        assert part == 0
+        assert mech == 8760
+
+    def test_modes_sum_to_total(self):
+        """For any topology, ECON_FULL + ECON_PART + MECH = total hours."""
+        for ct in ["Air-Cooled Chiller + Economizer",
+                    "Immersion Cooling (Single-Phase)",
+                    "Free Cooling — Dry Cooler (Chiller-less)",
+                    "Air-Cooled CRAC (DX)"]:
+            full, part, mech = count_cooling_mode_hours(self.temps, ct)
+            assert full + part + mech == 8760, f"Mismatch for {ct}"
+
+    def test_analyse_free_cooling_includes_partial_and_mech(self):
+        """analyse_free_cooling returns partial_hours and mechanical_hours."""
+        fc = analyse_free_cooling(self.temps, "Air-Cooled Chiller + Economizer")
+        assert fc.partial_hours == 2000
+        assert fc.mechanical_hours == 1260
+        assert fc.free_cooling_hours + fc.partial_hours + fc.mechanical_hours == 8760
+
+    def test_different_topologies_have_different_values(self):
+        """Each topology should produce different free cooling breakdowns
+        due to different economizer thresholds."""
+        fc_air = analyse_free_cooling(self.temps, "Air-Cooled Chiller + Economizer")
+        fc_imm = analyse_free_cooling(self.temps, "Immersion Cooling (Single-Phase)")
+        fc_dry = analyse_free_cooling(self.temps, "Free Cooling — Dry Cooler (Chiller-less)")
+
+        # Each topology must have different free cooling hours
+        assert fc_air.free_cooling_hours != fc_imm.free_cooling_hours
+        assert fc_imm.free_cooling_hours != fc_dry.free_cooling_hours
+
+        # Partial hours should also differ
+        assert fc_air.partial_hours != fc_imm.partial_hours

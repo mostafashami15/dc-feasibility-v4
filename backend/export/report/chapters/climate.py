@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from export.visual_assets import build_free_cooling_chart, build_monthly_temperature_chart
+from export.visual_assets import (
+    build_cooling_suitability_chart,
+    build_free_cooling_chart,
+    build_monthly_temperature_chart,
+)
 
 from export.report._constants import MONTH_NAMES
 from export.report._narratives import _build_climate_narrative
@@ -135,6 +139,11 @@ def _build_climate_chapter(
         "free_cooling_chart_visual": build_free_cooling_chart(
             analysis["free_cooling"],
             selected_cooling_type=selected_cooling_type,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "cooling_suitability_chart_visual": build_cooling_suitability_chart(
+            analysis["free_cooling"],
             primary_color=primary_color,
             secondary_color=secondary_color,
         ),
