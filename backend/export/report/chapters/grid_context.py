@@ -126,15 +126,16 @@ def _build_grid_context_chapter(
     if grid_context.get("message"):
         evidence_notes.append(grid_context["message"])
 
-    # Generate real tile-based grid context map
+    # Generate real tile-based grid context map with ALL assets and radius circle
     grid_map_uri = None
     grid_lat = selected.get("latitude") or site_data["location"].get("latitude")
     grid_lon = selected.get("longitude") or site_data["location"].get("longitude")
+    all_assets_with_coords = [a for a in assets if a.get("coordinates")]
     if grid_lat is not None and grid_lon is not None:
         grid_map_uri = generate_grid_context_base64(
             grid_lat,
             grid_lon,
-            assets=display_assets,
+            assets=all_assets_with_coords,
             radius_km=summary.get("radius_km"),
         )
 

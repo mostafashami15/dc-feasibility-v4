@@ -177,29 +177,31 @@
           badges=["<span class='badge'>" ~ grid_context.asset_count ~ " asset(s) mapped</span>"]
       ) }}
 
-      {# Grid context map (constrained height) #}
-      {% if grid_context.grid_context_map %}
-        <div class="subsection-title">Grid Context Map</div>
-        <div class="map-container" style="max-width:65%; margin-left:auto; margin-right:auto;">
-          <img src="{{ grid_context.grid_context_map }}" alt="Grid Context Map" style="max-height:240px; object-fit:contain; width:100%;" />
-          <div class="map-caption">
-            Grid Context Map — site (dark), substations (orange/red), power lines
-          </div>
+      {# Grid context map + Network Overview side by side #}
+      <div class="two-col" style="align-items:start;">
+        {# Left: Map #}
+        <div>
+          {% if grid_context.grid_context_map %}
+            <div class="map-container" style="margin:0;">
+              <img src="{{ grid_context.grid_context_map }}" alt="Grid Context Map" style="width:100%; object-fit:contain;" />
+              <div class="map-caption">
+                Site (dark) · Substations (coloured dots) · Power lines · Dashed circle = search radius
+              </div>
+            </div>
+          {% elif grid_context.map_visual.available %}
+            <div class="chart-container" style="margin:0;">
+              {{ grid_context.map_visual.svg_markup | safe }}
+            </div>
+          {% endif %}
         </div>
-      {% elif grid_context.map_visual.available %}
-        <div class="chart-container" style="max-width:65%; margin-left:auto; margin-right:auto;">
-          {{ grid_context.map_visual.svg_markup | safe }}
-        </div>
-      {% endif %}
-
-      {# Grid info table #}
-      <div class="fact-grid">
-        <div class="fact-panel">
+        {# Right: Network Overview #}
+        <div class="fact-panel" style="margin:0; height:fit-content;">
           <div class="fact-panel-title">Network Overview</div>
           {{ fact_rows(grid_context.summary_items) }}
         </div>
       </div>
 
+      {# Mapped Infrastructure Assets table below #}
       {% if grid_context.asset_rows %}
         <div class="subsection-title">Mapped Infrastructure Assets</div>
         <div class="table-wrap">

@@ -145,23 +145,26 @@
 
       {{ narrative(grid_context.narrative) }}
 
-      {% if grid_context.grid_context_map %}
-        <div class="map-container" style="max-height:220px; overflow:hidden;">
-          <img src="{{ grid_context.grid_context_map }}" alt="Grid context map"
-               style="width:100%; object-fit:cover; max-height:220px;" />
+      {# Map + Network Overview side by side #}
+      <div class="two-col" style="align-items:start;">
+        <div>
+          {% if grid_context.grid_context_map %}
+            <div class="map-container" style="margin:0;">
+              <img src="{{ grid_context.grid_context_map }}" alt="Grid context map"
+                   style="width:100%; object-fit:contain;" />
+              <div class="map-caption">
+                Site (dark) · Substations · Power lines · Dashed circle = search radius
+              </div>
+            </div>
+          {% endif %}
         </div>
-      {% endif %}
-
-      <div class="fact-grid">
-        {% if grid_context.score_items %}
-          <div class="fact-panel">
-            <div class="fact-panel-title">Grid Score</div>
-            {{ fact_rows(grid_context.score_items[:3]) }}
-          </div>
-        {% endif %}
-        <div class="fact-panel">
-          <div class="fact-panel-title">Network Summary</div>
+        <div class="fact-panel" style="margin:0; height:fit-content;">
+          <div class="fact-panel-title">Network Overview</div>
           {{ fact_rows(grid_context.summary_items[:5]) }}
+          {% if grid_context.score_items %}
+            <div class="fact-panel-title" style="margin-top:10px;">Grid Score</div>
+            {{ fact_rows(grid_context.score_items[:3]) }}
+          {% endif %}
         </div>
       </div>
 

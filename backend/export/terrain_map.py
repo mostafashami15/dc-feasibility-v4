@@ -170,23 +170,80 @@ def generate_country_overview_base64(
 # Grid context map (OSM with infrastructure markers)
 # ---------------------------------------------------------------------------
 
+def _voltage_color(voltage_kv: float | None) -> str:
+    """Return a colour matching the frontend's voltage colour scheme."""
+    if voltage_kv is None:
+        return "#6b7280"  # gray for unknown
+    if voltage_kv >= 300:
+        return "#dc2626"  # red
+    if voltage_kv >= 220:
+        return "#ea580c"  # orange-red
+    if voltage_kv >= 110:
+        return "#f59e0b"  # amber
+    if voltage_kv >= 36:
+        return "#2563eb"  # blue
+    return "#6b7280"  # gray
+
+
+def _radius_circle_points(
+    center_lat: float, center_lon: float, radius_km: float, n_points: int = 72
+) -> list[tuple[float, float]]:
+    """Return (lon, lat) points forming a circle for staticmap."""
+    import math
+    points = []
+    for i in range(n_points + 1):
+        angle = 2 * math.pi * i / n_points
+        lat_delta = radius_km / 110.574
+        lon_delta = radius_km / (111.32 * max(math.cos(math.radians(center_lat)), 0.01))
+        pt_lat = center_lat + lat_delta * math.sin(angle)
+        pt_lon = center_lon + lon_delta * math.cos(angle)
+        points.append((pt_lon, pt_lat))
+    return points
+
+
+def _auto_zoom_for_radius(radius_km: float) -> int:
+    """Pick a zoom level that comfortably fits the radius circle."""
+    if radius_km <= 2:
+        return 14
+    if radius_km <= 5:
+        return 12
+    if radius_km <= 10:
+        return 11
+    if radius_km <= 20:
+        return 10
+    if radius_km <= 50:
+        return 9
+    return 8
+
+
 def generate_grid_context_image(
     lat: float,
     lon: float,
     assets: list[dict[str, Any]] | None = None,
     radius_km: float | None = None,
-    zoom: int = 12,
+    zoom: int | None = None,
     width: int = 800,
-    height: int = 450,
+    height: int = 500,
 ) -> Optional[bytes]:
-    """Return a PNG map showing the site and nearby grid infrastructure assets."""
+    """Return a PNG map showing the site, radius circle, and ALL grid infrastructure."""
     if not _HAS_STATICMAP:
         return None
 
     try:
         m = staticmap.StaticMap(width, height, url_template=OSM_URL)
 
-        # Add power line assets as lines or point markers
+        # Auto-pick zoom based on radius
+        effective_zoom = zoom or (
+            _auto_zoom_for_radius(radius_km) if radius_km else 12
+        )
+
+        # Draw radius circle (dashed border approximated by closely spaced line)
+        if radius_km and radius_km > 0:
+            circle_pts = _radius_circle_points(lat, lon, radius_km)
+            circle_line = staticmap.Line(circle_pts, "#1d4ed8", 2)
+            m.add_line(circle_line)
+
+        # Draw ALL infrastructure assets
         for asset in (assets or []):
             coords = asset.get("coordinates") or []
             if not coords:
@@ -194,14 +251,7 @@ def generate_grid_context_image(
 
             asset_type = asset.get("asset_type", "")
             voltage_kv = asset.get("voltage_kv")
-
-            # Color by voltage
-            if voltage_kv is not None and voltage_kv >= 220:
-                color = "#dc2626"  # red for HV
-            elif voltage_kv is not None and voltage_kv >= 110:
-                color = "#ea580c"  # orange for MV
-            else:
-                color = "#2563eb"  # blue for others
+            color = _voltage_color(voltage_kv)
 
             valid_points = [
                 (float(c[1]), float(c[0]))  # (lon, lat) for staticmap
@@ -213,21 +263,31 @@ def generate_grid_context_image(
                 continue
 
             geom_type = asset.get("geometry_type", "")
-            if (geom_type == "line" or len(valid_points) > 1) and len(valid_points) >= 2:
-                line = staticmap.Line(valid_points, color, 3)
-                m.add_line(line)
-            else:
-                # Point marker for substations or single-point assets
+
+            if geom_type == "polygon" and len(valid_points) >= 3:
+                # Close the polygon and draw as a line outline
+                closed = valid_points + [valid_points[0]]
+                m.add_line(staticmap.Line(closed, color, 2))
+            elif (geom_type == "line" or len(valid_points) > 1) and len(valid_points) >= 2:
+                line_width = 4 if asset_type == "line" else 2
+                m.add_line(staticmap.Line(valid_points, color, line_width))
+
+            # Always add point markers for substations, or for point assets
+            if asset_type == "substation" or geom_type == "point":
                 lon_a, lat_a = valid_points[0]
-                marker_size = 10 if asset_type == "substation" else 7
+                marker_size = 12 if asset_type == "substation" else 7
                 m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, marker_size))
+                if asset_type == "substation":
+                    # White inner ring for substations (like frontend)
+                    m.add_marker(staticmap.CircleMarker((lon_a, lat_a), "white", 6))
+                    m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, 4))
 
         # Site marker on top (prominent)
         m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 16))
         m.add_marker(staticmap.CircleMarker((lon, lat), "white", 9))
         m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 6))
 
-        image = m.render(zoom=zoom)
+        image = m.render(zoom=effective_zoom)
 
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -244,9 +304,9 @@ def generate_grid_context_base64(
     lon: float,
     assets: list[dict[str, Any]] | None = None,
     radius_km: float | None = None,
-    zoom: int = 12,
+    zoom: int | None = None,
     width: int = 800,
-    height: int = 450,
+    height: int = 500,
 ) -> Optional[str]:
     """Return a base64-encoded grid context map for HTML embedding."""
     return _to_base64(
