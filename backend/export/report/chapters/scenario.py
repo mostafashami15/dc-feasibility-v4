@@ -39,8 +39,10 @@ from export.visual_assets import (
     build_daily_profile_chart,
     build_firm_capacity_chart,
     build_it_capacity_spectrum_chart,
+    build_pie_chart,
     build_power_chain_waterfall,
     build_pue_breakdown_chart,
+    build_tornado_chart,
 )
 
 
@@ -126,7 +128,28 @@ def _build_pue_decomposition_block(
         },
     ]
 
-    return _build_advanced_block(
+    # Build pie chart visuals for component and mode breakdowns
+    component_pie = build_pie_chart(
+        [
+            {"label": item["label"], "value": item["energy_kwh"]}
+            for item in components
+            if item["energy_kwh"] > 0
+        ],
+        title="PUE Overhead by Component",
+        subtitle=f"Total overhead: {total_overhead / 1000:.1f} MWh",
+    )
+    mode_pie = build_pie_chart(
+        [
+            {"label": "Mechanical cooling", "value": sim.mech_hours, "color": "#ef4444"},
+            {"label": "Partial economizer", "value": sim.econ_part_hours, "color": "#f59e0b"},
+            {"label": "Full economizer", "value": sim.econ_full_hours, "color": "#16a34a"},
+            {"label": "Overtemperature", "value": sim.overtemperature_hours, "color": "#7c3aed"},
+        ],
+        title="Cooling Mode Hours",
+        subtitle="8,760-hour annual distribution",
+    )
+
+    block = _build_advanced_block(
         "pue_decomposition",
         "PUE Decomposition",
         summary_items=[
@@ -138,26 +161,14 @@ def _build_pue_decomposition_block(
             ),
             _fact("IT energy", _display_number(sim.total_it_kwh / 1000, digits=1, suffix="MWh")),
         ],
-        tables=[
-            _table(
-                "Annual overhead components",
-                [
-                    ("component", "Component"),
-                    ("energy_mwh", "Energy"),
-                    ("share_of_overhead", "Share of overhead"),
-                ],
-                component_rows,
-            ),
-            _table(
-                "Cooling-mode hours",
-                [("mode", "Mode"), ("hours", "Hours")],
-                mode_rows,
-            ),
-        ],
+        tables=[],
         notes=[
             "Derived from the representative hourly simulation used for the annual PUE result.",
         ],
     )
+    block["component_pie_visual"] = component_pie
+    block["mode_pie_visual"] = mode_pie
+    return block
 
 
 def _build_hourly_profiles_block(
@@ -835,7 +846,23 @@ def _build_sensitivity_block(site: Site, result: ScenarioResult) -> dict[str, An
     most_influential = tornado.bars[0]
     least_influential = tornado.bars[-1]
 
-    return _build_advanced_block(
+    # Build tornado chart visual
+    tornado_chart = build_tornado_chart(
+        [
+            {
+                "label": bar.parameter_label,
+                "low": bar.output_at_low,
+                "high": bar.output_at_high,
+            }
+            for bar in tornado.bars
+        ],
+        baseline=most_influential.output_at_baseline,
+        output_unit=tornado.output_metric_unit,
+        title="Sensitivity Tornado",
+        subtitle=f"±{tornado.variation_pct}% parameter sweep — output: {tornado.output_metric_name}",
+    )
+
+    block = _build_advanced_block(
         "sensitivity",
         "Sensitivity",
         summary_items=[
@@ -852,45 +879,10 @@ def _build_sensitivity_block(site: Site, result: ScenarioResult) -> dict[str, An
             _fact("Most influential", most_influential.parameter_label),
             _fact("Least influential", least_influential.parameter_label),
         ],
-        tables=[
-            _table(
-                "One-at-a-time parameter sweep",
-                [
-                    ("parameter", "Parameter"),
-                    ("baseline", "Baseline"),
-                    ("low_case", "Low case"),
-                    ("high_case", "High case"),
-                    ("output_low", "Output at low"),
-                    ("output_high", "Output at high"),
-                    ("spread", "Spread"),
-                ],
-                [
-                    {
-                        "parameter": bar.parameter_label,
-                        "baseline": _display_number(
-                            bar.baseline_value,
-                            digits=3,
-                            suffix=SENSITIVITY_UNIT_SUFFIXES.get(bar.parameter),
-                        ),
-                        "low_case": _display_number(
-                            bar.low_value,
-                            digits=3,
-                            suffix=SENSITIVITY_UNIT_SUFFIXES.get(bar.parameter),
-                        ),
-                        "high_case": _display_number(
-                            bar.high_value,
-                            digits=3,
-                            suffix=SENSITIVITY_UNIT_SUFFIXES.get(bar.parameter),
-                        ),
-                        "output_low": _display_number(bar.output_at_low, digits=2, suffix=tornado.output_metric_unit),
-                        "output_high": _display_number(bar.output_at_high, digits=2, suffix=tornado.output_metric_unit),
-                        "spread": _display_number(bar.spread, digits=2, suffix=tornado.output_metric_unit),
-                    }
-                    for bar in tornado.bars
-                ],
-            ),
-        ],
+        tables=[],
     )
+    block["tornado_chart_visual"] = tornado_chart
+    return block
 
 
 def _build_break_even_block(site: Site, result: ScenarioResult) -> dict[str, Any] | None:

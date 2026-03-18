@@ -169,17 +169,16 @@ def _build_climate_chapter(
             ),
         ],
         "temperature_items": [
-            _fact("Sample count", _display_number(temperature_stats.get("count"), digits=0)),
-            _fact("Mean dry-bulb", _display_number(temperature_stats.get("mean"), digits=2, suffix="C")),
-            _fact("Minimum", _display_number(temperature_stats.get("min"), digits=2, suffix="C")),
-            _fact("Maximum", _display_number(temperature_stats.get("max"), digits=2, suffix="C")),
-            _fact("Median", _display_number(temperature_stats.get("median"), digits=2, suffix="C")),
-            _fact("P01", _display_number(temperature_stats.get("p1"), digits=2, suffix="C")),
-            _fact("P99", _display_number(temperature_stats.get("p99"), digits=2, suffix="C")),
-            _fact(
-                "Standard deviation",
-                _display_number(temperature_stats.get("std_dev"), digits=2, suffix="C"),
-            ),
+            # First 5 match the frontend UI stat cards
+            _fact("Mean", _display_number(temperature_stats.get("mean"), digits=1, suffix="°C")),
+            _fact("Min", _display_number(temperature_stats.get("min"), digits=1, suffix="°C")),
+            _fact("Max", _display_number(temperature_stats.get("max"), digits=1, suffix="°C")),
+            _fact("P1 (cold)", _display_number(temperature_stats.get("p1"), digits=1, suffix="°C")),
+            _fact("P99 (hot)", _display_number(temperature_stats.get("p99"), digits=1, suffix="°C")),
+            # Additional stats
+            _fact("Median", _display_number(temperature_stats.get("median"), digits=1, suffix="°C")),
+            _fact("Std Dev", _display_number(temperature_stats.get("std_dev"), digits=2, suffix="°C")),
+            _fact("Samples", _display_number(temperature_stats.get("count"), digits=0)),
         ],
         "best_free_cooling_summary": [
             _fact("Best cooling type", best_free_cooling.get("cooling_type")),

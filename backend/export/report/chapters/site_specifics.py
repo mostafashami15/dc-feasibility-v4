@@ -44,6 +44,37 @@ def _build_site_specifics_chapter(
         location_map_uri = generate_site_location_base64(lat, lon, width=400, height=300)
         country_overview_uri = generate_country_overview_base64(lat, lon, width=400, height=300)
 
+    # Compute derived values
+    buildable_footprint_m2 = (
+        land["buildable_area_m2"]
+        if land["buildable_area_m2"] is not None
+        else (land["land_area_m2"] * land["site_coverage_ratio"]
+              if land["land_area_m2"] and land["site_coverage_ratio"]
+              else None)
+    )
+    num_floors = building["num_floors"] or 0
+    whitespace_ratio = building["whitespace_ratio"] or 0
+    rack_footprint_m2 = building["rack_footprint_m2"] or 0
+
+    # Gross building area = buildable footprint * floors
+    gross_building_m2 = (
+        buildable_footprint_m2 * num_floors
+        if buildable_footprint_m2 and num_floors
+        else None
+    )
+    # IT whitespace = gross building * whitespace ratio
+    whitespace_m2 = (
+        gross_building_m2 * whitespace_ratio
+        if gross_building_m2 and whitespace_ratio
+        else None
+    )
+    # Max racks = whitespace / rack footprint
+    max_racks = (
+        int(whitespace_m2 / rack_footprint_m2)
+        if whitespace_m2 and rack_footprint_m2
+        else None
+    )
+
     return {
         "title": "Site Specifics and Properties",
         "terrain_image": terrain_image_uri,
@@ -67,23 +98,14 @@ def _build_site_specifics_chapter(
             ),
         ],
         "property_items": [
-            _fact("Land area", _display_number(land["land_area_m2"], digits=0, suffix="m2")),
-            _fact("Buildable area mode", land["buildable_area_mode"]),
+            _fact("Land area", _display_number(land["land_area_m2"], digits=0, suffix="m²")),
             _fact(
                 "Site coverage ratio",
                 _display_percent(land["site_coverage_ratio"], digits=0),
             ),
             _fact(
                 "Buildable footprint",
-                _display_number(
-                    land["buildable_area_m2"]
-                    if land["buildable_area_m2"] is not None
-                    else (land["land_area_m2"] * land["site_coverage_ratio"]
-                          if land["land_area_m2"] and land["site_coverage_ratio"]
-                          else None),
-                    digits=0,
-                    suffix="m2",
-                ),
+                _display_number(buildable_footprint_m2, digits=0, suffix="m²"),
             ),
             _fact(
                 "Maximum building height",
@@ -91,16 +113,22 @@ def _build_site_specifics_chapter(
             ),
             _fact(
                 "Floor-to-floor height",
-                _display_number(
-                    building["floor_to_floor_height_m"],
-                    digits=1,
-                    suffix="m",
-                ),
+                _display_number(building["floor_to_floor_height_m"], digits=1, suffix="m"),
             ),
             _fact("Active floors", _display_number(building["num_floors"], digits=0)),
             _fact(
                 "Expansion floors",
                 _display_number(building["num_expansion_floors"], digits=0),
+            ),
+        ],
+        "computed_items": [
+            _fact(
+                "Gross building area",
+                _display_number(gross_building_m2, digits=0, suffix="m²"),
+            ),
+            _fact(
+                "IT whitespace area",
+                _display_number(whitespace_m2, digits=0, suffix="m²"),
             ),
             _fact(
                 "Whitespace ratio",
@@ -108,7 +136,11 @@ def _build_site_specifics_chapter(
             ),
             _fact(
                 "Rack footprint",
-                _display_number(building["rack_footprint_m2"], digits=1, suffix="m2"),
+                _display_number(building["rack_footprint_m2"], digits=1, suffix="m²"),
+            ),
+            _fact(
+                "Maximum racks (by space)",
+                _display_number(max_racks, digits=0),
             ),
         ],
         "power_items": [
@@ -122,17 +154,6 @@ def _build_site_specifics_chapter(
             ),
             _fact("Power input mode", power["power_input_mode"]),
             _fact("Declared voltage", power["voltage"]),
-        ],
-        "geometry_items": [
-            _fact(
-                "Imported geometry present",
-                _display_bool(imported_geometry["present"]),
-            ),
-            _fact("Geometry type", imported_geometry["geometry_type"]),
-            _fact(
-                "Coordinate count",
-                _display_number(imported_geometry["coordinate_count"], digits=0),
-            ),
         ],
         "notes": _display_text(site_data["notes"], default=""),
         "narrative": _build_site_specifics_narrative(site_data),

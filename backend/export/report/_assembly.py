@@ -1,9 +1,24 @@
 """Assembly functions: build site bundles, site summaries, and the public API entry points."""
 from __future__ import annotations
 
+import base64
 from datetime import datetime, timezone
+from pathlib import Path
 from statistics import mean
 from typing import Any
+
+_ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+
+
+def _asset_data_uri(filename: str) -> str | None:
+    """Return a base64 data URI for an image file in the assets directory."""
+    path = _ASSETS_DIR / filename
+    if not path.is_file():
+        return None
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    suffix = path.suffix.lower().lstrip(".")
+    mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "svg": "image/svg+xml"}.get(suffix, "image/png")
+    return f"data:{mime};base64,{b64}"
 
 from engine.models import ScenarioResult, Site
 
@@ -446,6 +461,8 @@ def _assemble_report_data(
             "secondary_color": secondary_color,
             "font_family": font_family,
             "logo_url": logo_url,
+            "cover_image_url": _asset_data_uri("Metlen_report_cover.png"),
+            "page_logo_url": _asset_data_uri("Metlen_logo.png"),
         },
         "study_scope": {
             "studied_site_ids": studied_site_ids,

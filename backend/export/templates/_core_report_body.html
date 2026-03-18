@@ -3,13 +3,14 @@
    Professional feasibility study with visual-heavy pages.
    ================================================================ #}
 
-{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, data_table, scenario_pills %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, data_table, scenario_pills, page_logo %}
 
 {# ── PAGE 1: COVER ─────────────────────────────────────────────── #}
 {% include "_cover.html" %}
 
 {# ── PAGE 2: TABLE OF CONTENTS ─────────────────────────────────── #}
 <section class="page-break toc-page">
+  {{ page_logo() }}
   <div class="toc-title">Table of Contents</div>
   {% for site_bundle in report_bundle.studied_sites %}
     {% set site = site_bundle.site_data %}
@@ -38,12 +39,17 @@
       {% if ch.selected_scenario.available %}
         <div class="toc-entry">
           <span class="toc-entry-num">{{ loop.index }}.4</span>
+          <span class="toc-entry-label">Scenario Comparison</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+        <div class="toc-entry">
+          <span class="toc-entry-num">{{ loop.index }}.5</span>
           <span class="toc-entry-label">Scenario Results</span>
           <span class="toc-entry-dots"></span>
         </div>
         {% if ch.deep_dive.available and ch.deep_dive.advanced_blocks %}
           <div class="toc-entry">
-            <span class="toc-entry-num">{{ loop.index }}.5</span>
+            <span class="toc-entry-num">{{ loop.index }}.6</span>
             <span class="toc-entry-label">Advanced Analysis</span>
             <span class="toc-entry-dots"></span>
           </div>
@@ -51,14 +57,14 @@
       {% endif %}
       {% if ch.load_mix.included %}
         <div class="toc-entry">
-          <span class="toc-entry-num">{{ loop.index }}.6</span>
+          <span class="toc-entry-num">{{ loop.index }}.7</span>
           <span class="toc-entry-label">Load Mix Analysis</span>
           <span class="toc-entry-dots"></span>
         </div>
       {% endif %}
       {% if ch.green_energy.included %}
         <div class="toc-entry">
-          <span class="toc-entry-num">{{ loop.index }}.7</span>
+          <span class="toc-entry-num">{{ loop.index }}.8</span>
           <span class="toc-entry-label">Green Energy Dispatch</span>
           <span class="toc-entry-dots"></span>
         </div>
@@ -86,6 +92,7 @@
      3 maps + site spec table
      ════════════════════════════════════════════════════════════════ #}
   <section class="page-break">
+    {{ page_logo() }}
     {{ chapter_header(
         loop.index ~ ".1",
         "Site Specifications",
@@ -149,14 +156,8 @@
         {{ fact_rows(site_specifics.property_items) }}
       </div>
       <div class="fact-panel">
-        <div class="fact-panel-title">Geometry &amp; Notes</div>
-        {{ fact_rows(site_specifics.geometry_items) }}
-        {% if site_specifics.notes %}
-          <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--surface-alt);">
-            <span class="fact-label">Notes:</span>
-            <p style="font-size:9pt; color:var(--text); line-height:1.5; margin-top:4px;">{{ site_specifics.notes }}</p>
-          </div>
-        {% endif %}
+        <div class="fact-panel-title">Computed Capacity</div>
+        {{ fact_rows(site_specifics.computed_items) }}
       </div>
     </div>
   </section>
@@ -167,6 +168,7 @@
      ════════════════════════════════════════════════════════════════ #}
   {% if grid_context.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".2",
           "Grid Infrastructure",
@@ -175,17 +177,17 @@
           badges=["<span class='badge'>" ~ grid_context.asset_count ~ " asset(s) mapped</span>"]
       ) }}
 
-      {# Grid context map #}
+      {# Grid context map (constrained height) #}
       {% if grid_context.grid_context_map %}
         <div class="subsection-title">Grid Context Map</div>
-        <div class="map-container">
-          <img src="{{ grid_context.grid_context_map }}" alt="Grid Context Map" />
+        <div class="map-container" style="max-width:65%; margin-left:auto; margin-right:auto;">
+          <img src="{{ grid_context.grid_context_map }}" alt="Grid Context Map" style="max-height:240px; object-fit:contain; width:100%;" />
           <div class="map-caption">
             Grid Context Map — site (dark), substations (orange/red), power lines
           </div>
         </div>
       {% elif grid_context.map_visual.available %}
-        <div class="chart-container">
+        <div class="chart-container" style="max-width:65%; margin-left:auto; margin-right:auto;">
           {{ grid_context.map_visual.svg_markup | safe }}
         </div>
       {% endif %}
@@ -233,11 +235,11 @@
   {% endif %}
 
   {# ════════════════════════════════════════════════════════════════
-     PAGE 5: WEATHER & CLIMATE
-     Weather summary + hour-by-hour chart + cooling suitability + monthly table
+     PAGE 5: WEATHER & CLIMATE  (mirrors frontend ClimateAnalysis UI)
      ════════════════════════════════════════════════════════════════ #}
   {% if climate.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".3",
           "Weather &amp; Climate",
@@ -245,38 +247,36 @@
           tag="Climate"
       ) }}
 
-      {# Weather summary #}
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">Weather Source</div>
-          {{ fact_rows(climate.weather_items) }}
-        </div>
-        <div class="fact-panel">
-          <div class="fact-panel-title">Temperature Statistics</div>
-          {{ fact_rows(climate.temperature_items) }}
-        </div>
+      {# ── Temperature Statistics (5 metric cards like the UI) ── #}
+      <div class="subsection-title">Temperature Statistics</div>
+      <div class="metric-row metric-row-5">
+        {% for item in climate.temperature_items[:5] %}
+          <div class="metric-card">
+            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-value">{{ item.value }}</div>
+          </div>
+        {% endfor %}
       </div>
 
-      {# Charts: hourly climate + cooling suitability side by side #}
-      <div class="chart-pair">
-        {% if climate.monthly_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Monthly Temperature Profile</div>
-            {{ climate.monthly_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-        {% if climate.cooling_suitability_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Free Cooling Hours by Topology</div>
-            {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-      </div>
+      {# ── Monthly Temperature Profile chart (full width) ── #}
+      {% if climate.monthly_chart_visual.available %}
+        <div class="chart-container">
+          <div class="chart-title">Monthly Temperature Profile</div>
+          {{ climate.monthly_chart_visual.svg_markup | safe }}
+        </div>
+      {% endif %}
 
-      {# Free cooling analysis table #}
+      {# ── Free Cooling Analysis chart (full width) ── #}
+      {% if climate.cooling_suitability_chart_visual.available %}
+        <div class="chart-container">
+          <div class="chart-title">Free Cooling Analysis</div>
+          {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
+        </div>
+      {% endif %}
+
+      {# ── Free cooling table ── #}
       {% if climate.free_cooling_rows %}
-        <div class="subsection-title">Free Cooling Analysis</div>
-        <div class="table-wrap">
+        <div class="table-wrap mt-sm">
           <table>
             <thead>
               <tr><th>Cooling Type</th><th>Threshold</th><th>Hours</th><th>Fraction</th><th>Suitability</th></tr>
@@ -296,166 +296,46 @@
         </div>
       {% endif %}
 
-      {# Monthly data table + delta projections #}
-      {% if report.type == "detailed" %}
-        <div class="two-col mt-md">
-          {% if climate.monthly_rows %}
-            <div>
-              <div class="subsection-title">Monthly Temperature Breakout</div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Month</th><th>Mean</th><th>Min</th><th>Max</th></tr></thead>
-                  <tbody>
-                    {% for row in climate.monthly_rows %}
-                      <tr><td>{{ row.month }}</td><td>{{ row.mean }}</td><td>{{ row.min }}</td><td>{{ row.max }}</td></tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {% endif %}
-          {% if climate.delta_rows %}
-            <div>
-              <div class="subsection-title">Climate Delta Projections</div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Delta</th><th>Cooling</th><th>Hours</th><th>Fraction</th><th>Suitability</th></tr></thead>
-                  <tbody>
-                    {% for row in climate.delta_rows %}
-                      <tr>
-                        <td>{{ row.delta }}</td><td>{{ row.cooling_type }}</td>
-                        <td>{{ row.free_cooling_hours }}</td><td>{{ row.free_cooling_fraction }}</td>
-                        <td>{{ row.suitability }}</td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {% endif %}
+      {# ── Climate Delta Projections (summarized) ── #}
+      {% if climate.delta_rows %}
+        <div class="subsection-title">Climate Projection (Delta Approach)</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Delta</th><th>Cooling Type</th><th>Free Hours</th><th>%</th><th>Rating</th></tr></thead>
+            <tbody>
+              {% for row in climate.delta_rows %}
+                <tr>
+                  <td>{{ row.delta }}</td><td>{{ row.cooling_type }}</td>
+                  <td>{{ row.free_cooling_hours }}</td><td>{{ row.free_cooling_fraction }}</td>
+                  <td>{{ row.suitability }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       {% endif %}
     </section>
   {% endif %}
 
   {# ════════════════════════════════════════════════════════════════
-     PAGE 6+: SCENARIO RESULTS
-     Comparison table + per-scenario visualizations + charts
+     PAGE 6: SCENARIO COMPARISON (moved before detailed results)
      ════════════════════════════════════════════════════════════════ #}
   {% if selected_scenario.available and deep_dive.available %}
-    <section class="page-break">
-      {{ chapter_header(
-          loop.index ~ ".4",
-          "Scenario Results",
-          subtitle=selected_scenario.label ~ " — " ~ site.name,
-          tag="Feasibility",
-          badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
-      ) }}
+    {% set display_ranked = site_bundle.results.display_results if (site_bundle.results.display_results | length > 0) else site_bundle.results.all_ranked %}
+    {% if report.include_all_scenarios and display_ranked | length > 1 %}
+      <section class="page-break">
+        {{ page_logo() }}
+        {{ chapter_header(
+            loop.index ~ ".4",
+            "Scenario Comparison",
+            subtitle="All scenario results ranked for " ~ site.name,
+            tag="Comparison"
+        ) }}
 
-      {# Scenario config pills #}
-      {% if selected_scenario.available %}
-        {{ scenario_pills(site_bundle.results.primary.scenario) }}
-      {% endif %}
-
-      {# Headline metrics #}
-      <div class="metric-row metric-row-{% if deep_dive.headline_metrics | length >= 5 %}5{% else %}{{ deep_dive.headline_metrics | length }}{% endif %}">
-        {% for item in deep_dive.headline_metrics %}
-          <div class="metric-card {% if loop.first %}featured{% endif %}">
-            <div class="metric-label">{{ item.label }}</div>
-            <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
-          </div>
-        {% endfor %}
-      </div>
-
-      {# Charts: IT capacity spectrum + PUE breakdown side by side #}
-      <div class="chart-pair">
-        {% if deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">IT Capacity Spectrum</div>
-            {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">PUE Breakdown</div>
-            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-      </div>
-
-      {# Power chain waterfall #}
-      {% if deep_dive.power_chain_chart_visual is defined and deep_dive.power_chain_chart_visual.available %}
-        <div class="chart-container">
-          <div class="chart-title">Power Chain Waterfall</div>
-          {{ deep_dive.power_chain_chart_visual.svg_markup | safe }}
-        </div>
-      {% endif %}
-
-      {# Daily operating profiles and firm capacity #}
-      <div class="chart-pair">
-        {% if deep_dive.daily_profile_chart_visual is defined and deep_dive.daily_profile_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Daily IT Load Profile</div>
-            {{ deep_dive.daily_profile_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-        {% if deep_dive.firm_capacity_chart_visual is defined and deep_dive.firm_capacity_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Firm Capacity Spectrum</div>
-            {{ deep_dive.firm_capacity_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">Scenario Configuration</div>
-          {{ fact_rows(selected_scenario.summary_items) }}
-        </div>
-        <div class="fact-panel">
-          <div class="fact-panel-title">Feasibility Status</div>
-          {{ fact_rows(deep_dive.status_items) }}
-          {% if deep_dive.status_reasons %}
-            <ul class="note-list mt-xs">
-              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
-            </ul>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">IT Capacity</div>
-          {{ fact_rows(deep_dive.capacity_items) }}
-        </div>
-        <div class="fact-panel">
-          <div class="fact-panel-title">Power Chain</div>
-          {{ fact_rows(deep_dive.power_items) }}
-        </div>
-      </div>
-
-      {% if report.type == "detailed" and deep_dive.space_items %}
-        <div class="fact-grid">
-          <div class="fact-panel">
-            <div class="fact-panel-title">Physical Deployment</div>
-            {{ fact_rows(deep_dive.space_items) }}
-          </div>
-          <div class="fact-panel">
-            <div class="fact-panel-title">Data Availability</div>
-            {{ fact_rows(deep_dive.availability_items) }}
-          </div>
-        </div>
-      {% endif %}
-
-      {# Scenario comparison table #}
-      {% set display_ranked = site_bundle.results.display_results if (site_bundle.results.display_results | length > 0) else site_bundle.results.all_ranked %}
-      {% if report.include_all_scenarios and display_ranked | length > 1 %}
-        <div class="subsection-title">Scenario Comparison</div>
-
-        {# Scenario comparison chart #}
+        {# Scenario comparison chart (full width) #}
         {% if site_bundle.scenario_comparison_chart is defined and site_bundle.scenario_comparison_chart.available %}
           <div class="chart-container mb-sm">
-            <div class="chart-title">Scenario Comparison Chart</div>
+            <div class="chart-title">Scenario Comparison</div>
             {{ site_bundle.scenario_comparison_chart.svg_markup | safe }}
           </div>
         {% endif %}
@@ -486,85 +366,207 @@
             </tbody>
           </table>
         </div>
-      {% elif site_bundle.results.alternatives %}
-        {% set displayed_alts = [] %}
-        {% for alt in site_bundle.results.alternatives[:5] %}
-          {% if alt.is_displayed_in_current_output %}
-            {% if displayed_alts.append(alt) %}{% endif %}
-          {% endif %}
+      </section>
+    {% endif %}
+
+    {# ════════════════════════════════════════════════════════════════
+       PAGE 7: SCENARIO RESULTS (primary scenario deep dive)
+       ════════════════════════════════════════════════════════════════ #}
+    <section class="page-break">
+      {{ page_logo() }}
+      {{ chapter_header(
+          loop.index ~ ".5",
+          "Scenario Results",
+          subtitle=selected_scenario.label ~ " — " ~ site.name,
+          tag="Feasibility",
+          badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
+      ) }}
+
+      {# Scenario config pills #}
+      {{ scenario_pills(site_bundle.results.primary.scenario) }}
+
+      {# Headline metrics #}
+      <div class="metric-row metric-row-5">
+        {% for item in deep_dive.headline_metrics %}
+          <div class="metric-card {% if loop.first %}featured{% endif %}">
+            <div class="metric-label">{{ item.label }}</div>
+            <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
+          </div>
         {% endfor %}
-        {% if displayed_alts %}
-        <div class="subsection-title">Ranked Alternatives</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th><th>Configuration</th><th>IT Load</th>
-                <th>PUE</th><th>Score</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for alt in displayed_alts %}
-                <tr>
-                  <td><span class="rank-badge {% if alt.rank_within_site == 1 %}rank-1{% elif alt.rank_within_site == 2 %}rank-2{% elif alt.rank_within_site == 3 %}rank-3{% endif %}">{{ alt.rank_within_site }}</span></td>
-                  <td style="font-size:8.5pt;">
-                    {{ alt.scenario.load_type }} / {{ alt.scenario.cooling_type }} /
-                    {{ alt.scenario.redundancy }}
-                  </td>
-                  <td>{{ alt.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
-                  <td>{{ alt.metrics.pue | default(0) | round(3) }}</td>
-                  <td>{{ alt.metrics.score | default(0) | round(1) }}</td>
-                  <td>{{ rag_badge(alt.status.rag_status) }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      </div>
+
+      {# Charts: IT capacity + PUE breakdown side by side (equal size) #}
+      <div class="chart-row">
+        {% if deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
+          <div class="chart-container" style="margin:0;">
+            <div class="chart-title">IT Capacity Spectrum</div>
+            {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
+          </div>
         {% endif %}
+        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
+          <div class="chart-container" style="margin:0;">
+            <div class="chart-title">PUE Breakdown</div>
+            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+      </div>
+
+      {# Power chain waterfall (contained in box) #}
+      {% if deep_dive.power_chain_chart_visual is defined and deep_dive.power_chain_chart_visual.available %}
+        <div class="chart-container" style="overflow:hidden;">
+          <div class="chart-title">Power Chain Waterfall</div>
+          <div style="overflow:hidden;">
+            {{ deep_dive.power_chain_chart_visual.svg_markup | safe }}
+          </div>
+        </div>
       {% endif %}
+
+      {# Daily profiles + PUE chart + Firm capacity #}
+      <div class="chart-row">
+        {% if deep_dive.daily_profile_chart_visual is defined and deep_dive.daily_profile_chart_visual.available %}
+          <div class="chart-container" style="margin:0;">
+            <div class="chart-title">Daily IT Load Profile</div>
+            {{ deep_dive.daily_profile_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+        {% if deep_dive.firm_capacity_chart_visual is defined and deep_dive.firm_capacity_chart_visual.available %}
+          <div class="chart-container" style="margin:0;">
+            <div class="chart-title">Firm Capacity Spectrum</div>
+            {{ deep_dive.firm_capacity_chart_visual.svg_markup | safe }}
+          </div>
+        {% endif %}
+      </div>
+
+      {# Feasibility status only (removed IT Capacity, Power Chain, Physical Deployment, Data Availability boxes) #}
+      <div class="fact-grid">
+        <div class="fact-panel">
+          <div class="fact-panel-title">Scenario Configuration</div>
+          {{ fact_rows(selected_scenario.summary_items) }}
+        </div>
+        <div class="fact-panel">
+          <div class="fact-panel-title">Feasibility Status</div>
+          {{ fact_rows(deep_dive.status_items) }}
+          {% if deep_dive.status_reasons %}
+            <ul class="note-list mt-xs">
+              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
     </section>
 
   {% elif not selected_scenario.available %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(loop.index ~ ".4", "Scenario Results", subtitle=site.name, tag="Feasibility") }}
       <div class="empty-state">{{ selected_scenario.message | default("No primary scenario results available.") }}</div>
     </section>
   {% endif %}
 
   {# ════════════════════════════════════════════════════════════════
-     PAGE 7+: ADVANCED ANALYSIS (detailed only)
+     PAGE 8+: ADVANCED ANALYSIS (detailed only)
+     Filtered: no IT Capacity Spectrum (shown in charts above)
+     PUE Decomposition + Sensitivity use charts instead of tables
      ════════════════════════════════════════════════════════════════ #}
   {% if report.type == "detailed" and deep_dive.available and deep_dive.advanced_blocks %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
-          loop.index ~ ".5",
+          loop.index ~ ".6",
           "Advanced Analysis",
           subtitle="Detailed modelling outputs for " ~ site.name,
           tag="Deep Dive"
       ) }}
 
       {% for block in deep_dive.advanced_blocks %}
-        <div class="subsection-title">{{ block.title }}</div>
+        {# Skip IT Capacity Spectrum — already shown as chart in Scenario Results #}
+        {% if block.id != "it_capacity_spectrum" %}
+          <div class="{% if not loop.first %}mt-md{% endif %}">
+            <div class="subsection-title">{{ block.title }}</div>
 
-        {% if block.summary_items %}
-          <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
-            {% for item in block.summary_items %}
-              <div class="metric-card">
-                <div class="metric-label">{{ item.label }}</div>
-                <div class="metric-value">{{ item.value }}</div>
-              </div>
-            {% endfor %}
+            {# PUE Decomposition: show pie charts if available, else metric cards + table #}
+            {% if block.id == "pue_decomposition" %}
+              {% if block.component_pie_visual is defined and block.component_pie_visual.available and block.mode_pie_visual is defined and block.mode_pie_visual.available %}
+                <div class="chart-row">
+                  <div class="chart-container" style="margin:0;">
+                    <div class="chart-title">By Component</div>
+                    {{ block.component_pie_visual.svg_markup | safe }}
+                  </div>
+                  <div class="chart-container" style="margin:0;">
+                    <div class="chart-title">By Mode</div>
+                    {{ block.mode_pie_visual.svg_markup | safe }}
+                  </div>
+                </div>
+              {% endif %}
+              {% if block.summary_items %}
+                <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                  {% for item in block.summary_items %}
+                    <div class="metric-card">
+                      <div class="metric-label">{{ item.label }}</div>
+                      <div class="metric-value">{{ item.value }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+            {# Sensitivity: show tornado chart if available #}
+            {% elif block.id == "sensitivity" %}
+              {% if block.tornado_chart_visual is defined and block.tornado_chart_visual.available %}
+                <div class="chart-container">
+                  <div class="chart-title">Sensitivity Tornado</div>
+                  {{ block.tornado_chart_visual.svg_markup | safe }}
+                </div>
+              {% endif %}
+              {% if block.summary_items %}
+                <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                  {% for item in block.summary_items %}
+                    <div class="metric-card">
+                      <div class="metric-label">{{ item.label }}</div>
+                      <div class="metric-value">{{ item.value }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+            {# Firm Capacity: show chart + tables #}
+            {% elif block.id == "firm_capacity" %}
+              {% if block.summary_items %}
+                <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                  {% for item in block.summary_items %}
+                    <div class="metric-card">
+                      <div class="metric-label">{{ item.label }}</div>
+                      <div class="metric-value">{{ item.value }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              {% for table in block.tables %}
+                {{ data_table(table) }}
+              {% endfor %}
+
+            {# Default block rendering for other blocks #}
+            {% else %}
+              {% if block.summary_items %}
+                <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                  {% for item in block.summary_items %}
+                    <div class="metric-card">
+                      <div class="metric-label">{{ item.label }}</div>
+                      <div class="metric-value">{{ item.value }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              {% for table in block.tables %}
+                {{ data_table(table) }}
+              {% endfor %}
+            {% endif %}
+
+            {% if block.notes %}
+              <ul class="note-list mt-xs">
+                {% for note in block.notes %}<li>{{ note }}</li>{% endfor %}
+              </ul>
+            {% endif %}
           </div>
-        {% endif %}
-
-        {% for table in block.tables %}
-          {{ data_table(table) }}
-        {% endfor %}
-
-        {% if block.notes %}
-          <ul class="note-list mt-xs">
-            {% for note in block.notes %}<li>{{ note }}</li>{% endfor %}
-          </ul>
         {% endif %}
       {% endfor %}
     </section>
@@ -575,8 +577,9 @@
      ════════════════════════════════════════════════════════════════ #}
   {% if load_mix.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
-          loop.index ~ ".6",
+          loop.index ~ ".7",
           "Load Mix Analysis",
           subtitle="Workload allocation optimiser output for " ~ site.name,
           tag="Load Mix"
@@ -616,8 +619,9 @@
      ════════════════════════════════════════════════════════════════ #}
   {% if green_energy.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
-          loop.index ~ ".7",
+          loop.index ~ ".8",
           "Green Energy Dispatch",
           subtitle="Renewable energy analysis for " ~ site.name,
           tag="Green Energy"

@@ -18,7 +18,7 @@
 {# ── RAG status badge ──────────────────────────────────────────── #}
 {% macro rag_badge(status) -%}
   {% set s = (status or '') | lower %}
-  <span class="rag-badge {% if 'green' in s %}rag-green{% elif 'amber' in s or 'yellow' in s %}rag-amber{% else %}rag-red{% endif %}">{{ status }}</span>
+  <span class="rag-badge {% if 'green' in s %}rag-green{% elif 'amber' in s or 'yellow' in s %}rag-amber{% elif 'blue' in s %}rag-blue{% else %}rag-red{% endif %}">{{ status }}</span>
 {%- endmacro %}
 
 {# ── key-value rows inside a fact panel ───────────────────────── #}
@@ -29,6 +29,15 @@
       <span class="fact-value">{{ item.value }}</span>
     </div>
   {% endfor %}
+{%- endmacro %}
+
+{# ── page logo (top-left on non-cover pages) ─────────────────── #}
+{% macro page_logo() -%}
+  {% if theme is defined and theme.page_logo_url %}
+    <div class="page-logo-header">
+      <img src="{{ theme.page_logo_url }}" alt="Metlen" />
+    </div>
+  {% endif %}
 {%- endmacro %}
 
 {# ── chapter section header ───────────────────────────────────── #}

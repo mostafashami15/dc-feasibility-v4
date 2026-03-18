@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from html import escape
 import math
-from math import cos, radians
+from math import cos, pi, radians, sin
 from typing import Any
 
 
@@ -1465,6 +1465,223 @@ def build_firm_capacity_chart(
             width=w, height=h,
             title="IT Capacity Spectrum",
             subtitle=f"Firm (P99): {firm_mw:.2f} MW — Gap to mean: {max(0, mean_mw - firm_mw):.2f} MW",
+            body=body,
+        ),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PIE CHART
+# ══════════════════════════════════════════════════════════════════════════════
+
+_PIE_PALETTE = [
+    "#1a365d", "#2b6cb0", "#16a34a", "#ea580c", "#8b5cf6",
+    "#0891b2", "#d97706", "#dc2626", "#4f46e5", "#059669",
+]
+
+
+def build_pie_chart(
+    slices: list[dict[str, Any]],
+    *,
+    title: str = "Pie Chart",
+    subtitle: str = "",
+    primary_color: str = "#1a365d",
+    secondary_color: str = "#2b6cb0",
+) -> dict[str, Any]:
+    """Generic pie chart builder.
+
+    Each slice dict: {"label": str, "value": float, "color": str (optional)}.
+    """
+    slices = [s for s in slices if s.get("value") and s["value"] > 0]
+    if not slices:
+        return {"available": False, "title": title, "message": "No data.", "svg_markup": None}
+
+    total = sum(s["value"] for s in slices)
+    w, h = CHART_WIDTH, CHART_HEIGHT + 20
+    cx, cy = w * 0.38, _PAD_TOP + (h - _PAD_TOP - 20) / 2
+    r = min(cx - _PAD_OUTER - 20, (h - _PAD_TOP - 40) / 2, 100)
+
+    parts: list[str] = []
+    angle = -pi / 2  # start at top
+
+    for idx, s in enumerate(slices):
+        fraction = s["value"] / total
+        sweep = fraction * 2 * pi
+        color = s.get("color") or _PIE_PALETTE[idx % len(_PIE_PALETTE)]
+
+        x1 = cx + r * cos(angle)
+        y1 = cy + r * sin(angle)
+        x2 = cx + r * cos(angle + sweep)
+        y2 = cy + r * sin(angle + sweep)
+
+        large_arc = 1 if sweep > pi else 0
+
+        if len(slices) == 1:
+            # Full circle
+            parts.append(
+                f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="{color}" opacity="0.85" />'
+            )
+        else:
+            parts.append(
+                f'<path d="M {cx:.1f},{cy:.1f} L {x1:.1f},{y1:.1f} '
+                f'A {r:.1f},{r:.1f} 0 {large_arc},1 {x2:.1f},{y2:.1f} Z" '
+                f'fill="{color}" opacity="0.85" stroke="white" stroke-width="1.5" />'
+            )
+
+        angle += sweep
+
+    # Legend on right side
+    legend_x = cx + r + 40
+    legend_y = _PAD_TOP + 10
+    for idx, s in enumerate(slices):
+        fraction = s["value"] / total
+        color = s.get("color") or _PIE_PALETTE[idx % len(_PIE_PALETTE)]
+        ly = legend_y + idx * 22
+        parts.append(
+            f'<rect x="{legend_x:.0f}" y="{ly:.0f}" width="10" height="10" rx="2" fill="{color}" />'
+            f'<text x="{legend_x + 15:.0f}" y="{ly + 9:.0f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="8.5" font-weight="500">'
+            f'{escape(s["label"])} ({fraction * 100:.1f}%)</text>'
+        )
+
+    body = "".join(parts)
+    return {
+        "available": True,
+        "title": title,
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w, height=h,
+            title=title,
+            subtitle=subtitle,
+            body=body,
+        ),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TORNADO CHART (Sensitivity)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def build_tornado_chart(
+    bars: list[dict[str, Any]],
+    *,
+    baseline: float,
+    output_unit: str = "MW",
+    title: str = "Sensitivity Tornado",
+    subtitle: str = "",
+    primary_color: str = "#1a365d",
+    secondary_color: str = "#2b6cb0",
+) -> dict[str, Any]:
+    """Tornado chart for sensitivity analysis.
+
+    Each bar dict: {"label": str, "low": float, "high": float}.
+    """
+    bars = [b for b in bars if b.get("low") is not None and b.get("high") is not None]
+    if not bars:
+        return {"available": False, "title": title, "message": "No data.", "svg_markup": None}
+
+    # Sort by spread (largest first)
+    bars = sorted(bars, key=lambda b: abs(b["high"] - b["low"]), reverse=True)
+
+    n = len(bars)
+    w = CHART_WIDTH
+    h = max(CHART_HEIGHT, _PAD_TOP + 30 + n * 28 + 30)
+
+    label_w = 130
+    plot_left = label_w + 10
+    plot_right = w - _PAD_OUTER - 10
+    plot_w = plot_right - plot_left
+
+    all_vals = [b["low"] for b in bars] + [b["high"] for b in bars] + [baseline]
+    v_min = min(all_vals)
+    v_max = max(all_vals)
+    pad = (v_max - v_min) * 0.1 or 0.1
+    v_min -= pad
+    v_max += pad
+    v_range = v_max - v_min
+
+    def x_pos(val: float) -> float:
+        return plot_left + ((val - v_min) / v_range) * plot_w
+
+    baseline_x = x_pos(baseline)
+    bar_h = 16
+    bar_gap = 28
+    y_start = _PAD_TOP + 20
+
+    primary_c = _c(primary_color, "#1a365d")
+    secondary_c = _c(secondary_color, "#2b6cb0")
+
+    parts: list[str] = []
+
+    # Baseline vertical line
+    parts.append(
+        f'<line x1="{baseline_x:.1f}" y1="{y_start - 5}" '
+        f'x2="{baseline_x:.1f}" y2="{y_start + n * bar_gap + 5}" '
+        f'stroke="#9ca3af" stroke-width="1" stroke-dasharray="4,3" />'
+    )
+    parts.append(
+        f'<text x="{baseline_x:.1f}" y="{y_start - 8}" fill="#6b7280" '
+        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle">'
+        f'Baseline: {baseline:.2f} {escape(output_unit)}</text>'
+    )
+
+    for idx, bar in enumerate(bars):
+        cy = y_start + idx * bar_gap + bar_h / 2
+        low_x = x_pos(bar["low"])
+        high_x = x_pos(bar["high"])
+
+        # Low side (left of baseline = red-ish, right = green-ish)
+        if low_x < baseline_x:
+            parts.append(
+                f'<rect x="{low_x:.1f}" y="{cy - bar_h / 2:.1f}" '
+                f'width="{baseline_x - low_x:.1f}" height="{bar_h}" rx="3" fill="#ef4444" opacity="0.75" />'
+            )
+        else:
+            parts.append(
+                f'<rect x="{baseline_x:.1f}" y="{cy - bar_h / 2:.1f}" '
+                f'width="{low_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#16a34a" opacity="0.75" />'
+            )
+
+        # High side
+        if high_x > baseline_x:
+            parts.append(
+                f'<rect x="{baseline_x:.1f}" y="{cy - bar_h / 2:.1f}" '
+                f'width="{high_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#16a34a" opacity="0.75" />'
+            )
+        else:
+            parts.append(
+                f'<rect x="{high_x:.1f}" y="{cy - bar_h / 2:.1f}" '
+                f'width="{baseline_x - high_x:.1f}" height="{bar_h}" rx="3" fill="#ef4444" opacity="0.75" />'
+            )
+
+        # Values on ends
+        parts.append(
+            f'<text x="{low_x - 4:.1f}" y="{cy + 3:.1f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="end">'
+            f'{bar["low"]:.2f}</text>'
+        )
+        parts.append(
+            f'<text x="{high_x + 4:.1f}" y="{cy + 3:.1f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="start">'
+            f'{bar["high"]:.2f}</text>'
+        )
+
+        # Label on left
+        parts.append(
+            f'<text x="{label_w}" y="{cy + 3:.1f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">'
+            f'{escape(bar["label"])}</text>'
+        )
+
+    body = "".join(parts)
+    return {
+        "available": True,
+        "title": title,
+        "message": "",
+        "svg_markup": _svg_shell(
+            width=w, height=h,
+            title=title,
+            subtitle=subtitle,
             body=body,
         ),
     }

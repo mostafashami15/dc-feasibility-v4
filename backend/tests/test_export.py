@@ -743,7 +743,7 @@ def test_build_report_bundle_matches_export_shape_fixture(
         ),
         (
             "site_plus_climate_export_case",
-            {"Weather &amp; Climate", "Monthly Temperature Profile", "Free Cooling Hours by Topology"},
+            {"Weather &amp; Climate", "Monthly Temperature Profile", "Free Cooling Analysis"},
             {
                 "Grid Infrastructure",
                 "Load Mix Analysis",
@@ -1474,7 +1474,9 @@ def test_build_report_bundle_shapes_milestone_five_advanced_blocks(monkeypatch):
     ]
     assert any(block["title"] == "PUE Decomposition" for block in blocks)
     assert any(block["title"] == "Firm Capacity" for block in blocks)
-    assert all(block["tables"] for block in blocks)
+    # pue_decomposition and sensitivity now use charts instead of tables
+    blocks_with_tables = [b for b in blocks if b["key"] not in ("pue_decomposition", "sensitivity")]
+    assert all(block["tables"] for block in blocks_with_tables)
 
 
 def test_build_report_bundle_shapes_milestone_six_optional_chapters(monkeypatch):
@@ -1968,7 +1970,7 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
         if row[0].value is not None
     }
 
-    assert "Report A4 Portrait" in html
+    # Cover page stats removed; layout mode is still reflected in body class
     assert 'class="report-shell layout-report_a4_portrait report-type-detailed"' in html
     assert "size: A4 portrait;" in html
     assert 'class="report-shell layout-presentation_16_9 report-type-detailed"' in html_presentation

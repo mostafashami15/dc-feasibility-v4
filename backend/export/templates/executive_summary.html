@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills, page_logo %}
 
 {% block content %}
 {# ── COVER ─────────────────────────────────────────────────────── #}
@@ -7,6 +7,7 @@
 
 {# ── TABLE OF CONTENTS ─────────────────────────────────────────── #}
 <section class="page-break toc-page">
+  {{ page_logo() }}
   <div class="toc-title">Table of Contents</div>
   {% for site_bundle in report_bundle.studied_sites %}
     {% set site = site_bundle.site_data %}
@@ -55,6 +56,7 @@
 
   {# ── SITE SPECIFICATIONS ─────────────────────────────────────── #}
   <section class="page-break">
+    {{ page_logo() }}
     {{ chapter_header(
         loop.index ~ ".1",
         "Site Specifications",
@@ -133,6 +135,7 @@
   {# ── GRID INFRASTRUCTURE (compact) ─────────────────────────── #}
   {% if grid_context.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".2",
           "Grid Infrastructure",
@@ -186,6 +189,7 @@
   {# ── WEATHER & CLIMATE (compact) ────────────────────────────── #}
   {% if climate.included %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".3",
           "Weather &amp; Climate",
@@ -233,6 +237,7 @@
   {# ── SCENARIO RESULTS ─────────────────────────────────────────── #}
   {% if selected_scenario.available and deep_dive.available %}
     <section class="page-break">
+      {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".4",
           "Scenario Results",
