@@ -907,6 +907,7 @@ export interface FirmCapacityAdvisoryResult {
   deficit_energy_kwh: number;
   annual_pue: number;
   facility_power_mw: number;
+  hourly_it_kw_sampled?: number[];
   strategies: MitigationStrategy[];
 }
 

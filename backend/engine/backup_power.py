@@ -577,7 +577,7 @@ class FirmCapacityAdvisory:
     """Auto-computed firm capacity analysis with preset methodology.
 
     No user input required. All sizing and cost estimates use
-    built-in engineering assumptions from MITIGATION_COST_ASSUMPTIONS.
+    built-in engineering assumptions from the BACKUP_POWER profiles.
 
     Attributes:
         firm_capacity_kw: P99 IT capacity (guaranteed 99% of hours).
@@ -590,10 +590,10 @@ class FirmCapacityAdvisory:
         best_capacity_mw: Same in MW.
         capacity_gap_kw: mean_capacity - firm_capacity (opportunity).
         capacity_gap_mw: Same in MW.
-        peak_deficit_kw: firm_capacity - worst_capacity (deficit to cover).
+        peak_deficit_kw: mean_capacity - worst_capacity (max instantaneous shortfall below mean).
         peak_deficit_mw: Same in MW.
-        deficit_hours: Number of hours where IT capacity < firm capacity.
-        deficit_energy_kwh: Total energy shortfall below firm capacity.
+        deficit_hours: Number of hours where IT capacity < mean capacity.
+        deficit_energy_kwh: Total energy shortfall below mean capacity.
         strategies: Recommended mitigation strategies with sizing/cost.
     """
     firm_capacity_kw: float
@@ -629,15 +629,13 @@ def compute_firm_capacity_advisory(
     what is the guaranteed IT capacity, and what would it cost to
     increase it?"
 
-    Mitigation strategies considered:
-        1. Thermal Energy Storage (TES) — buffer cooling peaks with
-           pre-chilled water stored during off-peak hours.
-        2. Supplemental Trim Chiller — add mechanical cooling capacity
-           sized to the peak deficit.
-        3. BESS — battery storage to supply electrical energy during
-           hours when cooling overhead exceeds the grid cap.
-        4. IT Load Management — throttle non-critical workloads during
-           peak cooling hours (zero capex, operational impact only).
+    Mitigation strategies considered (real backup power technologies):
+        1. SOFC Fuel Cell — NG/Biogas/H₂, 60% efficiency, 300 kW modules.
+        2. PEM Fuel Cell — Green H₂, 50% efficiency, 250 kW modules, zero CO₂.
+        3. BESS (Li-ion) — Battery storage, 87.5% roundtrip efficiency.
+        4. Rotary UPS + Flywheel — 2 MW modules, instant ramp, bridging.
+        5. Diesel Genset — 2 MW modules, 12s ramp (reference, not green).
+        6. Natural Gas Genset — 2.5 MW modules, 45s ramp (reference).
 
     Args:
         hourly_it_kw: Per-hour IT capacity from power-constrained sim (kW).
@@ -684,177 +682,274 @@ def compute_firm_capacity_advisory(
     # flatten the curve from firm to mean
     capacity_gap_kw = max(0.0, mean_kw - firm_kw)
 
-    # Peak deficit: how far worst hour is below firm capacity
-    peak_deficit_kw = max(0.0, firm_kw - worst_kw)
+    # Peak deficit: how far worst hour is below MEAN capacity
+    # This is the maximum instantaneous shortfall that mitigation must cover
+    peak_deficit_kw = max(0.0, mean_kw - worst_kw)
 
-    # Count deficit hours and energy below firm capacity
+    # Count deficit hours and energy below MEAN capacity
+    # These are the hours where hourly IT < Mean (weather anomaly pushes cooling up)
+    # Compensating this deficit energy effectively raises guaranteed capacity
+    # from P99 to Mean.
     deficit_hours = 0
     deficit_energy_kwh = 0.0
     for it_kw in hourly_it_kw:
-        if it_kw < firm_kw:
+        if it_kw < mean_kw:
             deficit_hours += 1
-            deficit_energy_kwh += (firm_kw - it_kw)
+            deficit_energy_kwh += (mean_kw - it_kw)
 
-    # ── Strategy 1: Thermal Energy Storage (TES) ──
-    # TES can pre-chill water during cooler hours (higher COP) and
-    # release it during hot hours (lower COP), effectively buffering
-    # the cooling peak. The capacity unlocked equals the cooling
-    # energy deficit divided by the PUE-to-cooling conversion.
+    # ── Mitigation strategies ──
+    # Real backup/supplemental power technologies from the backup power
+    # comparison module. Each is sized to cover the deficit energy
+    # (below mean) so that guaranteed capacity rises from P99 to Mean.
     strategies: list[MitigationStrategy] = []
 
-    # TES sizing: store enough cooling energy to bridge the deficit hours
-    # Cooling deficit per hour = (firm_facility_kw - actual_facility_kw_at_firm)
-    # For simplicity: deficit in IT terms × (PUE - 1) = cooling overhead gap
-    if deficit_energy_kwh > 0 and annual_pue > 1.0:
-        cooling_overhead_fraction = annual_pue - 1.0
-        # TES stores the cooling energy that would otherwise require
-        # the chiller to work harder at peak conditions
-        tes_energy_kwh_thermal = deficit_energy_kwh * cooling_overhead_fraction
-        # Size the TES tank capacity to cover 4 hours of peak deficit
-        # (standard TES design practice for data centers)
-        tes_peak_hours = min(4, deficit_hours) if deficit_hours > 0 else 1
-        tes_capacity_kwh_thermal = peak_deficit_kw * cooling_overhead_fraction * tes_peak_hours
+    if peak_deficit_kw > 0 and deficit_energy_kwh > 0:
+        deficit_energy_mwh = deficit_energy_kwh / 1000
 
-        tes_cost = MITIGATION_COST_ASSUMPTIONS["tes_chilled_water"]
-        tes_capex = tes_capacity_kwh_thermal * tes_cost["capex_usd_per_kwh_thermal"]
-
-        # IT capacity unlocked: the peak deficit that TES can absorb
-        # TES can buffer the cooling peak, freeing up facility power for IT
-        tes_it_capacity_kw = min(peak_deficit_kw, capacity_gap_kw) if peak_deficit_kw > 0 else 0.0
-
-        if tes_it_capacity_kw > 0:
-            strategies.append(MitigationStrategy(
-                key="tes_chilled_water",
-                label="Thermal Energy Storage (Chilled Water TES)",
-                description=(
-                    "Stratified chilled-water tank charged during off-peak hours "
-                    "(high COP) and discharged during peak cooling hours to buffer "
-                    "the facility power cap."
-                ),
-                capacity_kw=round(tes_it_capacity_kw, 1),
-                capacity_mw=round(tes_it_capacity_kw / 1000, 3),
-                estimated_capex_usd=round(tes_capex, 0),
-                sizing_summary=(
-                    f"Tank: {tes_capacity_kwh_thermal:,.0f} kWh_th "
-                    f"({tes_peak_hours}h at {peak_deficit_kw * cooling_overhead_fraction:,.0f} kW_th peak deficit)"
-                ),
-                notes=[
-                    f"Sized for {tes_peak_hours}-hour peak buffer at ${tes_cost['capex_usd_per_kwh_thermal']}/kWh_th.",
-                    f"Covers {deficit_hours} deficit hours with {tes_energy_kwh_thermal:,.0f} kWh_th total cooling energy.",
-                    tes_cost["source"],
-                ],
-            ))
-
-    # ── Strategy 2: Trim Chiller ──
-    # Add a supplemental chiller sized to the peak cooling deficit.
-    # This directly addresses the hours where ambient temperature
-    # exceeds the primary cooling system's sweet spot.
-    if peak_deficit_kw > 0 and annual_pue > 1.0:
-        cooling_overhead_fraction = annual_pue - 1.0
-        # Trim chiller sized to handle the peak hour's extra cooling load
-        trim_chiller_kw = peak_deficit_kw * cooling_overhead_fraction / DEFAULT_TES_COP_PEAK
-        # Round up to nearest 50 kW module
-        trim_chiller_kw = math.ceil(trim_chiller_kw / 50) * 50
-
-        trim_cost = MITIGATION_COST_ASSUMPTIONS["trim_chiller"]
-        trim_capex = trim_chiller_kw * trim_cost["capex_usd_per_kw"]
-
-        # IT capacity unlocked: peak deficit
-        trim_it_capacity_kw = peak_deficit_kw
+        # ── Strategy 1: SOFC Fuel Cell ──
+        # NG/Biogas/H2, 60% electrical efficiency, 300 kW modules, 300s ramp
+        sofc_profile = BACKUP_POWER["SOFC Fuel Cell"]
+        sofc_module_kw = float(sofc_profile["module_size_kw"])
+        sofc_eff = (sofc_profile["efficiency_min"] + sofc_profile["efficiency_max"]) / 2
+        sofc_num_modules = math.ceil(peak_deficit_kw / sofc_module_kw)
+        sofc_total_kw = sofc_num_modules * sofc_module_kw
+        sofc_capex_per_kw = 6000.0  # $/kW installed (Bloom Energy range $5k-$8k/kW)
+        sofc_capex = sofc_total_kw * sofc_capex_per_kw
 
         strategies.append(MitigationStrategy(
-            key="trim_chiller",
-            label="Supplemental Trim Chiller",
+            key="sofc_fuel_cell",
+            label="SOFC Fuel Cell",
             description=(
-                "Modular air-cooled chiller activated only during peak cooling "
-                "hours when the primary system cannot maintain setpoint within "
-                "the facility power cap."
+                "Solid Oxide Fuel Cell running on Natural Gas, Biogas, or H₂. "
+                "High electrical efficiency (60%), suitable for continuous or "
+                "long-duration deficit compensation."
             ),
-            capacity_kw=round(trim_it_capacity_kw, 1),
-            capacity_mw=round(trim_it_capacity_kw / 1000, 3),
-            estimated_capex_usd=round(trim_capex, 0),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(sofc_capex, 0),
             sizing_summary=(
-                f"Chiller: {trim_chiller_kw:,.0f} kW_e "
-                f"(peak cooling deficit at COP {DEFAULT_TES_COP_PEAK})"
+                f"{sofc_num_modules} × {sofc_module_kw:.0f} kW SOFC modules = "
+                f"{sofc_total_kw:,.0f} kW, covering {deficit_energy_mwh:,.1f} MWh deficit"
             ),
             notes=[
-                f"Sized to worst-hour IT deficit of {peak_deficit_kw:,.0f} kW "
-                f"with PUE overhead factor {annual_pue - 1.0:.3f}.",
-                f"Operates during {deficit_hours} hours/year when primary cooling is power-limited.",
-                trim_cost["source"],
+                f"Fuel: {sofc_profile['fuel']} | Electrical efficiency: {sofc_eff * 100:.0f}%.",
+                f"Ramp time: {sofc_profile['ramp_time_seconds']}s (warm start). Best for baseload deficit.",
+                f"CO₂: {sofc_profile['co2_kg_per_kwh_fuel']} kg/kWh (NG basis); zero on biogas/H₂.",
+                f"Source: {sofc_profile['source']}",
             ],
         ))
 
-    # ── Strategy 3: BESS ──
-    # Battery storage to directly supply the electrical energy deficit
-    # during hours when cooling overhead exceeds the grid cap.
-    if deficit_energy_kwh > 0:
-        bess_cost = MITIGATION_COST_ASSUMPTIONS["bess"]
-        # BESS must store enough energy for the deficit hours.
-        # Use roundtrip efficiency of 87.5% (industry standard Li-ion)
-        bess_roundtrip_eff = 0.875
-        bess_oneway_eff = math.sqrt(bess_roundtrip_eff)
-
-        # Size BESS to the peak deficit kW × 4 hours (standard duration)
-        # or total deficit energy, whichever is smaller
-        bess_energy_kwh = min(
-            deficit_energy_kwh / bess_oneway_eff,
-            peak_deficit_kw * 4 / bess_oneway_eff if peak_deficit_kw > 0 else deficit_energy_kwh / bess_oneway_eff,
-        )
-        bess_capex = bess_energy_kwh * bess_cost["capex_usd_per_kwh"]
-
-        # IT capacity unlocked: depends on whether BESS can cover peak
-        bess_it_capacity_kw = min(peak_deficit_kw, capacity_gap_kw) if peak_deficit_kw > 0 else 0.0
-
-        if bess_it_capacity_kw > 0:
-            strategies.append(MitigationStrategy(
-                key="bess",
-                label="Battery Energy Storage (BESS)",
-                description=(
-                    "Containerized Li-ion battery charged from the grid during "
-                    "off-peak cooling hours and discharged to supplement facility "
-                    "power during peak cooling demand."
-                ),
-                capacity_kw=round(bess_it_capacity_kw, 1),
-                capacity_mw=round(bess_it_capacity_kw / 1000, 3),
-                estimated_capex_usd=round(bess_capex, 0),
-                sizing_summary=(
-                    f"BESS: {bess_energy_kwh:,.0f} kWh "
-                    f"({bess_energy_kwh / max(peak_deficit_kw, 1):.1f}h at "
-                    f"{peak_deficit_kw:,.0f} kW peak deficit)"
-                ),
-                notes=[
-                    f"Roundtrip efficiency: {bess_roundtrip_eff * 100:.1f}%.",
-                    f"Total deficit energy to cover: {deficit_energy_kwh:,.0f} kWh/year over {deficit_hours} hours.",
-                    bess_cost["source"],
-                ],
-            ))
-
-    # ── Strategy 4: IT Load Management ──
-    # Zero-capex option: throttle non-critical workloads during peak hours
-    if deficit_hours > 0 and peak_deficit_kw > 0:
-        # The capacity "gained" is the deficit itself (throttle to worst hour)
-        throttle_capacity_kw = peak_deficit_kw
+        # ── Strategy 2: PEM Fuel Cell (Green H₂) ──
+        # 50% electrical efficiency, 250 kW modules, 5s ramp, zero CO₂
+        pem_profile = BACKUP_POWER["PEM Fuel Cell (H₂)"]
+        pem_module_kw = float(pem_profile["module_size_kw"])
+        pem_eff = (pem_profile["efficiency_min"] + pem_profile["efficiency_max"]) / 2
+        pem_num_modules = math.ceil(peak_deficit_kw / pem_module_kw)
+        pem_total_kw = pem_num_modules * pem_module_kw
+        pem_capex_per_kw = 4000.0  # $/kW installed (Ballard/Plug Power range $3k-$5k/kW)
+        pem_capex = pem_total_kw * pem_capex_per_kw
 
         strategies.append(MitigationStrategy(
-            key="it_load_management",
-            label="IT Workload Throttling",
+            key="pem_fuel_cell",
+            label="PEM Fuel Cell (Green H₂)",
             description=(
-                "Reduce non-critical IT workloads (batch, training, backups) "
-                "during the hottest hours when cooling overhead peaks. "
-                "No capital cost -- operational scheduling change only."
+                "Proton Exchange Membrane Fuel Cell powered by green hydrogen. "
+                "Zero CO₂ emissions, fast ramp (5s), suitable for rapid deficit response."
             ),
-            capacity_kw=round(throttle_capacity_kw, 1),
-            capacity_mw=round(throttle_capacity_kw / 1000, 3),
-            estimated_capex_usd=0.0,
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(pem_capex, 0),
             sizing_summary=(
-                f"Throttle {throttle_capacity_kw:,.0f} kW IT during "
-                f"{deficit_hours} hours/year ({deficit_hours / n * 100:.1f}% of year)"
+                f"{pem_num_modules} × {pem_module_kw:.0f} kW PEM modules = "
+                f"{pem_total_kw:,.0f} kW, covering {deficit_energy_mwh:,.1f} MWh deficit"
             ),
             notes=[
-                "Zero capex. Impact: reduced compute throughput during peak hours.",
-                f"Deficit hours represent {deficit_hours / n * 100:.1f}% of the year.",
-                "Best suited for batch / training workloads with scheduling flexibility.",
+                f"Fuel: {pem_profile['fuel']} | Electrical efficiency: {pem_eff * 100:.0f}%.",
+                f"Ramp time: {pem_profile['ramp_time_seconds']}s. Fast response for transient deficits.",
+                "Zero CO₂ emissions (green hydrogen pathway).",
+                f"Source: {pem_profile['source']}",
+            ],
+        ))
+
+        # ── Strategy 3: BESS (Li-ion) ──
+        # Battery energy storage, 87.5% roundtrip efficiency, sized to deficit energy
+        bess_roundtrip_eff = 0.875
+        bess_cost_per_kwh = 350.0  # $/kWh installed (BloombergNEF 2024)
+        bess_energy_kwh_sized = deficit_energy_kwh / bess_roundtrip_eff
+        bess_capex = bess_energy_kwh_sized * bess_cost_per_kwh
+
+        strategies.append(MitigationStrategy(
+            key="bess_li_ion",
+            label="BESS (Li-ion)",
+            description=(
+                "Containerized lithium-ion battery energy storage. Charged from "
+                "the grid during off-peak cooling hours and discharged during "
+                "deficit hours to maintain IT capacity at mean level."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(bess_capex, 0),
+            sizing_summary=(
+                f"BESS: {bess_energy_kwh_sized:,.0f} kWh "
+                f"({bess_energy_kwh_sized / max(peak_deficit_kw, 1):.1f}h at "
+                f"{peak_deficit_kw:,.0f} kW peak deficit), "
+                f"covering {deficit_energy_mwh:,.1f} MWh deficit"
+            ),
+            notes=[
+                f"Roundtrip efficiency: {bess_roundtrip_eff * 100:.1f}%.",
+                f"Sized to total deficit energy: {deficit_energy_kwh:,.0f} kWh over {deficit_hours} hours.",
+                f"Estimated cost: ${bess_cost_per_kwh:.0f}/kWh installed.",
+                "Source: BloombergNEF LCOE 2024; Tesla/BYD BESS datasheets.",
+            ],
+        ))
+
+        # ── Strategy 4: Rotary UPS + Flywheel ──
+        # 2 MW modules, 0s ramp (instant), short-duration bridging
+        rotary_profile = BACKUP_POWER["Rotary UPS + Flywheel"]
+        rotary_module_kw = float(rotary_profile["module_size_kw"])
+        rotary_num_modules = math.ceil(peak_deficit_kw / rotary_module_kw)
+        rotary_total_kw = rotary_num_modules * rotary_module_kw
+        rotary_capex_per_kw = 800.0  # $/kW installed (Hitec/Piller DRUPS)
+        rotary_capex = rotary_total_kw * rotary_capex_per_kw
+
+        strategies.append(MitigationStrategy(
+            key="rotary_ups_flywheel",
+            label="Rotary UPS + Flywheel",
+            description=(
+                "Dynamic Rotary UPS with integrated flywheel for instant (0s) "
+                "power bridging. Provides short-duration ride-through while "
+                "longer-duration assets ramp up."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(rotary_capex, 0),
+            sizing_summary=(
+                f"{rotary_num_modules} × {rotary_module_kw / 1000:.0f} MW DRUPS modules = "
+                f"{rotary_total_kw / 1000:,.1f} MW, instant bridge for {peak_deficit_kw:,.0f} kW deficit"
+            ),
+            notes=[
+                f"Ramp time: {rotary_profile['ramp_time_seconds']}s (instant — kinetic energy).",
+                "Bridge power only (15–60 seconds). Pairs with gensets or fuel cells for sustained deficit.",
+                f"No fuel consumed. Zero emissions.",
+                f"Source: {rotary_profile['source']}",
+            ],
+        ))
+
+        # ── Strategy 5: Diesel Genset ──
+        # 2 MW modules, 12s ramp (backup comparison reference)
+        diesel_profile = BACKUP_POWER["Diesel Genset"]
+        diesel_module_kw = float(diesel_profile["module_size_kw"])
+        diesel_num_modules = math.ceil(peak_deficit_kw / diesel_module_kw)
+        diesel_total_kw = diesel_num_modules * diesel_module_kw
+        diesel_capex_per_kw = 500.0  # $/kW installed (Caterpillar/Cummins)
+        diesel_capex = diesel_total_kw * diesel_capex_per_kw
+
+        strategies.append(MitigationStrategy(
+            key="diesel_genset",
+            label="Diesel Genset",
+            description=(
+                "Diesel generator set — conventional backup power reference. "
+                "Fast ramp (12s), proven technology, but high CO₂ emissions."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(diesel_capex, 0),
+            sizing_summary=(
+                f"{diesel_num_modules} × {diesel_module_kw / 1000:.0f} MW diesel gensets = "
+                f"{diesel_total_kw / 1000:,.1f} MW, covering {deficit_energy_mwh:,.1f} MWh deficit"
+            ),
+            notes=[
+                f"Fuel: {diesel_profile['fuel']} | Efficiency: "
+                f"{(diesel_profile['efficiency_min'] + diesel_profile['efficiency_max']) / 2 * 100:.0f}%.",
+                f"Ramp time: {diesel_profile['ramp_time_seconds']}s.",
+                f"High emissions: {diesel_profile['co2_kg_per_kwh_fuel']} kg CO₂/kWh fuel. Not a green pathway.",
+                f"Source: {diesel_profile['source']}",
+            ],
+        ))
+
+        # ── Strategy 6: Natural Gas Genset ──
+        # 2.5 MW modules, 45s ramp (backup comparison reference)
+        ng_profile = BACKUP_POWER["Natural Gas Genset"]
+        ng_module_kw = float(ng_profile["module_size_kw"])
+        ng_num_modules = math.ceil(peak_deficit_kw / ng_module_kw)
+        ng_total_kw = ng_num_modules * ng_module_kw
+        ng_capex_per_kw = 600.0  # $/kW installed (Caterpillar/Wärtsilä)
+        ng_capex = ng_total_kw * ng_capex_per_kw
+
+        strategies.append(MitigationStrategy(
+            key="natural_gas_genset",
+            label="Natural Gas Genset",
+            description=(
+                "Natural gas reciprocating engine generator — lower emissions "
+                "than diesel, dual-fuel capable. Backup comparison reference."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(ng_capex, 0),
+            sizing_summary=(
+                f"{ng_num_modules} × {ng_module_kw / 1000:.1f} MW NG gensets = "
+                f"{ng_total_kw / 1000:,.1f} MW, covering {deficit_energy_mwh:,.1f} MWh deficit"
+            ),
+            notes=[
+                f"Fuel: {ng_profile['fuel']} | Efficiency: "
+                f"{(ng_profile['efficiency_min'] + ng_profile['efficiency_max']) / 2 * 100:.0f}%.",
+                f"Ramp time: {ng_profile['ramp_time_seconds']}s.",
+                f"Medium emissions: {ng_profile['co2_kg_per_kwh_fuel']} kg CO₂/kWh fuel.",
+                f"Source: {ng_profile['source']}",
+            ],
+        ))
+
+        # ── Strategy 7: Thermal Energy Storage (TES) ──
+        # Chilled water buffer tanks to absorb cooling peaks
+        tes_cost_per_kwh_thermal = 50.0  # $/kWh-thermal for chilled water TES
+        tes_energy_kwh = deficit_energy_kwh  # size to total deficit
+        tes_capex = tes_energy_kwh * tes_cost_per_kwh_thermal
+
+        strategies.append(MitigationStrategy(
+            key="tes",
+            label="Thermal Energy Storage (TES)",
+            description=(
+                "Chilled water buffer tanks that pre-cool during off-peak hours and "
+                "absorb cooling peaks during high-temperature periods, reducing "
+                "cooling-driven IT capacity curtailment."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=round(tes_capex, 0),
+            sizing_summary=(
+                f"TES: {tes_energy_kwh:,.0f} kWh-thermal storage, "
+                f"bridging {deficit_hours} deficit hours at up to {peak_deficit_kw:,.0f} kW peak"
+            ),
+            notes=[
+                "Pre-chills water during off-peak hours for use during cooling peaks.",
+                "Zero emissions — uses existing chiller plant off-peak capacity.",
+                "Requires plant room space for buffer tanks.",
+                "Best paired with economizer or chiller-based cooling systems.",
+            ],
+        ))
+
+        # ── Strategy 8: IT Load Management ──
+        # Throttle non-critical workloads during peak cooling hours (zero capex)
+        strategies.append(MitigationStrategy(
+            key="it_load_mgmt",
+            label="IT Load Management",
+            description=(
+                "Dynamic workload throttling during peak cooling hours. Reduces "
+                "non-critical IT load to maintain critical services within the "
+                "available cooling envelope. Zero CapEx — operational measure."
+            ),
+            capacity_kw=round(peak_deficit_kw, 1),
+            capacity_mw=round(peak_deficit_kw / 1000, 3),
+            estimated_capex_usd=0,
+            sizing_summary=(
+                f"Shed up to {peak_deficit_kw:,.0f} kW non-critical IT during "
+                f"{deficit_hours} deficit hours ({deficit_hours / max(n, 1) * 100:.1f}% of year)"
+            ),
+            notes=[
+                "Zero CapEx — operational measure only.",
+                "Requires workload classification and orchestration (e.g., Kubernetes resource limits).",
+                "Impacts SLA for non-critical workloads during deficit hours.",
+                "Can be combined with other strategies for partial mitigation.",
             ],
         ))
 

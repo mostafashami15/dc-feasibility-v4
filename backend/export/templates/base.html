@@ -584,6 +584,71 @@
       color: var(--text-light);
     }
 
+    /* ── CLIMATE PAGE (mirrors frontend ClimateAnalysis UI) ─────── */
+    .climate-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 14px;
+      break-inside: avoid;
+      box-shadow: var(--shadow-sm);
+    }
+    .climate-card svg { display: inline; width: auto; height: auto; }
+    .climate-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .climate-card-title {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    .stat-card-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .stat-card-compact {
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    .stat-card-label {
+      font-size: 7pt;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .stat-card-value {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #111827;
+    }
+    .climate-delta-desc {
+      font-size: 7.5pt;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .delta-label {
+      font-family: monospace;
+      color: #374151;
+    }
+    .suit-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .suit-excellent { background: #dbeafe; color: #1e40af; }
+    .suit-good      { background: #dcfce7; color: #166534; }
+    .suit-marginal  { background: #fef9c3; color: #854d0e; }
+    .suit-poor      { background: #fee2e2; color: #991b1b; }
+
     /* ── LAYOUT MODE OVERRIDES ────────────────────────────────────── */
     body.layout-report_a4_portrait .chapter-head {
       padding-top: 24px;

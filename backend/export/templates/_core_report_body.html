@@ -71,6 +71,37 @@
       {% endif %}
     </div>
   {% endfor %}
+
+  {# Appendix entries in TOC #}
+  {% set _has_delta = [] %}
+  {% set _has_scen = [] %}
+  {% for sb in report_bundle.studied_sites %}
+    {% if sb.chapters.climate.included and sb.chapters.climate.delta_rows_full %}
+      {% if _has_delta.append(1) %}{% endif %}
+    {% endif %}
+    {% if sb.chapters.selected_scenario.available and sb.chapters.deep_dive.available %}
+      {% if _has_scen.append(1) %}{% endif %}
+    {% endif %}
+  {% endfor %}
+  {% if _has_delta or _has_scen %}
+    <div class="toc-site-group">
+      <div class="toc-site-name">Appendices</div>
+      {% if _has_delta %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">A</span>
+          <span class="toc-entry-label">Climate Projections</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+      {% if _has_scen %}
+        <div class="toc-entry">
+          <span class="toc-entry-num">B</span>
+          <span class="toc-entry-label">Scenario Details</span>
+          <span class="toc-entry-dots"></span>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
 </section>
 
 {# ══════════════════════════════════════════════════════════════════
@@ -249,73 +280,43 @@
           tag="Climate"
       ) }}
 
-      {# ── Temperature Statistics (5 metric cards like the UI) ── #}
-      <div class="subsection-title">Temperature Statistics</div>
-      <div class="metric-row metric-row-5">
-        {% for item in climate.temperature_items[:5] %}
-          <div class="metric-card">
-            <div class="metric-label">{{ item.label }}</div>
-            <div class="metric-value">{{ item.value }}</div>
-          </div>
-        {% endfor %}
+      {# ── Temperature Statistics (5 compact stat cards — matches UI StatCard) ── #}
+      <div class="climate-card">
+        <div class="climate-card-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
+          <span class="climate-card-title">Temperature Statistics</span>
+        </div>
+        <div class="stat-card-row">
+          {% for item in climate.temperature_items[:5] %}
+            <div class="stat-card-compact">
+              <div class="stat-card-label">{{ item.label }}</div>
+              <div class="stat-card-value">{{ item.value }}</div>
+            </div>
+          {% endfor %}
+        </div>
       </div>
 
-      {# ── Monthly Temperature Profile chart (full width) ── #}
+      {# ── Monthly Temperature Profile (bar chart — matches UI TemperatureChart) ── #}
       {% if climate.monthly_chart_visual.available %}
-        <div class="chart-container">
-          <div class="chart-title">Monthly Temperature Profile</div>
+        <div class="climate-card">
+          <div class="climate-card-header">
+            <span class="climate-card-title">Monthly Temperature Profile</span>
+          </div>
           {{ climate.monthly_chart_visual.svg_markup | safe }}
         </div>
       {% endif %}
 
-      {# ── Free Cooling Analysis chart (full width) ── #}
+      {# ── Free Cooling Analysis (stacked chart — matches UI FreeCoolingChart) ── #}
       {% if climate.cooling_suitability_chart_visual.available %}
-        <div class="chart-container">
-          <div class="chart-title">Free Cooling Analysis</div>
+        <div class="climate-card">
+          <div class="climate-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+            <span class="climate-card-title">Free Cooling Analysis</span>
+          </div>
           {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
         </div>
       {% endif %}
 
-      {# ── Free cooling table ── #}
-      {% if climate.free_cooling_rows %}
-        <div class="table-wrap mt-sm">
-          <table>
-            <thead>
-              <tr><th>Cooling Type</th><th>Threshold</th><th>Hours</th><th>Fraction</th><th>Suitability</th></tr>
-            </thead>
-            <tbody>
-              {% for item in climate.free_cooling_rows %}
-                <tr>
-                  <td>{{ item.cooling_type }}{% if item.is_selected %}&nbsp;<span class="badge badge-primary">selected</span>{% endif %}</td>
-                  <td>{{ item.threshold }}</td>
-                  <td>{{ item.free_cooling_hours }}</td>
-                  <td>{{ item.free_cooling_fraction }}</td>
-                  <td>{{ item.suitability }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% endif %}
-
-      {# ── Climate Delta Projections (summarized) ── #}
-      {% if climate.delta_rows %}
-        <div class="subsection-title">Climate Projection (Delta Approach)</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Delta</th><th>Cooling Type</th><th>Free Hours</th><th>%</th><th>Rating</th></tr></thead>
-            <tbody>
-              {% for row in climate.delta_rows %}
-                <tr>
-                  <td>{{ row.delta }}</td><td>{{ row.cooling_type }}</td>
-                  <td>{{ row.free_cooling_hours }}</td><td>{{ row.free_cooling_fraction }}</td>
-                  <td>{{ row.suitability }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% endif %}
     </section>
   {% endif %}
 
@@ -397,7 +398,7 @@
         {% endfor %}
       </div>
 
-      {# Charts: IT capacity + PUE breakdown side by side (equal size) #}
+      {# Row 1: IT Capacity Spectrum + Daily IT Load Profile #}
       <div class="chart-row">
         {% if deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
           <div class="chart-container" style="margin:0;">
@@ -405,56 +406,103 @@
             {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
           </div>
         {% endif %}
-        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
-          <div class="chart-container" style="margin:0;">
-            <div class="chart-title">PUE Breakdown</div>
-            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
-          </div>
-        {% endif %}
-      </div>
-
-      {# Power chain waterfall (contained in box) #}
-      {% if deep_dive.power_chain_chart_visual is defined and deep_dive.power_chain_chart_visual.available %}
-        <div class="chart-container" style="overflow:hidden;">
-          <div class="chart-title">Power Chain Waterfall</div>
-          <div style="overflow:hidden;">
-            {{ deep_dive.power_chain_chart_visual.svg_markup | safe }}
-          </div>
-        </div>
-      {% endif %}
-
-      {# Daily profiles + PUE chart + Firm capacity #}
-      <div class="chart-row">
         {% if deep_dive.daily_profile_chart_visual is defined and deep_dive.daily_profile_chart_visual.available %}
           <div class="chart-container" style="margin:0;">
             <div class="chart-title">Daily IT Load Profile</div>
             {{ deep_dive.daily_profile_chart_visual.svg_markup | safe }}
           </div>
         {% endif %}
-        {% if deep_dive.firm_capacity_chart_visual is defined and deep_dive.firm_capacity_chart_visual.available %}
+      </div>
+
+      {# Row 2: PUE Breakdown (donut + min/max/avg) + Daily PUE Profile #}
+      <div class="chart-row">
+        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
           <div class="chart-container" style="margin:0;">
-            <div class="chart-title">Firm Capacity Spectrum</div>
-            {{ deep_dive.firm_capacity_chart_visual.svg_markup | safe }}
+            <div class="chart-title">PUE Breakdown</div>
+            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
+            {% if deep_dive.pue_minmax_chart_visual is defined and deep_dive.pue_minmax_chart_visual.available %}
+              <div style="margin-top:4px;">
+                {{ deep_dive.pue_minmax_chart_visual.svg_markup | safe }}
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+        {% if deep_dive.daily_pue_profile_chart_visual is defined and deep_dive.daily_pue_profile_chart_visual.available %}
+          <div class="chart-container" style="margin:0;">
+            <div class="chart-title">Daily PUE Profile</div>
+            {{ deep_dive.daily_pue_profile_chart_visual.svg_markup | safe }}
           </div>
         {% endif %}
       </div>
 
-      {# Feasibility status only (removed IT Capacity, Power Chain, Physical Deployment, Data Availability boxes) #}
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">Scenario Configuration</div>
-          {{ fact_rows(selected_scenario.summary_items) }}
+      {# Row 3: Power Flow Sankey (full width) #}
+      {% if deep_dive.power_chain_chart_visual is defined and deep_dive.power_chain_chart_visual.available %}
+        <div class="chart-container">
+          <div class="chart-title">Power Flow</div>
+          {{ deep_dive.power_chain_chart_visual.svg_markup | safe }}
         </div>
-        <div class="fact-panel">
-          <div class="fact-panel-title">Feasibility Status</div>
-          {{ fact_rows(deep_dive.status_items) }}
-          {% if deep_dive.status_reasons %}
-            <ul class="note-list mt-xs">
-              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
-            </ul>
+      {% endif %}
+
+      {# ── Firm Capacity Advisory (shown in ALL report types) ── #}
+      {% if deep_dive.advanced_blocks %}
+        {% for block in deep_dive.advanced_blocks %}
+          {% if block.key == "firm_capacity" %}
+            <div class="mt-md">
+              <div class="subsection-title">{{ block.title }}</div>
+              {% if block.summary_items %}
+                <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                  {% for item in block.summary_items %}
+                    <div class="metric-card">
+                      <div class="metric-label">{{ item.label }}</div>
+                      <div class="metric-value">{{ item.value }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              {% if block.deficit_chart_visual is defined and block.deficit_chart_visual.available %}
+                <div style="margin-top:8px;">
+                  {{ block.deficit_chart_visual.svg_markup | safe }}
+                </div>
+              {% endif %}
+              {% if block.strategies %}
+                <div style="margin-top:10px;">
+                  <div class="subsection-title" style="font-size:10px;margin-bottom:6px;">Recommended Mitigation Strategies</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                    {% for s in block.strategies %}
+                      <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+                          <div style="font-size:8.5px;font-weight:700;color:#1f2937;">{{ s.label }}</div>
+                          <div style="font-size:7.5px;font-weight:600;color:#059669;background:#ecfdf5;padding:1px 5px;border-radius:6px;">
+                            +{{ s.capacity_mw }} MW
+                          </div>
+                        </div>
+                        <div style="font-size:7px;color:#6b7280;margin-bottom:3px;">{{ s.description }}</div>
+                        <div style="display:flex;gap:10px;margin-bottom:3px;">
+                          <div>
+                            <div style="font-size:6.5px;color:#9ca3af;">CapEx</div>
+                            <div style="font-size:7.5px;font-weight:600;color:#1f2937;">
+                              {% if s.estimated_capex_usd > 0 %}${{ "{:,.0f}".format(s.estimated_capex_usd / 1000) }}k{% else %}No CapEx{% endif %}
+                            </div>
+                          </div>
+                          <div>
+                            <div style="font-size:6.5px;color:#9ca3af;">Sizing</div>
+                            <div style="font-size:7px;color:#4b5563;font-family:monospace;">{{ s.sizing_summary }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+              {% if block.notes %}
+                <ul class="note-list mt-xs">
+                  {% for note in block.notes %}<li>{{ note }}</li>{% endfor %}
+                </ul>
+              {% endif %}
+            </div>
           {% endif %}
-        </div>
-      </div>
+        {% endfor %}
+      {% endif %}
     </section>
 
   {% elif not selected_scenario.available %}
@@ -467,8 +515,10 @@
 
   {# ════════════════════════════════════════════════════════════════
      PAGE 8+: ADVANCED ANALYSIS (detailed only)
-     Filtered: no IT Capacity Spectrum (shown in charts above)
-     PUE Decomposition + Sensitivity use charts instead of tables
+     Blocks: PUE Energy Decomposition,
+             Infrastructure (Footprint + Backup), Expansion (Advisory + Load Mix),
+             Sensitivity, Break-Even
+             (Firm Capacity is rendered on the Scenario Results page instead)
      ════════════════════════════════════════════════════════════════ #}
   {% if report.type == "detailed" and deep_dive.available and deep_dive.advanced_blocks %}
     <section class="page-break">
@@ -481,13 +531,12 @@
       ) }}
 
       {% for block in deep_dive.advanced_blocks %}
-        {# Skip IT Capacity Spectrum — already shown as chart in Scenario Results #}
-        {% if block.id != "it_capacity_spectrum" %}
+        {% if block.key != "firm_capacity" %}
           <div class="{% if not loop.first %}mt-md{% endif %}">
-            <div class="subsection-title">{{ block.title }}</div>
 
-            {# PUE Decomposition: show pie charts if available, else metric cards + table #}
-            {% if block.id == "pue_decomposition" %}
+            {# ── PUE Energy Decomposition: pie charts + Sankey + metrics ── #}
+            {% if block.key == "pue_decomposition" %}
+              <div class="subsection-title">{{ block.title }}</div>
               {% if block.component_pie_visual is defined and block.component_pie_visual.available and block.mode_pie_visual is defined and block.mode_pie_visual.available %}
                 <div class="chart-row">
                   <div class="chart-container" style="margin:0;">
@@ -498,6 +547,11 @@
                     <div class="chart-title">By Mode</div>
                     {{ block.mode_pie_visual.svg_markup | safe }}
                   </div>
+                </div>
+              {% endif %}
+              {% if block.energy_sankey_visual is defined and block.energy_sankey_visual.available %}
+                <div class="chart-container">
+                  {{ block.energy_sankey_visual.svg_markup | safe }}
                 </div>
               {% endif %}
               {% if block.summary_items %}
@@ -511,8 +565,9 @@
                 </div>
               {% endif %}
 
-            {# Sensitivity: show tornado chart if available #}
-            {% elif block.id == "sensitivity" %}
+            {# ── Sensitivity: tornado chart ── #}
+            {% elif block.key == "sensitivity" %}
+              <div class="subsection-title">{{ block.title }}</div>
               {% if block.tornado_chart_visual is defined and block.tornado_chart_visual.available %}
                 <div class="chart-container">
                   <div class="chart-title">Sensitivity Tornado</div>
@@ -530,8 +585,181 @@
                 </div>
               {% endif %}
 
-            {# Firm Capacity: show chart + tables #}
-            {% elif block.id == "firm_capacity" %}
+            {# ── Infrastructure Footprint: separate card box ── #}
+            {% elif block.key == "infrastructure_footprint" %}
+              <div class="subsection-title">Infrastructure</div>
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;">
+                <div style="font-size:9px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                  <span style="color:#6b7280;">&#9632;</span> Infrastructure Footprint
+                </div>
+                {% if block.summary_items %}
+                  <div class="metric-row metric-row-4">
+                    {% for item in block.summary_items %}
+                      <div class="metric-card">
+                        <div class="metric-label">{{ item.label }}</div>
+                        <div class="metric-value">{{ item.value }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {# Fit status badges #}
+                {% if block.ground_fits is defined %}
+                  <div style="display:flex;gap:8px;margin:8px 0 6px;">
+                    <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:7.5px;font-weight:600;
+                      background:{{ '#dcfce7' if block.ground_fits else '#fee2e2' }};
+                      color:{{ '#166534' if block.ground_fits else '#991b1b' }};">
+                      Ground {{ 'fits' if block.ground_fits else 'does not fit' }}
+                    </span>
+                    {% if block.roof_fits is defined %}
+                    <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:7.5px;font-weight:600;
+                      background:{{ '#dcfce7' if block.roof_fits else '#fee2e2' }};
+                      color:{{ '#166534' if block.roof_fits else '#991b1b' }};">
+                      Roof {{ 'fits' if block.roof_fits else 'does not fit' }}
+                    </span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% for table in block.tables %}
+                  {{ data_table(table) }}
+                {% endfor %}
+              </div>
+
+            {# ── Backup Power Comparison: separate card box ── #}
+            {% elif block.key == "backup_power_comparison" %}
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;">
+                <div style="font-size:9px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                  <span style="color:#d97706;">&#9632;</span> Backup Power Comparison
+                </div>
+                {% if block.summary_items %}
+                  <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
+                    {% for item in block.summary_items %}
+                      <div class="metric-card">
+                        <div class="metric-label">{{ item.label }}</div>
+                        <div class="metric-value">{{ item.value }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% for table in block.tables %}
+                  {{ data_table(table) }}
+                {% endfor %}
+                {# Highlights #}
+                {% if block.lowest_co2 is defined or block.smallest_footprint is defined or block.fastest_ramp is defined %}
+                  <div style="margin-top:6px;font-size:7px;color:#6b7280;display:flex;gap:12px;flex-wrap:wrap;">
+                    {% if block.lowest_co2 %}<span>Lowest CO₂: {{ block.lowest_co2 }}</span>{% endif %}
+                    {% if block.smallest_footprint %}<span>Smallest footprint: {{ block.smallest_footprint }}</span>{% endif %}
+                    {% if block.fastest_ramp %}<span>Fastest ramp: {{ block.fastest_ramp }}</span>{% endif %}
+                  </div>
+                {% endif %}
+              </div>
+
+            {# ── Expansion Advisory: card box with metrics + capacity snapshots ── #}
+            {% elif block.key == "expansion_advisory" %}
+              <div class="subsection-title">Expansion</div>
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;">
+                <div style="font-size:9px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                  <span style="color:#10b981;">&#9650;</span> Expansion Advisory
+                </div>
+                {% if block.summary_items %}
+                  <div class="metric-row metric-row-4">
+                    {% for item in block.summary_items %}
+                      <div class="metric-card">
+                        <div class="metric-label">{{ item.label }}</div>
+                        <div class="metric-value">{{ item.value }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {# Capacity snapshot cards #}
+                {% if block.capacity_snapshots is defined %}
+                  <div style="display:flex;gap:8px;margin-top:8px;">
+                    {% for snap in block.capacity_snapshots %}
+                      {% set border_color = '#d1d5db' if snap.accent == 'gray' else '#86efac' if snap.accent == 'green' else '#93c5fd' %}
+                      {% set bg_color = '#f9fafb' if snap.accent == 'gray' else '#f0fdf4' if snap.accent == 'green' else '#eff6ff' %}
+                      <div style="flex:1;background:{{ bg_color }};border:1px solid {{ border_color }};border-radius:8px;padding:8px;">
+                        <div style="font-size:7.5px;font-weight:700;color:#374151;margin-bottom:6px;">{{ snap.label }}</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                          <div style="font-size:6.5px;color:#6b7280;">Racks</div>
+                          <div style="font-size:7px;font-weight:600;color:#111827;text-align:right;">{{ snap.racks }}</div>
+                          <div style="font-size:6.5px;color:#6b7280;">IT Load</div>
+                          <div style="font-size:7px;font-weight:600;color:#111827;text-align:right;">{{ snap.it_load }}</div>
+                          <div style="font-size:6.5px;color:#6b7280;">Facility Power</div>
+                          <div style="font-size:7px;font-weight:600;color:#111827;text-align:right;">{{ snap.facility_power }}</div>
+                          <div style="font-size:6.5px;color:#6b7280;">Procurement</div>
+                          <div style="font-size:7px;font-weight:600;color:#111827;text-align:right;">{{ snap.procurement_power }}</div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+            {# ── Load Mix Planner: card box with candidates ── #}
+            {% elif block.key == "load_mix_planner" %}
+              <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:10px;">
+                <div style="font-size:9px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                  <span style="color:#3b82f6;">&#9632;</span> Load Mix Planner
+                </div>
+                {% if block.summary_items %}
+                  <div class="metric-row metric-row-4">
+                    {% for item in block.summary_items %}
+                      <div class="metric-card">
+                        <div class="metric-label">{{ item.label }}</div>
+                        <div class="metric-value">{{ item.value }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {# Top candidates #}
+                {% if block.candidates is defined %}
+                  {% for candidate in block.candidates %}
+                    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-top:6px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                        <span style="font-size:7.5px;font-weight:700;color:#374151;">
+                          #{{ candidate.rank }} — Score {{ candidate.score }} · PUE {{ candidate.blended_pue }} · {{ candidate.total_racks }} racks
+                        </span>
+                        <span style="font-size:6.5px;font-weight:600;padding:1px 6px;border-radius:3px;
+                          {% if candidate.all_compatible %}background:#dcfce7;color:#166534;{% else %}background:#fef3c7;color:#92400e;{% endif %}">
+                          {{ 'Compatible' if candidate.all_compatible else 'Needs Review' }}
+                        </span>
+                      </div>
+                      <table style="width:100%;border-collapse:collapse;font-size:7px;">
+                        <thead>
+                          <tr style="background:#f9fafb;">
+                            <th style="padding:2px 4px;text-align:left;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb;">Load Type</th>
+                            <th style="padding:2px 4px;text-align:right;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb;">Share</th>
+                            <th style="padding:2px 4px;text-align:right;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb;">IT MW</th>
+                            <th style="padding:2px 4px;text-align:right;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb;">Racks</th>
+                            <th style="padding:2px 4px;text-align:right;font-weight:600;color:#6b7280;border-bottom:1px solid #e5e7eb;">Density</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for alloc in candidate.allocations %}
+                            <tr>
+                              <td style="padding:2px 4px;color:#374151;">{{ alloc.load_type }}</td>
+                              <td style="padding:2px 4px;text-align:right;font-family:monospace;color:#374151;">{{ alloc.share_pct }}</td>
+                              <td style="padding:2px 4px;text-align:right;font-family:monospace;color:#374151;">{{ alloc.it_load_mw }}</td>
+                              <td style="padding:2px 4px;text-align:right;font-family:monospace;color:#374151;">{{ alloc.rack_count }}</td>
+                              <td style="padding:2px 4px;text-align:right;font-family:monospace;color:#374151;">{{ alloc.rack_density_kw }}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                      {% if candidate.trade_off_notes %}
+                        <div style="margin-top:3px;">
+                          {% for note in candidate.trade_off_notes %}
+                            <div style="font-size:6.5px;color:#6b7280;">• {{ note }}</div>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+
+            {# ── Firm Capacity: metrics + strategies + chart ── #}
+            {% elif block.key == "firm_capacity" %}
+              <div class="subsection-title">{{ block.title }}</div>
               {% if block.summary_items %}
                 <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
                   {% for item in block.summary_items %}
@@ -542,12 +770,52 @@
                   {% endfor %}
                 </div>
               {% endif %}
-              {% for table in block.tables %}
-                {{ data_table(table) }}
-              {% endfor %}
 
-            {# Default block rendering for other blocks #}
+              {# ── Deficit chart ── #}
+              {% if block.deficit_chart_visual is defined and block.deficit_chart_visual.available %}
+                <div style="margin-top:12px;">
+                  {{ block.deficit_chart_visual.svg_markup | safe }}
+                </div>
+              {% endif %}
+
+              {# ── Recommended Mitigation Strategies ── #}
+              {% if block.strategies %}
+                <div style="margin-top:14px;">
+                  <div class="subsection-title" style="font-size:11px;margin-bottom:8px;">Recommended Mitigation Strategies</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    {% for s in block.strategies %}
+                      <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                          <div style="font-size:9px;font-weight:700;color:#1f2937;">{{ s.label }}</div>
+                          <div style="font-size:8px;font-weight:600;color:#059669;background:#ecfdf5;padding:1px 6px;border-radius:8px;">
+                            +{{ s.capacity_mw }} MW
+                          </div>
+                        </div>
+                        <div style="font-size:7.5px;color:#6b7280;margin-bottom:4px;">{{ s.description }}</div>
+                        <div style="display:flex;gap:12px;margin-bottom:4px;">
+                          <div>
+                            <div style="font-size:7px;color:#9ca3af;">CapEx</div>
+                            <div style="font-size:8px;font-weight:600;color:#1f2937;">
+                              {% if s.estimated_capex_usd > 0 %}${{ "{:,.0f}".format(s.estimated_capex_usd / 1000) }}k{% else %}No CapEx{% endif %}
+                            </div>
+                          </div>
+                          <div>
+                            <div style="font-size:7px;color:#9ca3af;">Capacity</div>
+                            <div style="font-size:8px;font-weight:600;color:#1f2937;">{{ s.capacity_mw }} MW</div>
+                          </div>
+                        </div>
+                        <div style="font-size:7px;color:#4b5563;background:#f9fafb;border-radius:4px;padding:3px 5px;font-family:monospace;">
+                          {{ s.sizing_summary }}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+
+            {# ── Default block rendering ── #}
             {% else %}
+              <div class="subsection-title">{{ block.title }}</div>
               {% if block.summary_items %}
                 <div class="metric-row metric-row-{{ [block.summary_items | length, 5] | min }}">
                   {% for item in block.summary_items %}
@@ -569,7 +837,7 @@
               </ul>
             {% endif %}
           </div>
-        {% endif %}
+        {% endif %}{# end if block.key != "firm_capacity" #}
       {% endfor %}
     </section>
   {% endif %}
@@ -640,30 +908,164 @@
         {% endfor %}
       </div>
 
+      <div class="fact-panel">
+        <div class="fact-panel-title">Dispatch Configuration</div>
+        {{ fact_rows(green_energy.configuration_items) }}
+      </div>
+
       <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">Dispatch Configuration</div>
-          {{ fact_rows(green_energy.configuration_items) }}
-        </div>
         <div class="fact-panel">
           <div class="fact-panel-title">Operating Context</div>
           {{ fact_rows(green_energy.context_items) }}
         </div>
-      </div>
-
-      {% if report.type == "detailed" and green_energy.provenance_items %}
-        <div class="fact-panel mt-sm" style="max-width:52%;">
+        {% if green_energy.provenance_items %}
+        <div class="fact-panel">
           <div class="fact-panel-title">PV Source Provenance</div>
           {{ fact_rows(green_energy.provenance_items) }}
         </div>
+        {% endif %}
+      </div>
+
+      {% if green_energy.energy_breakdown_chart_visual is defined and green_energy.energy_breakdown_chart_visual.available %}
+        <div class="subsection-title">{{ green_energy.energy_breakdown_chart_visual.title }}</div>
+        {{ green_energy.energy_breakdown_chart_visual.svg_markup | safe }}
+      {% else %}
+        <div class="subsection-title">{{ green_energy.energy_breakdown_table.title }}</div>
+        {{ data_table(green_energy.energy_breakdown_table) }}
       {% endif %}
 
-      <div class="subsection-title">{{ green_energy.energy_breakdown_table.title }}</div>
-      {{ data_table(green_energy.energy_breakdown_table) }}
+      {% if green_energy.dispatch_hourly_chart_visual is defined and green_energy.dispatch_hourly_chart_visual.available %}
+        <div class="subsection-title">{{ green_energy.dispatch_hourly_chart_visual.title }}</div>
+        {{ green_energy.dispatch_hourly_chart_visual.svg_markup | safe }}
+      {% endif %}
     </section>
   {% endif %}
 
 {% endfor %}
+
+{# ══════════════════════════════════════════════════════════════════
+   APPENDIX — Climate Projection Data (full delta tables)
+   ══════════════════════════════════════════════════════════════════ #}
+{% set has_any_delta = [] %}
+{% for site_bundle in report_bundle.studied_sites %}
+  {% if site_bundle.chapters.climate.included and site_bundle.chapters.climate.delta_rows_full %}
+    {% if has_any_delta.append(1) %}{% endif %}
+  {% endif %}
+{% endfor %}
+
+{% if has_any_delta %}
+  <section class="page-break">
+    {{ page_logo() }}
+    {{ chapter_header(
+        "A",
+        "Appendix — Climate Projections",
+        subtitle="Full delta forecasting data for all cooling topologies",
+        tag="Appendix"
+    ) }}
+
+    {% for site_bundle in report_bundle.studied_sites %}
+      {% set site = site_bundle.site_data %}
+      {% set climate = site_bundle.chapters.climate %}
+      {% if climate.included and climate.delta_rows_full %}
+
+        {% if report_bundle.studied_sites | length > 1 %}
+          <div class="subsection-title">{{ site.name }}</div>
+        {% endif %}
+
+        <p class="climate-delta-desc">
+          CIBSE TM49 / IPCC AR6 SSP2-4.5 — uniform temperature shift applied to the hourly profile.
+          All cooling topologies × all delta increments.
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Delta</th>
+                <th>Cooling Type</th>
+                <th>Free Hours</th>
+                <th>Partial Hours</th>
+                <th>Mechanical Hours</th>
+                <th>Free %</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in climate.delta_rows_full %}
+                <tr>
+                  <td><span class="delta-label">{{ row.delta }}</span></td>
+                  <td>{{ row.cooling_type }}</td>
+                  <td style="text-align:right;font-family:monospace;">{{ row.free_cooling_hours }}</td>
+                  <td style="text-align:right;font-family:monospace;">{{ row.partial_hours }}</td>
+                  <td style="text-align:right;font-family:monospace;">{{ row.mechanical_hours }}</td>
+                  <td style="text-align:right;font-family:monospace;">{{ row.free_cooling_fraction }}</td>
+                  <td style="text-align:center;">
+                    {% set suit = row.suitability | upper %}
+                    <span class="suit-badge {% if 'EXCELLENT' in suit %}suit-excellent{% elif 'GOOD' in suit %}suit-good{% elif 'MARGINAL' in suit %}suit-marginal{% else %}suit-poor{% endif %}">
+                      {{ row.suitability | replace("_", " ") }}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      {% endif %}
+    {% endfor %}
+  </section>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════════════════
+   APPENDIX B — Scenario Configuration & Feasibility Status
+   ══════════════════════════════════════════════════════════════════ #}
+{% set has_any_scenario = [] %}
+{% for site_bundle in report_bundle.studied_sites %}
+  {% if site_bundle.chapters.selected_scenario.available and site_bundle.chapters.deep_dive.available %}
+    {% if has_any_scenario.append(1) %}{% endif %}
+  {% endif %}
+{% endfor %}
+
+{% if has_any_scenario %}
+  <section class="page-break">
+    {{ page_logo() }}
+    {{ chapter_header(
+        "B",
+        "Appendix — Scenario Details",
+        subtitle="Configuration and feasibility status for primary scenarios",
+        tag="Appendix"
+    ) }}
+
+    {% for site_bundle in report_bundle.studied_sites %}
+      {% set site = site_bundle.site_data %}
+      {% set selected_scenario = site_bundle.chapters.selected_scenario %}
+      {% set deep_dive = site_bundle.chapters.deep_dive %}
+      {% if selected_scenario.available and deep_dive.available %}
+
+        {% if report_bundle.studied_sites | length > 1 %}
+          <div class="subsection-title">{{ site.name }} — {{ selected_scenario.label }}</div>
+        {% endif %}
+
+        <div class="fact-grid">
+          <div class="fact-panel">
+            <div class="fact-panel-title">Scenario Configuration</div>
+            {{ fact_rows(selected_scenario.summary_items) }}
+          </div>
+          <div class="fact-panel">
+            <div class="fact-panel-title">Feasibility Status</div>
+            {{ fact_rows(deep_dive.status_items) }}
+            {% if deep_dive.status_reasons %}
+              <ul class="note-list mt-xs">
+                {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </div>
+
+      {% endif %}
+    {% endfor %}
+  </section>
+{% endif %}
 
 {# ── REPORT FOOTER ──────────────────────────────────────────────── #}
 <div class="report-footer">

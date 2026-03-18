@@ -1083,7 +1083,7 @@ def test_build_excel_bytes_adds_optional_depth_sheets(monkeypatch):
     }.issubset(set(loaded.sheetnames))
     assert workbook_sheet_rows(workbook, "Grid Summary")[0]["Status"] == "available"
     assert any(
-        row["Block Key"] == "backup_comparison"
+        row["Block Key"] == "backup_power_comparison"
         for row in workbook_sheet_rows(workbook, "Appx Summary")
     )
     assert any(
@@ -1345,9 +1345,9 @@ def test_build_report_bundle_includes_climate_analysis_from_cached_weather(
     assert climate["status"] == "available"
     assert climate["weather_status"]["source_type"] == "manual_upload"
     assert climate["analysis"]["temperature_stats"]["count"] == 4
-    assert climate["analysis"]["cooling_types_analyzed"] == [
-        CoolingType.AIR_CHILLER_ECON.value
-    ]
+    # All free-cooling-eligible types are now analysed (matching the frontend UI)
+    assert CoolingType.AIR_CHILLER_ECON.value in climate["analysis"]["cooling_types_analyzed"]
+    assert len(climate["analysis"]["cooling_types_analyzed"]) >= 1
     assert (
         bundle["report_bundle"]["analysis_availability"]["climate_available_site_count"]
         == 1
@@ -1403,13 +1403,14 @@ def test_build_report_bundle_shapes_core_chapter_context(monkeypatch):
         item["label"] == "Committed IT capacity"
         for item in chapters["deep_dive"]["headline_metrics"]
     )
-    assert chapters["deep_dive"]["advanced_block_count"] == 4
+    assert chapters["deep_dive"]["advanced_block_count"] == 5
     assert {
         block["key"] for block in chapters["deep_dive"]["advanced_blocks"]
     } == {
+        "infrastructure_footprint",
+        "backup_power_comparison",
         "expansion_advisory",
-        "footprint",
-        "backup_comparison",
+        "load_mix_planner",
         "sensitivity",
     }
 
@@ -1463,19 +1464,25 @@ def test_build_report_bundle_shapes_milestone_five_advanced_blocks(monkeypatch):
     blocks = bundle["report_bundle"]["studied_sites"][0]["chapters"]["deep_dive"]["advanced_blocks"]
     assert [block["key"] for block in blocks] == [
         "pue_decomposition",
-        "hourly_profiles",
-        "it_capacity_spectrum",
-        "expansion_advisory",
         "firm_capacity",
-        "footprint",
-        "backup_comparison",
+        "infrastructure_footprint",
+        "backup_power_comparison",
+        "expansion_advisory",
+        "load_mix_planner",
         "sensitivity",
         "break_even",
     ]
-    assert any(block["title"] == "PUE Decomposition" for block in blocks)
+    assert any(block["title"] == "PUE Energy Decomposition" for block in blocks)
     assert any(block["title"] == "Firm Capacity" for block in blocks)
-    # pue_decomposition and sensitivity now use charts instead of tables
-    blocks_with_tables = [b for b in blocks if b["key"] not in ("pue_decomposition", "sensitivity")]
+    assert any(block["title"] == "Infrastructure Footprint" for block in blocks)
+    assert any(block["title"] == "Backup Power Comparison" for block in blocks)
+    assert any(block["title"] == "Expansion Advisory" for block in blocks)
+    assert any(block["title"] == "Load Mix Planner" for block in blocks)
+    # pue_decomposition, sensitivity, expansion_advisory, and load_mix_planner use custom layouts instead of tables
+    blocks_with_tables = [
+        b for b in blocks
+        if b["key"] not in ("pue_decomposition", "sensitivity", "expansion_advisory", "load_mix_planner", "firm_capacity")
+    ]
     assert all(block["tables"] for block in blocks_with_tables)
 
 
@@ -1741,15 +1748,15 @@ def test_render_report_html_omits_missing_hourly_advanced_blocks(monkeypatch):
         primary_result_keys={"site-1": get_result_selection_key(primary)},
     )
 
-    assert "PUE Decomposition" not in html
+    assert "PUE Energy Decomposition" not in html
     assert "Hourly Profiles" not in html
     assert "Firm Capacity" not in html
     assert "IT Capacity Spectrum" in html
+    assert "Infrastructure Footprint" in html
+    assert "Backup Power Comparison" in html
     assert "Expansion Advisory" in html
-    assert "Footprint" in html
-    assert "Backup Comparison" in html
+    assert "Load Mix Planner" in html
     assert "Sensitivity" in html
-    assert "Break-Even" in html
 
 
 def test_render_report_html_includes_core_chapters_when_optional_analyses_exist(
@@ -1817,7 +1824,7 @@ def test_render_report_html_includes_core_chapters_when_optional_analyses_exist(
     assert "Grid Context Map" in html
     assert "Weather &amp; Climate" in html
     assert "Monthly Temperature Profile" in html
-    assert "Cooling Topology Suitability" in html
+    assert "Free Cooling Analysis" in html
     assert "Scenario Results" in html
     assert "Mapped Infrastructure Assets" in html
     assert "Free Cooling Analysis" in html

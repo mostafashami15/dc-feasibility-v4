@@ -5,6 +5,7 @@ import { useAppStore } from "../store/useAppStore";
 import * as api from "../api/client";
 import { loadSessionState, saveSessionState } from "../lib/sessionState";
 import type { PVGISProfileResult, ScenarioGreenDispatchResult, ScenarioResult } from "../types";
+import GreenDispatchChart from "../components/charts/GreenDispatchChart";
 
 const GREEN_ENERGY_STATE_KEY = "green-energy-state";
 
@@ -285,7 +286,7 @@ export default function GreenEnergy() {
         bess_initial_soc_kwh: Number.parseFloat(bessInitialSocKwh) || 0,
         fuel_cell_capacity_kw: Number.parseFloat(fuelCellKw) || 0,
         grid_co2_kg_per_kwh: Number.parseFloat(co2Factor) || 0.256,
-        include_hourly_dispatch: false,
+        include_hourly_dispatch: true,
       });
       setResult(data);
       setResultSelectionKey(selectedScenarioKey);
@@ -668,6 +669,23 @@ export default function GreenEnergy() {
                   <GreenMetric label="Grid Import" value={`${(result.total_grid_import_kwh / 1000).toFixed(1)} MWh`} />
                 </div>
               </div>
+
+              {result.hourly_dispatch && result.hourly_dispatch.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Zap size={18} className="text-green-500" />
+                    Hourly Dispatch Profile
+                  </h3>
+                  <GreenDispatchChart
+                    hourlyDispatch={result.hourly_dispatch}
+                    totalOverheadMwh={result.total_overhead_kwh / 1000}
+                    pvToOverheadMwh={result.total_pv_to_overhead_kwh / 1000}
+                    bessDischargeMwh={result.total_bess_discharge_kwh / 1000}
+                    fuelCellMwh={result.total_fuel_cell_kwh / 1000}
+                    gridImportMwh={result.total_grid_import_kwh / 1000}
+                  />
+                </div>
+              )}
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">

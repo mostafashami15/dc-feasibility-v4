@@ -24,6 +24,7 @@ import * as api from "../api/client";
 import ITCapacityChart from "../components/charts/ITCapacityChart";
 import DailyProfileChart from "../components/charts/DailyProfileChart";
 import TornadoChart from "../components/charts/TornadoChart";
+import FirmCapacityDeficitChart from "../components/charts/FirmCapacityDeficitChart";
 import TabGroup from "../components/ui/TabGroup";
 import type {
   ScenarioResult,
@@ -1381,6 +1382,13 @@ function FirmCapacityTab({
   backupDispatchKw: string;
   setBackupDispatchKw: (v: string) => void;
 }) {
+  // Auto-load advisory when tab opens (if hourly sim available and not yet loaded)
+  useEffect(() => {
+    if (r.pue_source === "hourly" && !firmAdvisory && !firmAdvisoryLoading && !firmAdvisoryError) {
+      loadFirmAdvisory();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-4">
       {/* Auto-Advisory Section (no user input required) */}
@@ -1392,7 +1400,7 @@ function FirmCapacityTab({
             disabled={firmAdvisoryLoading || r.pue_source !== "hourly"}
             className="text-xs px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
           >
-            {firmAdvisoryLoading ? <Loader2 size={12} className="animate-spin" /> : "Auto-Analyse"}
+            {firmAdvisoryLoading ? <Loader2 size={12} className="animate-spin" /> : "Re-analyse"}
           </button>
         )}
       >
@@ -1401,11 +1409,10 @@ function FirmCapacityTab({
             Hourly weather simulation is required. Run a scenario with weather data first.
           </p>
         )}
-        {r.pue_source === "hourly" && !firmAdvisory && !firmAdvisoryLoading && !firmAdvisoryError && (
-          <p className="text-xs text-gray-500">
-            Click "Auto-Analyse" for a preset engineering assessment of firm IT capacity
-            with recommended mitigation strategies and costs. No manual input required.
-          </p>
+        {r.pue_source === "hourly" && !firmAdvisory && firmAdvisoryLoading && (
+          <div className="flex items-center gap-2 text-xs text-gray-500 py-4">
+            <Loader2 size={14} className="animate-spin" /> Loading firm capacity analysis…
+          </div>
         )}
         {firmAdvisoryError && <p className="text-xs text-red-600 mt-2">{firmAdvisoryError}</p>}
         {firmAdvisory && (
@@ -1424,6 +1431,14 @@ function FirmCapacityTab({
                 sub={`${(firmAdvisory.deficit_hours / 8760 * 100).toFixed(1)}% of year`} />
               <Metric label="Deficit Energy" value={`${(firmAdvisory.deficit_energy_kwh / 1000).toFixed(1)} MWh`} />
             </div>
+
+            {/* Deficit chart */}
+            {firmAdvisory.hourly_it_kw_sampled && firmAdvisory.hourly_it_kw_sampled.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">Hourly IT Capacity &amp; Deficit</h4>
+                <FirmCapacityDeficitChart advisory={firmAdvisory} />
+              </div>
+            )}
 
             {/* Mitigation strategies */}
             {firmAdvisory.strategies.length > 0 && (

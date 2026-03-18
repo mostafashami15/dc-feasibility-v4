@@ -1297,6 +1297,10 @@ async def firm_capacity_advisory_endpoint(request: FirmCapacityAdvisoryRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Sample hourly IT capacity for frontend chart (every 12h → ~730 pts)
+    step = max(1, len(sim.hourly_it_kw) // 730)
+    sampled_it_kw = [round(v, 1) for v in sim.hourly_it_kw[::step]]
+
     return {
         "firm_capacity_mw": advisory.firm_capacity_mw,
         "firm_capacity_kw": advisory.firm_capacity_kw,
@@ -1314,6 +1318,7 @@ async def firm_capacity_advisory_endpoint(request: FirmCapacityAdvisoryRequest):
         "deficit_energy_kwh": advisory.deficit_energy_kwh,
         "annual_pue": round(sim.annual_pue, 4),
         "facility_power_mw": round(power.facility_power_mw, 3),
+        "hourly_it_kw_sampled": sampled_it_kw,
         "strategies": [
             {
                 "key": s.key,

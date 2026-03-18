@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from engine.assumptions import evaluate_compatibility
-from engine.backup_power import compare_technologies
+from engine.backup_power import compare_technologies, compute_firm_capacity_advisory
 from engine.expansion import compute_expansion_advisory
 from engine.footprint import compute_footprint
 from engine.green_energy import (
@@ -12,7 +12,7 @@ from engine.green_energy import (
     recommend_support_portfolios,
     simulate_firm_capacity_support,
 )
-from engine.models import ScenarioResult, Site
+from engine.models import LoadType, ScenarioResult, Site
 from engine.sensitivity import SENSITIVITY_PARAMETERS, compute_break_even, compute_tornado
 
 from export.report._constants import SENSITIVITY_UNIT_SUFFIXES
@@ -37,9 +37,13 @@ from export.report._utils import (
 )
 from export.visual_assets import (
     build_daily_profile_chart,
+    build_daily_pue_profile_chart,
+    build_energy_decomposition_sankey,
     build_firm_capacity_chart,
+    build_firm_capacity_deficit_chart,
     build_it_capacity_spectrum_chart,
     build_pie_chart,
+    build_pue_minmax_chart,
     build_power_chain_waterfall,
     build_pue_breakdown_chart,
     build_tornado_chart,
@@ -149,9 +153,17 @@ def _build_pue_decomposition_block(
         subtitle="8,760-hour annual distribution",
     )
 
+    # Build energy decomposition Sankey
+    energy_sankey = build_energy_decomposition_sankey(
+        components,
+        total_facility_kwh=sim.total_facility_kwh,
+        total_it_kwh=sim.total_it_kwh,
+        total_overhead_kwh=total_overhead,
+    )
+
     block = _build_advanced_block(
         "pue_decomposition",
-        "PUE Decomposition",
+        "PUE Energy Decomposition",
         summary_items=[
             _fact("Annual PUE", _display_number(sim.annual_pue, digits=3)),
             _fact("Total overhead", _display_number(total_overhead / 1000, digits=1, suffix="MWh")),
@@ -168,6 +180,7 @@ def _build_pue_decomposition_block(
     )
     block["component_pie_visual"] = component_pie
     block["mode_pie_visual"] = mode_pie
+    block["energy_sankey_visual"] = energy_sankey
     return block
 
 
@@ -473,10 +486,51 @@ def _build_expansion_advisory_block(
     )
 
 
+def _extract_green_energy_params(
+    green_energy_data: dict[str, Any] | None,
+    site_id: str,
+) -> tuple[list[float] | None, float, float, float, float]:
+    """Extract PV hourly, BESS, and fuel cell params from green energy data.
+
+    Returns (hourly_pv_kw, bess_capacity_kwh, bess_roundtrip_eff,
+             bess_initial_soc_kwh, fuel_cell_capacity_kw).
+    """
+    default_eff = 0.875
+    if green_energy_data is None or green_energy_data.get("status") != "available":
+        return None, 0.0, default_eff, 0.0, 0.0
+
+    result = green_energy_data.get("result")
+    if result is None:
+        return None, 0.0, default_eff, 0.0, 0.0
+
+    bess_kwh = float(result.get("bess_capacity_kwh") or 0)
+    bess_eff = float(result.get("bess_roundtrip_efficiency") or default_eff)
+    bess_soc = float(green_energy_data.get("bess_initial_soc_kwh") or 0)
+    fc_kw = float(result.get("fuel_cell_capacity_kw") or 0)
+
+    # Try to load cached PV hourly profile
+    hourly_pv_kw = None
+    pv_kwp = float(result.get("pv_capacity_kwp") or 0)
+    pvgis_profile = green_energy_data.get("pvgis_profile")
+    if pv_kwp > 0 and pvgis_profile is not None:
+        profile_key = pvgis_profile.get("profile_key")
+        if profile_key:
+            try:
+                from api.store import get_solar_profile
+                cached = get_solar_profile(site_id, profile_key)
+                if cached and "hourly_pv_kw_per_kwp" in cached:
+                    hourly_pv_kw = [v * pv_kwp for v in cached["hourly_pv_kw_per_kwp"]]
+            except Exception:
+                pass
+
+    return hourly_pv_kw, bess_kwh, bess_eff, bess_soc, fc_kw
+
+
 def _build_firm_capacity_block(
     site: Site,
     result: ScenarioResult,
     hourly_analysis: dict[str, Any] | None,
+    green_energy_data: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     if hourly_analysis is None:
         return None
@@ -496,189 +550,85 @@ def _build_firm_capacity_block(
     grid_capacity_kw = result.power.facility_power_mw * 1000
     space_limit_kw = result.space.effective_racks * result.power.rack_density_kw
 
+    # Extract green energy parameters (PV, BESS, fuel cell) if available
+    hourly_pv_kw, ge_bess_kwh, ge_bess_eff, ge_bess_soc, ge_fc_kw = (
+        _extract_green_energy_params(green_energy_data, result.site_id)
+    )
+    has_green = hourly_pv_kw is not None or ge_bess_kwh > 0 or ge_fc_kw > 0
+
+    # Compute capacity gap (Mean - Firm)
+    mean_kw = sim.it_capacity_mean_kw if hasattr(sim, "it_capacity_mean_kw") and sim.it_capacity_mean_kw else (
+        sum(sim.hourly_it_kw) / len(sim.hourly_it_kw) if sim.hourly_it_kw else 0
+    )
+    firm_kw = sim.it_capacity_p99_kw
+    capacity_gap_kw = max(mean_kw - firm_kw, 0)
+    peak_deficit_kw = max(mean_kw - sim.it_capacity_worst_kw, 0)
+
+    # Deficit hours and energy: relative to MEAN capacity
+    # These are hours where IT dips below mean due to weather anomaly.
+    # Compensating this deficit raises guaranteed capacity from P99 to Mean.
+    deficit_hours = sum(1 for it_kw in sim.hourly_it_kw if it_kw < mean_kw)
+    deficit_energy_kwh = sum(max(mean_kw - it_kw, 0) for it_kw in sim.hourly_it_kw)
+
+    # Compute mitigation strategies via the advisory engine
     try:
-        supported = find_max_firm_it_capacity(
-            hourly_facility_factors=hourly_factors,
-            grid_capacity_kw=grid_capacity_kw,
-            max_it_kw=space_limit_kw,
-            hourly_pv_kw=None,
-            bess_capacity_kwh=0.0,
-            bess_roundtrip_efficiency=0.875,
-            bess_initial_soc_kwh=0.0,
-            fuel_cell_capacity_kw=0.0,
-            backup_dispatch_capacity_kw=0.0,
-            cyclic_bess=True,
+        advisory = compute_firm_capacity_advisory(
+            hourly_it_kw=sim.hourly_it_kw,
+            facility_power_kw=grid_capacity_kw,
+            annual_pue=sim.annual_pue,
+            cooling_type=result.scenario.cooling_type.value,
         )
-        target_evaluation = simulate_firm_capacity_support(
-            hourly_facility_factors=hourly_factors,
-            target_it_kw=result.power.it_load_mw * 1000,
-            grid_capacity_kw=grid_capacity_kw,
-            hourly_pv_kw=None,
-            bess_capacity_kwh=0.0,
-            bess_roundtrip_efficiency=0.875,
-            bess_initial_soc_kwh=0.0,
-            fuel_cell_capacity_kw=0.0,
-            backup_dispatch_capacity_kw=0.0,
-            cyclic_bess=True,
-        )
-        recommendations = recommend_support_portfolios(
-            hourly_facility_factors=hourly_factors,
-            target_it_kw=result.power.it_load_mw * 1000,
-            grid_capacity_kw=grid_capacity_kw,
-            baseline_p99_kw=sim.it_capacity_p99_kw,
-            baseline_worst_kw=sim.it_capacity_worst_kw,
-            hourly_pv_kw=None,
-            bess_roundtrip_efficiency=0.875,
-            cyclic_bess=True,
-        )
-    except ValueError:
-        return None
-
-    tables = [
-        _table(
-            "Firm-capacity checkpoints",
-            [("benchmark", "Benchmark"), ("it_capacity", "IT capacity")],
-            [
-                {
-                    "benchmark": "Nominal design",
-                    "it_capacity": _display_number(
-                        result.power.it_load_mw,
-                        digits=2,
-                        suffix="MW",
-                    ),
-                },
-                {
-                    "benchmark": "Worst-hour firm",
-                    "it_capacity": _display_number(
-                        sim.it_capacity_worst_kw / 1000,
-                        digits=2,
-                        suffix="MW",
-                    ),
-                },
-                {
-                    "benchmark": "P99 committed",
-                    "it_capacity": _display_number(
-                        sim.it_capacity_p99_kw / 1000,
-                        digits=2,
-                        suffix="MW",
-                    ),
-                },
-                {
-                    "benchmark": "Max constant firm IT",
-                    "it_capacity": _display_number(
-                        supported.target_it_kw / 1000,
-                        digits=2,
-                        suffix="MW",
-                    ),
-                },
-            ],
-        )
-    ]
-
-    if recommendations.candidates:
-        tables.append(
-            _table(
-                "Deterministic support pathways to recover nominal IT",
-                [
-                    ("pathway", "Pathway"),
-                    ("feasible", "Feasible"),
-                    ("bess", "BESS"),
-                    ("fuel_cell", "Fuel cell"),
-                    ("backup", "Backup"),
-                    ("peak_support", "Peak support"),
-                    ("support_hours", "Support hours"),
-                    ("unmet_energy", "Unmet energy"),
-                    ("notes", "Notes"),
-                ],
-                [
-                    {
-                        "pathway": candidate.label,
-                        "feasible": _display_bool(candidate.feasible),
-                        "bess": _display_number(
-                            candidate.bess_capacity_kwh / 1000,
-                            digits=2,
-                            suffix="MWh",
-                        ),
-                        "fuel_cell": _display_number(
-                            candidate.fuel_cell_capacity_kw / 1000,
-                            digits=2,
-                            suffix="MW",
-                        ),
-                        "backup": _display_number(
-                            candidate.backup_dispatch_capacity_kw / 1000,
-                            digits=2,
-                            suffix="MW",
-                        ),
-                        "peak_support": _display_number(
-                            candidate.peak_support_kw / 1000,
-                            digits=2,
-                            suffix="MW",
-                        ),
-                        "support_hours": _display_number(
-                            candidate.hours_with_capacity_support,
-                            digits=0,
-                        ),
-                        "unmet_energy": _display_number(
-                            candidate.total_unmet_kwh / 1000,
-                            digits=2,
-                            suffix="MWh",
-                        ),
-                        "notes": _display_list(candidate.notes, default=""),
-                    }
-                    for candidate in recommendations.candidates
-                ],
-            )
-        )
+        strategy_dicts = [
+            {
+                "key": s.key,
+                "label": s.label,
+                "description": s.description,
+                "capacity_kw": s.capacity_kw,
+                "capacity_mw": s.capacity_mw,
+                "estimated_capex_usd": s.estimated_capex_usd,
+                "sizing_summary": s.sizing_summary,
+                "notes": s.notes,
+            }
+            for s in advisory.strategies
+        ]
+    except Exception:
+        strategy_dicts = []
 
     notes = []
-    if recommendations.target_already_feasible:
-        notes.append("The nominal design IT load is already feasible without support assets.")
-    else:
+    if has_green:
         notes.append(
-            "Support pathways target the scenario's nominal IT load and keep the selected grid cap fixed."
+            "Analysis includes green energy assets "
+            f"(PV: {'yes' if hourly_pv_kw else 'no'}, "
+            f"BESS: {ge_bess_kwh / 1000:.1f} MWh, "
+            f"Fuel cell: {ge_fc_kw / 1000:.2f} MW)."
         )
 
-    return _build_advanced_block(
+    # Build deficit visualization chart
+    deficit_chart = build_firm_capacity_deficit_chart(
+        hourly_it_kw=sim.hourly_it_kw,
+        firm_kw=firm_kw,
+        mean_kw=mean_kw,
+    )
+
+    block = _build_advanced_block(
         "firm_capacity",
         "Firm Capacity",
         summary_items=[
             _fact("Nominal IT target", _display_number(result.power.it_load_mw, digits=2, suffix="MW")),
-            _fact(
-                "Worst-hour firm IT",
-                _display_number(sim.it_capacity_worst_kw / 1000, digits=2, suffix="MW"),
-            ),
-            _fact(
-                "P99 committed IT",
-                _display_number(sim.it_capacity_p99_kw / 1000, digits=2, suffix="MW"),
-            ),
-            _fact(
-                "Max constant firm IT",
-                _display_number(supported.target_it_kw / 1000, digits=2, suffix="MW"),
-            ),
-            _fact(
-                "Gap vs nominal",
-                _display_number(
-                    (supported.target_it_kw / 1000) - result.power.it_load_mw,
-                    digits=2,
-                    suffix="MW",
-                ),
-            ),
-            _fact(
-                "Peak support at nominal",
-                _display_number(target_evaluation.peak_unmet_kw / 1000, digits=2, suffix="MW"),
-            ),
-            _fact(
-                "Hours above grid cap",
-                _display_number(target_evaluation.hours_above_grid_cap, digits=0),
-            ),
-            _fact(
-                "Annual support energy",
-                _display_number(recommendations.annual_support_energy_kwh / 1000, digits=2, suffix="MWh"),
-            ),
+            _fact("Mean IT capacity", _display_number(mean_kw / 1000, digits=2, suffix="MW")),
+            _fact("P99 committed (Firm)", _display_number(firm_kw / 1000, digits=2, suffix="MW")),
+            _fact("Worst-hour IT", _display_number(sim.it_capacity_worst_kw / 1000, digits=2, suffix="MW")),
+            _fact("Capacity gap", _display_number(capacity_gap_kw / 1000, digits=2, suffix="MW")),
+            _fact("Peak deficit", _display_number(peak_deficit_kw / 1000, digits=2, suffix="MW")),
+            _fact("Deficit hours", _display_number(deficit_hours, digits=0, suffix="h")),
+            _fact("Deficit energy", _display_number(deficit_energy_kwh / 1000, digits=1, suffix="MWh")),
         ],
-        tables=tables,
+        tables=[],
         notes=notes,
     )
+    block["deficit_chart_visual"] = deficit_chart
+    block["strategies"] = strategy_dicts
+    return block
 
 
 def _build_footprint_block(site: Site, result: ScenarioResult) -> dict[str, Any] | None:
@@ -985,20 +935,326 @@ def _build_break_even_block(site: Site, result: ScenarioResult) -> dict[str, Any
     )
 
 
+def _build_infrastructure_footprint_block(
+    site: Site,
+    result: ScenarioResult,
+) -> dict[str, Any] | None:
+    """Infrastructure Footprint box — matches the UI card exactly."""
+    try:
+        footprint = compute_footprint(
+            facility_power_mw=result.power.facility_power_mw,
+            procurement_power_mw=result.power.procurement_power_mw,
+            buildable_footprint_m2=result.space.buildable_footprint_m2,
+            land_area_m2=_analysis_land_area_m2(site, result),
+            backup_power_type=result.scenario.backup_power,
+        )
+    except ValueError:
+        return None
+
+    block = _build_advanced_block(
+        "infrastructure_footprint",
+        "Infrastructure Footprint",
+        summary_items=[
+            _fact(
+                "Ground equipment",
+                _display_number(footprint.total_ground_m2, digits=0, suffix="m²"),
+            ),
+            _fact(
+                "Roof equipment",
+                _display_number(footprint.total_roof_m2, digits=0, suffix="m²"),
+            ),
+            _fact(
+                "Ground utilization",
+                _display_percent(footprint.ground_utilization_ratio, digits=0),
+            ),
+            _fact(
+                "Roof utilization",
+                _display_percent(footprint.roof_utilization_ratio, digits=0),
+            ),
+            _fact(
+                "Outdoor available",
+                _display_number(footprint.available_outdoor_m2, digits=0, suffix="m²"),
+            ),
+            _fact(
+                "Roof available",
+                _display_number(footprint.building_roof_m2, digits=0, suffix="m²"),
+            ),
+            _fact(
+                "Backup units",
+                _display_number(footprint.backup_num_units, digits=0)
+                if hasattr(footprint, "backup_num_units") and footprint.backup_num_units
+                else "N/A",
+            ),
+            _fact(
+                "Unit size",
+                _display_number(footprint.backup_unit_size_kw, digits=0, suffix="kW")
+                if hasattr(footprint, "backup_unit_size_kw") and footprint.backup_unit_size_kw
+                else "N/A",
+            ),
+        ],
+        tables=[
+            _table(
+                "Infrastructure elements",
+                [
+                    ("element", "Element"),
+                    ("location", "Location"),
+                    ("area", "Area"),
+                    ("basis", "Sizing basis"),
+                    ("factor", "Factor"),
+                    ("units", "Units"),
+                    ("source", "Source"),
+                ],
+                [
+                    {
+                        "element": element.name,
+                        "location": _display_text(element.location).title(),
+                        "area": _display_number(element.area_m2, digits=1, suffix="m²"),
+                        "basis": _display_number(
+                            element.sizing_basis_kw,
+                            digits=0,
+                            suffix="kW",
+                        ),
+                        "factor": _display_number(element.m2_per_kw_used, digits=3),
+                        "units": (
+                            f"{element.num_units} × {element.unit_size_kw:.0f} kW"
+                            if element.num_units is not None and element.unit_size_kw is not None
+                            else "N/A"
+                        ),
+                        "source": _display_text(element.source),
+                    }
+                    for element in footprint.elements
+                ],
+            ),
+        ],
+        notes=[f"Backup basis: {footprint.backup_power_type}."],
+    )
+    block["ground_fits"] = footprint.ground_fits
+    block["roof_fits"] = footprint.roof_fits
+    return block
+
+
+def _build_backup_power_comparison_block(
+    result: ScenarioResult,
+) -> dict[str, Any] | None:
+    """Backup Power Comparison box — matches the UI card exactly."""
+    try:
+        comparison = compare_technologies(
+            procurement_power_mw=result.power.procurement_power_mw,
+        )
+    except ValueError:
+        return None
+
+    block = _build_advanced_block(
+        "backup_power_comparison",
+        "Backup Power Comparison",
+        summary_items=[
+            _fact(
+                "Procurement basis",
+                _display_number(comparison.procurement_power_mw, digits=2, suffix="MW"),
+            ),
+            _fact(
+                "Runtime basis",
+                _display_number(comparison.annual_runtime_hours, digits=0, suffix="h/yr"),
+            ),
+        ],
+        tables=[
+            _table(
+                "Technology comparison",
+                [
+                    ("technology", "Technology"),
+                    ("units", "Units"),
+                    ("unit_size", "Unit size"),
+                    ("co2", "CO₂ (t/yr)"),
+                    ("footprint", "Footprint (m²)"),
+                ],
+                [
+                    {
+                        "technology": technology.technology,
+                        "units": _display_number(technology.num_units, digits=0),
+                        "unit_size": _display_number(technology.unit_size_kw, digits=0, suffix="kW"),
+                        "co2": _display_number(technology.co2_tonnes_per_year, digits=1),
+                        "footprint": _display_number(technology.footprint_m2, digits=0, suffix="m²"),
+                    }
+                    for technology in comparison.technologies
+                ],
+            ),
+        ],
+    )
+    # Attach highlights for template
+    block["lowest_co2"] = comparison.lowest_co2_technology
+    block["smallest_footprint"] = comparison.lowest_footprint_technology
+    block["fastest_ramp"] = comparison.fastest_ramp_technology
+    return block
+
+
+def _build_expansion_advisory_report_block(
+    site: Site,
+    result: ScenarioResult,
+) -> dict[str, Any] | None:
+    """Expansion Advisory box — matches the UI card with metrics + capacity snapshots."""
+    compatibility_status, compatibility_reasons = evaluate_compatibility(
+        result.scenario.load_type.value,
+        result.scenario.cooling_type.value,
+        density_scenario=result.scenario.density_scenario.value,
+    )
+    if compatibility_status == "incompatible":
+        return None
+
+    advisory = compute_expansion_advisory(
+        site=site,
+        scenario=result.scenario,
+        space=result.space,
+        power=result.power,
+        annual_pue=result.annual_pue,
+        pue_source=result.pue_source,
+    )
+
+    block = _build_advanced_block(
+        "expansion_advisory",
+        "Expansion Advisory",
+        summary_items=[
+            _fact("Active floors", _display_number(advisory.active_floors, digits=0)),
+            _fact("Reserved floors", _display_number(advisory.declared_expansion_floors, digits=0)),
+            _fact("Height uplift floors", _display_number(advisory.latent_height_floors, digits=0)),
+            _fact(
+                "Max total floors",
+                _display_number(advisory.max_total_floors, digits=0) if advisory.max_total_floors else "N/A",
+            ),
+            _fact("Unused active racks", _display_number(advisory.unused_active_racks, digits=0)),
+            _fact("Reserved expansion racks", _display_number(advisory.declared_expansion_racks, digits=0)),
+            _fact("Height uplift racks", _display_number(advisory.latent_height_racks, digits=0)),
+            _fact("Total additional racks", _display_number(advisory.total_additional_racks, digits=0)),
+            _fact(
+                "Current facility envelope",
+                _display_number(advisory.current_facility_envelope_mw, digits=2, suffix="MW"),
+            ),
+            _fact(
+                "Current procurement envelope",
+                _display_number(advisory.current_procurement_envelope_mw, digits=2, suffix="MW"),
+            ),
+            _fact(
+                "Extra grid request",
+                _display_number(advisory.additional_grid_request_mw, digits=2, suffix="MW"),
+            ),
+            _fact("Binding constraint", advisory.binding_constraint),
+        ],
+        tables=[],
+    )
+
+    # Attach capacity snapshots for template rendering
+    block["capacity_snapshots"] = [
+        {
+            "label": "Current Feasible",
+            "accent": "gray",
+            "racks": _display_number(advisory.current_feasible.racks, digits=0),
+            "it_load": _display_number(advisory.current_feasible.it_load_mw, digits=2, suffix="MW"),
+            "facility_power": _display_number(advisory.current_feasible.facility_power_mw, digits=2, suffix="MW"),
+            "procurement_power": _display_number(advisory.current_feasible.procurement_power_mw, digits=2, suffix="MW"),
+        },
+        {
+            "label": "Future Expandable",
+            "accent": "green",
+            "racks": _display_number(advisory.future_expandable.racks, digits=0),
+            "it_load": _display_number(advisory.future_expandable.it_load_mw, digits=2, suffix="MW"),
+            "facility_power": _display_number(advisory.future_expandable.facility_power_mw, digits=2, suffix="MW"),
+            "procurement_power": _display_number(advisory.future_expandable.procurement_power_mw, digits=2, suffix="MW"),
+        },
+        {
+            "label": "Total Site Potential",
+            "accent": "blue",
+            "racks": _display_number(advisory.total_site_potential.racks, digits=0),
+            "it_load": _display_number(advisory.total_site_potential.it_load_mw, digits=2, suffix="MW"),
+            "facility_power": _display_number(advisory.total_site_potential.facility_power_mw, digits=2, suffix="MW"),
+            "procurement_power": _display_number(advisory.total_site_potential.procurement_power_mw, digits=2, suffix="MW"),
+        },
+    ]
+    notes = list(advisory.notes)
+    if compatibility_status == "conditional":
+        notes = list(compatibility_reasons) + notes
+    block["notes"] = notes
+    return block
+
+
+def _build_load_mix_report_block(
+    result: ScenarioResult,
+) -> dict[str, Any] | None:
+    """Load Mix Planner box — auto-computes optimal load mix for the scenario."""
+    from engine.ranking import optimize_load_mix
+
+    committed_it_mw = _result_committed_it_mw(result)
+    if committed_it_mw <= 0:
+        return None
+
+    # Auto-compute with all load types, using scenario's cooling and density
+    all_load_types = list(LoadType)
+    try:
+        mix_result = optimize_load_mix(
+            total_it_mw=committed_it_mw,
+            allowed_load_types=all_load_types,
+            cooling_type=result.scenario.cooling_type,
+            density_scenario=result.scenario.density_scenario,
+            step_pct=10,
+            min_racks=10,
+            top_n=5,
+        )
+    except Exception:
+        return None
+
+    if not mix_result.top_candidates:
+        return None
+
+    block = _build_advanced_block(
+        "load_mix_planner",
+        "Load Mix Planner",
+        summary_items=[
+            _fact("Total IT", _display_number(mix_result.total_it_mw, digits=2, suffix="MW")),
+            _fact("Cooling", mix_result.cooling_type),
+            _fact("Density", mix_result.density_scenario),
+            _fact("Evaluated", _display_number(mix_result.total_candidates_evaluated, digits=0)),
+        ],
+        tables=[],
+    )
+
+    # Attach candidates for template rendering
+    candidates = []
+    for candidate in mix_result.top_candidates:
+        allocations = [
+            {
+                "load_type": alloc.load_type,
+                "share_pct": f"{alloc.share_pct:.0f}%",
+                "it_load_mw": _display_number(alloc.it_load_mw, digits=2),
+                "rack_count": _display_number(alloc.rack_count, digits=0),
+                "rack_density_kw": _display_number(alloc.rack_density_kw, digits=1, suffix="kW"),
+            }
+            for alloc in candidate.allocations
+        ]
+        candidates.append({
+            "rank": candidate.rank,
+            "score": f"{candidate.score:.1f}",
+            "blended_pue": f"{candidate.blended_pue:.3f}",
+            "total_racks": _display_number(candidate.total_racks, digits=0),
+            "all_compatible": candidate.all_compatible,
+            "allocations": allocations,
+            "trade_off_notes": candidate.trade_off_notes,
+        })
+    block["candidates"] = candidates
+    return block
+
+
 def _build_advanced_result_blocks(
     *,
     site: Site,
     primary_result: ScenarioResult,
+    green_energy_data: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     hourly_analysis = _load_hourly_analysis(primary_result.site_id, site, primary_result)
     blocks = [
         _build_pue_decomposition_block(hourly_analysis),
-        _build_hourly_profiles_block(hourly_analysis),
-        _build_it_capacity_spectrum_block(primary_result),
-        _build_expansion_advisory_block(site, primary_result),
-        _build_firm_capacity_block(site, primary_result, hourly_analysis),
-        _build_footprint_block(site, primary_result),
-        _build_backup_comparison_block(primary_result),
+        _build_firm_capacity_block(site, primary_result, hourly_analysis, green_energy_data),
+        _build_infrastructure_footprint_block(site, primary_result),
+        _build_backup_power_comparison_block(primary_result),
+        _build_expansion_advisory_report_block(site, primary_result),
+        _build_load_mix_report_block(primary_result),
         _build_sensitivity_block(site, primary_result),
         _build_break_even_block(site, primary_result),
     ]
@@ -1108,6 +1364,27 @@ def _build_daily_profile_chart_visual(
     )
 
 
+def _build_daily_pue_profile_chart_visual(
+    *,
+    site: Site | None,
+    primary_scenario_result: ScenarioResult | None,
+    primary_color: str,
+    secondary_color: str,
+) -> dict[str, Any]:
+    """Build daily PUE profile chart from hourly analysis."""
+    _empty = {"available": False, "title": "Daily PUE Profile", "message": "No hourly data.", "svg_markup": None}
+    if site is None or primary_scenario_result is None:
+        return _empty
+    hourly_analysis = _load_hourly_analysis(primary_scenario_result.site_id, site, primary_scenario_result)
+    if hourly_analysis is None:
+        return _empty
+    return build_daily_pue_profile_chart(
+        hourly_analysis["daily_profiles"],
+        primary_color=primary_color,
+        secondary_color=secondary_color,
+    )
+
+
 def _build_firm_capacity_chart_visual(
     *,
     site: Site | None,
@@ -1136,6 +1413,34 @@ def _build_firm_capacity_chart_visual(
     )
 
 
+def _build_pue_minmax_chart_visual(
+    *,
+    site: Site | None,
+    primary_scenario_result: ScenarioResult | None,
+    primary_color: str,
+) -> dict[str, Any]:
+    """Build PUE min/avg/max gauge from hourly analysis."""
+    _empty = {"available": False, "title": "PUE Range", "message": "No hourly data.", "svg_markup": None}
+    if site is None or primary_scenario_result is None:
+        return _empty
+    hourly_analysis = _load_hourly_analysis(primary_scenario_result.site_id, site, primary_scenario_result)
+    if hourly_analysis is None:
+        return _empty
+    profiles = hourly_analysis["daily_profiles"]
+    days = profiles.get("days", [])
+    if not days:
+        return _empty
+    pue_min = min(d["pue_min"] for d in days)
+    pue_max = max(d["pue_max"] for d in days)
+    pue_avg = profiles.get("annual_pue", sum(d["pue_avg"] for d in days) / len(days))
+    return build_pue_minmax_chart(
+        pue_min=pue_min,
+        pue_avg=pue_avg,
+        pue_max=pue_max,
+        primary_color=primary_color,
+    )
+
+
 def _build_deep_dive_chapter(
     primary_result: dict[str, Any] | None,
     site_data: dict[str, Any],
@@ -1144,6 +1449,7 @@ def _build_deep_dive_chapter(
     primary_scenario_result: ScenarioResult | None = None,
     primary_color: str = "#1a365d",
     secondary_color: str = "#2b6cb0",
+    green_energy_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if primary_result is None:
         return {
@@ -1161,6 +1467,7 @@ def _build_deep_dive_chapter(
         _build_advanced_result_blocks(
             site=site,
             primary_result=primary_scenario_result,
+            green_energy_data=green_energy_data,
         )
         if site is not None and primary_scenario_result is not None
         else []
@@ -1350,12 +1657,23 @@ def _build_deep_dive_chapter(
             primary_color=primary_color,
             secondary_color=secondary_color,
         ),
+        "pue_minmax_chart_visual": _build_pue_minmax_chart_visual(
+            site=site,
+            primary_scenario_result=primary_scenario_result,
+            primary_color=primary_color,
+        ),
         "power_chain_chart_visual": build_power_chain_waterfall(
             power,
             primary_color=primary_color,
             secondary_color=secondary_color,
         ),
         "daily_profile_chart_visual": _build_daily_profile_chart_visual(
+            site=site,
+            primary_scenario_result=primary_scenario_result,
+            primary_color=primary_color,
+            secondary_color=secondary_color,
+        ),
+        "daily_pue_profile_chart_visual": _build_daily_pue_profile_chart_visual(
             site=site,
             primary_scenario_result=primary_scenario_result,
             primary_color=primary_color,

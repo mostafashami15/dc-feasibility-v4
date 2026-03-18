@@ -99,6 +99,7 @@ class GreenEnergyReportResultInput(BaseModel):
     committed_it_mw: float | None = None
     pv_profile_source: str | None = None
     pvgis_profile_key: str | None = None
+    hourly_dispatch: list[dict[str, float]] | None = None
 
 
 class GreenEnergyReportInput(BaseModel):

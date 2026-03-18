@@ -22,10 +22,13 @@ from export.report._utils import (
 )
 
 
-def _build_climate_delta_rows(
+def _build_climate_delta_rows_full(
     delta_results: dict[str, list[dict[str, Any]]],
-    selected_cooling_type: str | None,
 ) -> list[dict[str, str]]:
+    """Build the FULL delta projection table — every cooling type × every delta.
+
+    Used in the appendix to give the complete picture.
+    """
     rows: list[dict[str, str]] = []
 
     def _delta_sort_key(item: tuple[str, list[dict[str, Any]]]) -> float:
@@ -35,35 +38,30 @@ def _build_climate_delta_rows(
             return float("inf")
 
     for delta, analyses in sorted(delta_results.items(), key=_delta_sort_key):
-        chosen = None
-        if selected_cooling_type is not None:
-            chosen = next(
-                (
-                    item
-                    for item in analyses
-                    if item.get("cooling_type") == selected_cooling_type
-                ),
-                None,
+        for item in analyses:
+            rows.append(
+                {
+                    "delta": f"+{delta}°C",
+                    "cooling_type": _display_text(item.get("cooling_type")),
+                    "free_cooling_hours": _display_number(
+                        item.get("free_cooling_hours"),
+                        digits=0,
+                    ),
+                    "partial_hours": _display_number(
+                        item.get("partial_hours"),
+                        digits=0,
+                    ),
+                    "mechanical_hours": _display_number(
+                        item.get("mechanical_hours"),
+                        digits=0,
+                    ),
+                    "free_cooling_fraction": _display_percent(
+                        item.get("free_cooling_fraction"),
+                        digits=1,
+                    ),
+                    "suitability": _display_text(item.get("suitability")),
+                }
             )
-        if chosen is None and analyses:
-            chosen = analyses[0]
-        if chosen is None:
-            continue
-        rows.append(
-            {
-                "delta": f"+{delta} C",
-                "cooling_type": _display_text(chosen.get("cooling_type")),
-                "free_cooling_hours": _display_number(
-                    chosen.get("free_cooling_hours"),
-                    digits=0,
-                ),
-                "free_cooling_fraction": _display_percent(
-                    chosen.get("free_cooling_fraction"),
-                    digits=1,
-                ),
-                "suitability": _display_text(chosen.get("suitability")),
-            }
-        )
     return rows
 
 
@@ -199,9 +197,8 @@ def _build_climate_chapter(
             else "Monthly temperature breakout is only available when a full 8,760-hour weather year is present."
         ),
         "free_cooling_rows": free_cooling_rows,
-        "delta_rows": _build_climate_delta_rows(
+        "delta_rows_full": _build_climate_delta_rows_full(
             analysis["delta_results"],
-            selected_cooling_type,
         ),
         "narrative": _build_climate_narrative(
             weather_status=weather_status,

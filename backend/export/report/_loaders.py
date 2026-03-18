@@ -126,21 +126,9 @@ def _select_climate_cooling_types(
     primary_result: ScenarioResult | None,
     site_results: list[ScenarioResult],
 ) -> list[str] | None:
-    ordered_cooling_types: list[str] = []
-    seen: set[str] = set()
-
-    candidate_results = []
-    if primary_result is not None:
-        candidate_results.append(primary_result)
-    candidate_results.extend(site_results)
-
-    for result in candidate_results:
-        cooling_type = result.scenario.cooling_type.value
-        if cooling_type not in seen:
-            seen.add(cooling_type)
-            ordered_cooling_types.append(cooling_type)
-
-    return ordered_cooling_types or None
+    # Return None so analyse_climate uses ALL free-cooling-eligible types,
+    # matching the frontend UI which always shows every topology.
+    return None
 
 
 def _load_climate_block(

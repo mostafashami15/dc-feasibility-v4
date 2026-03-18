@@ -13,6 +13,10 @@ from export.report._utils import (
     _fact,
     _table,
 )
+from export.visual_assets import (
+    build_green_energy_breakdown_chart,
+    build_green_dispatch_hourly_chart,
+)
 
 
 def _build_green_energy_chapter(green_energy: dict[str, Any]) -> dict[str, Any]:
@@ -186,6 +190,21 @@ def _build_green_energy_chapter(green_energy: dict[str, Any]) -> dict[str, Any]:
             ),
         ],
         "provenance_items": provenance_items,
+        "energy_breakdown_chart_visual": build_green_energy_breakdown_chart(
+            total_facility_kwh=result.get("total_facility_kwh"),
+            total_it_kwh=result.get("total_it_kwh"),
+            total_overhead_kwh=result.get("total_overhead_kwh"),
+            total_pv_generation_kwh=result.get("total_pv_generation_kwh"),
+            total_pv_to_overhead_kwh=result.get("total_pv_to_overhead_kwh"),
+            total_pv_to_bess_kwh=result.get("total_pv_to_bess_kwh"),
+            total_bess_discharge_kwh=result.get("total_bess_discharge_kwh"),
+            total_fuel_cell_kwh=result.get("total_fuel_cell_kwh"),
+            total_grid_import_kwh=result.get("total_grid_import_kwh"),
+            total_pv_curtailed_kwh=result.get("total_pv_curtailed_kwh"),
+        ),
+        "dispatch_hourly_chart_visual": build_green_dispatch_hourly_chart(
+            result.get("hourly_dispatch") or [],
+        ),
         "energy_breakdown_table": _table(
             "Annual energy breakdown",
             [

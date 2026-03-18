@@ -157,6 +157,7 @@ def _build_site_bundle(
             primary_scenario_result=primary_result,
             primary_color=primary_color,
             secondary_color=secondary_color,
+            green_energy_data=green_energy,
         ),
         "load_mix": _build_load_mix_chapter(load_mix, normalized_primary),
         "green_energy": _build_green_energy_chapter(green_energy),
