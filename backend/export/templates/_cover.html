@@ -1,11 +1,14 @@
 {# ================================================================
    DC Feasibility Tool v4 — Cover Page (Metlen branded)
-   Full-bleed cover image with text overlay in bottom-right.
+   Full-bleed cover with text overlay in bottom-right.
+   Uses background-image for WeasyPrint + browser compatibility.
    ================================================================ #}
-<section class="cover">
+<section class="cover"
   {% if theme.cover_image_url %}
-    <img class="cover-bg-img" src="{{ theme.cover_image_url }}" alt="" />
-  {% else %}
+    style="background-image: url('{{ theme.cover_image_url }}');"
+  {% endif %}
+>
+  {% if not theme.cover_image_url %}
     <div class="cover-accent-bar"></div>
   {% endif %}
 

@@ -557,11 +557,11 @@ def build_monthly_temperature_chart(
     lo -= margin
     hi += margin
 
-    w, h = CHART_WIDTH, CHART_HEIGHT
+    w, h = CHART_WIDTH, CHART_HEIGHT + 70
     plot_left = _PAD_AXIS + 4
     plot_right = w - _PAD_OUTER
     plot_top = _PAD_TOP + 4
-    plot_bottom = h - 30
+    plot_bottom = h - 34
     plot_w = plot_right - plot_left
     plot_h = plot_bottom - plot_top
 
@@ -694,11 +694,11 @@ def build_cooling_suitability_chart(
     COLOR_MECH = "#ef4444"
 
     n = len(free_cooling_rows)
-    w, h = CHART_WIDTH, CHART_HEIGHT + 60
+    w, h = CHART_WIDTH, CHART_HEIGHT + 120
     plot_left = 60
     plot_right = w - _PAD_OUTER
     plot_top = _PAD_TOP + 4
-    plot_bottom = h - 70
+    plot_bottom = h - 78
     plot_w = plot_right - plot_left
     plot_h = plot_bottom - plot_top
 
@@ -1301,16 +1301,17 @@ def build_energy_decomposition_sankey(
     it_gwh = total_it_kwh / 1_000_000
     oh_gwh = total_overhead_kwh / 1_000_000
 
-    w, h = CHART_WIDTH, 340
-    # Three columns
-    col_left = 50
-    col_mid = w // 2 - 30
-    col_right = w - 140
-    node_w = 60
+    w, h = 540, 232
+    # Three compact columns to keep the Sankey legible inside the split layout.
+    col_left = 24
+    col_mid = 170
+    col_right = 326
+    node_w = 46
+    detail_node_w = 84
     node_radius = 6
 
-    top_y = _PAD_TOP + 16
-    max_node_h = 140
+    top_y = _PAD_TOP + 2
+    max_node_h = 98
 
     # Scale helper — all heights relative to total facility energy
     def _h(kwh: float) -> float:
@@ -1332,7 +1333,7 @@ def build_energy_decomposition_sankey(
     # ── Right: Overhead sub-components (stacked) ──
     comp_items = [c for c in components if c.get("energy_kwh", 0) > 0]
     comp_heights = [_h(c["energy_kwh"]) for c in comp_items]
-    comp_gap = 3
+    comp_gap = 4
     right_total = sum(comp_heights) + max(len(comp_heights) - 1, 0) * comp_gap
     right_top = top_y + (max_node_h - right_total) / 2
 
@@ -1388,15 +1389,15 @@ def build_energy_decomposition_sankey(
     def _node(x: float, y: float, nw: float, nh: float,
               color: str, label: str, value_str: str, pct_str: str = "") -> str:
         # Adaptive font sizing: smaller for narrow bands
-        label_fs = "6.5" if nh < 25 else "7"
-        val_fs = "6" if nh < 25 else "6.5"
+        label_fs = "6.8" if nh < 24 else "7.8"
+        val_fs = "6.3" if nh < 24 else "7.0"
         # For very narrow nodes, put text beside rather than inside
         if nh < 16:
             return (
                 f'<rect x="{x:.1f}" y="{y:.1f}" width="{nw}" height="{nh:.1f}" '
                 f'rx="{node_radius}" fill="{color}" />'
                 f'<text x="{x + nw + 4:.1f}" y="{y + nh / 2 + 3:.1f}" fill="{color}" '
-                f'font-family="system-ui,sans-serif" font-size="{val_fs}" font-weight="600" '
+                f'font-family="system-ui,sans-serif" font-size="6.6" font-weight="600" '
                 f'text-anchor="start">{escape(label)}'
                 f'{" · " + value_str if value_str else ""}'
                 f'{" · " + pct_str if pct_str else ""}</text>'
@@ -1417,7 +1418,7 @@ def build_energy_decomposition_sankey(
         if pct_str and nh >= 30:
             result += (
                 f'<text x="{x + nw / 2:.1f}" y="{pct_y:.1f}" fill="rgba(255,255,255,0.7)" '
-                f'font-family="system-ui,sans-serif" font-size="5.5" '
+                f'font-family="system-ui,sans-serif" font-size="6.0" '
                 f'text-anchor="middle">{escape(pct_str)}</text>'
             )
         return result
@@ -1450,17 +1451,17 @@ def build_energy_decomposition_sankey(
             "Miscellaneous fixed loads": "Misc. Fixed",
         }
         label = short_labels.get(comp["label"], comp["label"])
-        parts.append(_node(col_right, cursor_y, node_w + 20, ch, color,
+        parts.append(_node(col_right, cursor_y, detail_node_w, ch, color,
                             label, f"{gwh:.2f} GWh", f"{pct:.1f}%"))
         cursor_y += ch + comp_gap
 
     # Column headers
     for cx_pos, lbl in [(col_left + node_w / 2, "Source"),
                          (col_mid + node_w / 2, "Split"),
-                         (col_right + (node_w + 20) / 2, "Overhead Detail")]:
+                         (col_right + detail_node_w / 2, "Overhead Detail")]:
         parts.append(
             f'<text x="{cx_pos:.1f}" y="{top_y - 6:.1f}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="7" font-weight="600" '
+            f'font-family="system-ui,sans-serif" font-size="7.2" font-weight="600" '
             f'text-anchor="middle">{lbl}</text>'
         )
 
@@ -1594,11 +1595,11 @@ def build_scenario_comparison_chart(
     upper = max_it * 1.2
 
     n = len(it_values)
-    w, h = CHART_WIDTH, CHART_HEIGHT + 30
+    w, h = CHART_WIDTH, CHART_HEIGHT + 90
     plot_left = 60
     plot_right = w - _PAD_OUTER
     plot_top = _PAD_TOP + 10
-    plot_bottom = h - 55
+    plot_bottom = h - 62
     plot_w = plot_right - plot_left
     plot_h = plot_bottom - plot_top
     bar_group_w = plot_w / max(n, 1)
@@ -2188,16 +2189,16 @@ def build_pie_chart(
         angle += sweep
 
     # Legend on right side
-    legend_x = cx + r + 40
-    legend_y = _PAD_TOP + 10
+    legend_x = cx + r + 34
+    legend_y = _PAD_TOP + 12
     for idx, s in enumerate(slices):
         fraction = s["value"] / total
         color = s.get("color") or _PIE_PALETTE[idx % len(_PIE_PALETTE)]
-        ly = legend_y + idx * 22
+        ly = legend_y + idx * 24
         parts.append(
-            f'<rect x="{legend_x:.0f}" y="{ly:.0f}" width="10" height="10" rx="2" fill="{color}" />'
-            f'<text x="{legend_x + 15:.0f}" y="{ly + 9:.0f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="8.5" font-weight="500">'
+            f'<rect x="{legend_x:.0f}" y="{ly:.0f}" width="12" height="12" rx="2" fill="{color}" />'
+            f'<text x="{legend_x + 18:.0f}" y="{ly + 10:.0f}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="9.5" font-weight="600">'
             f'{escape(s["label"])} ({fraction * 100:.1f}%)</text>'
         )
 
@@ -2383,7 +2384,7 @@ def build_green_energy_breakdown_chart(
         return {"available": False, "title": "Annual energy breakdown", "svg_markup": ""}
 
     w = 680
-    h = 220
+    h = 212
     title = "Annual energy breakdown"
     subtitle = "Energy streams in MWh"
 
@@ -2456,7 +2457,7 @@ def build_green_dispatch_hourly_chart(
     title = "Hourly Energy Dispatch"
     subtitle = "Stacked energy sources meeting overhead demand (kW)"
     w = 680
-    h = 200
+    h = 196
 
     plot_left = _PAD_AXIS + 8
     plot_right = w - _PAD_OUTER

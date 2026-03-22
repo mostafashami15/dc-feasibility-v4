@@ -174,9 +174,6 @@ def _build_pue_decomposition_block(
             _fact("IT energy", _display_number(sim.total_it_kwh / 1000, digits=1, suffix="MWh")),
         ],
         tables=[],
-        notes=[
-            "Derived from the representative hourly simulation used for the annual PUE result.",
-        ],
     )
     block["component_pie_visual"] = component_pie
     block["mode_pie_visual"] = mode_pie
@@ -628,6 +625,40 @@ def _build_firm_capacity_block(
     )
     block["deficit_chart_visual"] = deficit_chart
     block["strategies"] = strategy_dicts
+    block["term_definitions"] = [
+        {
+            "label": "Nominal IT target",
+            "description": "Design IT load selected for the scenario.",
+        },
+        {
+            "label": "Mean IT capacity",
+            "description": "Average IT load supportable across all simulated hours.",
+        },
+        {
+            "label": "P99 committed (Firm)",
+            "description": "IT load supportable for at least 99% of the year.",
+        },
+        {
+            "label": "Worst-hour IT",
+            "description": "Lowest hourly IT capacity observed in the simulation.",
+        },
+        {
+            "label": "Capacity gap",
+            "description": "Difference between mean IT capacity and firm IT capacity.",
+        },
+        {
+            "label": "Peak deficit",
+            "description": "Largest hourly shortfall versus mean IT capacity.",
+        },
+        {
+            "label": "Deficit hours",
+            "description": "Hours where deliverable IT capacity falls below the mean.",
+        },
+        {
+            "label": "Deficit energy",
+            "description": "Total energy shortfall accumulated across all deficit hours.",
+        },
+    ]
     return block
 
 
@@ -895,7 +926,6 @@ def _build_break_even_block(site: Site, result: ScenarioResult) -> dict[str, Any
                     suffix="%",
                 ),
                 "feasible": _display_bool(break_even.feasible),
-                "note": _display_text(break_even.feasibility_note, default=""),
             }
         )
 
@@ -924,7 +954,6 @@ def _build_break_even_block(site: Site, result: ScenarioResult) -> dict[str, Any
                     ("delta", "Delta"),
                     ("change_pct", "Change"),
                     ("feasible", "Feasible"),
-                    ("note", "Feasibility note"),
                 ],
                 rows,
             ),
@@ -1250,11 +1279,11 @@ def _build_advanced_result_blocks(
     hourly_analysis = _load_hourly_analysis(primary_result.site_id, site, primary_result)
     blocks = [
         _build_pue_decomposition_block(hourly_analysis),
-        _build_firm_capacity_block(site, primary_result, hourly_analysis, green_energy_data),
         _build_infrastructure_footprint_block(site, primary_result),
         _build_backup_power_comparison_block(primary_result),
         _build_expansion_advisory_report_block(site, primary_result),
         _build_load_mix_report_block(primary_result),
+        _build_firm_capacity_block(site, primary_result, hourly_analysis, green_energy_data),
         _build_sensitivity_block(site, primary_result),
         _build_break_even_block(site, primary_result),
     ]

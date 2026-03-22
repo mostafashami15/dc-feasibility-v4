@@ -28,10 +28,37 @@ def _grid_asset_report_key(asset: dict[str, Any]) -> tuple[int, int, float, floa
 
 def _select_grid_display_assets(assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ranked_assets = sorted(assets, key=_grid_asset_report_key)
-    display_assets = [asset for asset in ranked_assets if asset.get("voltage_kv") is not None]
-    if not display_assets:
-        return ranked_assets[:4]
-    return display_assets[:6]
+    candidate_assets = [asset for asset in ranked_assets if asset.get("voltage_kv") is not None]
+    max_assets = 6
+    if not candidate_assets:
+        candidate_assets = ranked_assets
+        max_assets = 4
+
+    # Reserve at least one representative row for both power lines and substations
+    # when both asset types exist, so the report table does not collapse to only
+    # substations on line-rich sites.
+    selected_assets: list[dict[str, Any]] = []
+    selected_asset_ids: set[str] = set()
+    asset_types = {asset.get("asset_type") for asset in candidate_assets}
+    if "line" in asset_types and "substation" in asset_types:
+        for asset_type in ("line", "substation"):
+            representative = next(
+                (asset for asset in candidate_assets if asset.get("asset_type") == asset_type),
+                None,
+            )
+            if representative is not None:
+                selected_assets.append(representative)
+                selected_asset_ids.add(representative["asset_id"])
+
+    for asset in candidate_assets:
+        if asset["asset_id"] in selected_asset_ids:
+            continue
+        selected_assets.append(asset)
+        selected_asset_ids.add(asset["asset_id"])
+        if len(selected_assets) >= max_assets:
+            break
+
+    return selected_assets[:max_assets]
 
 
 def _build_grid_context_chapter(
@@ -90,7 +117,6 @@ def _build_grid_context_chapter(
             "operator": _display_text(asset.get("operator")),
             "voltage": _display_number(asset.get("voltage_kv"), digits=0, suffix="kV"),
             "distance": _display_number(asset.get("distance_km"), digits=2, suffix="km"),
-            "confidence": _display_text(asset.get("confidence")),
         }
         for asset in display_assets
     ]
@@ -178,8 +204,6 @@ def _build_grid_context_chapter(
                 _display_number(summary.get("high_voltage_assets_within_radius"), digits=0),
             ),
             _fact("Voltage classes shown", _display_list([f"{value:.0f} kV" for value in voltage_classes])),
-            _fact("Confidence", selected["confidence"]),
-            _fact("Source layers", _display_list(selected["source_layers"])),
         ],
         "score_items": score_items,
         "score_notes": score_notes,

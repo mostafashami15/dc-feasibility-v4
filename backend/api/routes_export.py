@@ -6,6 +6,7 @@ Scoped report export endpoints for HTML, PDF, and Excel outputs.
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 from typing import Literal, Optional
 
@@ -19,6 +20,8 @@ from export.excel_export import build_excel_bytes
 from export.html_report import render_report_html
 from export.report_data import validate_report_selection
 from export.terrain_map import generate_terrain_image
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/export", tags=["Export"])
@@ -89,8 +92,27 @@ def _load_sites(site_ids: list[str]) -> list[tuple[str, Site]]:
     return site_entries
 
 
-def _make_filename(report_type: str, extension: str) -> str:
+def _get_site_names(site_ids: list[str]) -> list[str]:
+    """Extract site names for filename generation (best-effort, no errors)."""
+    names: list[str] = []
+    for sid in site_ids:
+        try:
+            loaded = get_site(sid)
+            if loaded:
+                _, site = loaded
+                names.append(site.name)
+        except Exception:
+            pass
+    return names
+
+
+def _make_filename(report_type: str, extension: str, site_names: list[str] | None = None) -> str:
     safe = report_type.lower().replace(" ", "-")
+    if site_names:
+        import re
+        parts = [re.sub(r"[^a-zA-Z0-9]+", "-", n).strip("-") for n in site_names]
+        site_slug = "-".join(p for p in parts if p)
+        return f"{site_slug}-dc-feasibility-{safe}-report.{extension}"
     return f"dc-feasibility-{safe}-report.{extension}"
 
 
@@ -152,6 +174,61 @@ async def export_html_endpoint(config: ReportConfig):
         raise HTTPException(status_code=500, detail=traceback.format_exc()) from exc
 
 
+def _ensure_weasyprint_libs():
+    """Ensure Homebrew libraries are discoverable for WeasyPrint on macOS."""
+    import os, sys
+    if sys.platform == "darwin":
+        brew_lib = "/opt/homebrew/lib"
+        fallback = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "")
+        if brew_lib not in fallback:
+            os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = (
+                f"{brew_lib}:{fallback}" if fallback else brew_lib
+            )
+
+
+@router.post("/pdf")
+async def export_pdf_endpoint(config: ReportConfig):
+    """Generate a PDF report via WeasyPrint and return it as a downloadable file."""
+    try:
+        html = _build_html(config)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("PDF export: HTML generation failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    try:
+        _ensure_weasyprint_libs()
+        from weasyprint import HTML as WeasyHTML
+        from weasyprint.text.fonts import FontConfiguration
+
+        font_config = FontConfiguration()
+        pdf_bytes = WeasyHTML(string=html, media_type="print").write_pdf(
+            font_config=font_config,
+        )
+    except ImportError:
+        logger.error("WeasyPrint is not installed")
+        raise HTTPException(
+            status_code=503,
+            detail="PDF generation unavailable: WeasyPrint is not installed.",
+        )
+    except Exception as exc:
+        logger.exception("PDF export: WeasyPrint rendering failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF rendering failed: {exc}",
+        ) from exc
+
+    site_names = _get_site_names(config.studied_site_ids)
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_make_filename(config.report_type, "pdf", site_names)}"'
+        },
+    )
+
+
 @router.post("/excel")
 async def export_excel_endpoint(config: ReportConfig):
     """Generate an Excel workbook with site and scenario summaries."""
@@ -173,11 +250,12 @@ async def export_excel_endpoint(config: ReportConfig):
         include_all_scenarios=config.include_all_scenarios,
     )
 
+    site_names = _get_site_names(config.studied_site_ids)
     return StreamingResponse(
         BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f'attachment; filename="{_make_filename(config.report_type, "xlsx")}"'
+            "Content-Disposition": f'attachment; filename="{_make_filename(config.report_type, "xlsx", site_names)}"'
         },
     )
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills, page_logo with context %}
+{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills, page_logo, slide_footer with context %}
 
 {% block content %}
 {# ── COVER ─────────────────────────────────────────────────────── #}
@@ -42,6 +42,7 @@
       {% endif %}
     </div>
   {% endfor %}
+  {{ slide_footer() }}
 </section>
 
 {# ── PER-SITE SECTIONS ─────────────────────────────────────────── #}
@@ -130,6 +131,7 @@
         </div>
       {% endif %}
     </div>
+    {{ slide_footer() }}
   </section>
 
   {# ── GRID INFRASTRUCTURE (compact) ─────────────────────────── #}
@@ -186,6 +188,7 @@
           </table>
         </div>
       {% endif %}
+      {{ slide_footer() }}
     </section>
   {% endif %}
 
@@ -195,7 +198,7 @@
       {{ page_logo() }}
       {{ chapter_header(
           loop.index ~ ".3",
-          "Weather &amp; Climate",
+          "Weather & Climate",
           subtitle="Climate suitability for " ~ site.name,
           tag="Climate"
       ) }}
@@ -234,6 +237,7 @@
           </div>
         {% endif %}
       </div>
+      {{ slide_footer() }}
     </section>
   {% endif %}
 
@@ -305,6 +309,7 @@
       {% endif %}
 
       {{ narrative(deep_dive.narrative) }}
+      {{ slide_footer() }}
     </section>
   {% endif %}
 {% endfor %}

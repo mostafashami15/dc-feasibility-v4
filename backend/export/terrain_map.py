@@ -29,12 +29,42 @@ except ImportError:
 OPENTOPOMAP_URL = "https://tile.opentopomap.org/{z}/{x}/{y}.png"
 OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
+_SITE_BOUNDARY_FILL = "#fee2e2"
+_SITE_BOUNDARY_STROKE = "#dc2626"
+_SITE_MARKER_OUTER = "#1a365d"
+_SITE_MARKER_CORE = "#2b6cb0"
+
 
 def _to_base64(png_bytes: bytes | None) -> str | None:
     if png_bytes is None:
         return None
     b64 = base64.b64encode(png_bytes).decode("ascii")
     return f"data:image/png;base64,{b64}"
+
+
+def _geometry_lon_lat_points(imported_geometry: dict[str, Any] | None) -> list[tuple[float, float]]:
+    """Return imported geometry as ``(lon, lat)`` pairs for staticmap."""
+    if not imported_geometry:
+        return []
+
+    valid_points: list[tuple[float, float]] = []
+    for coord in imported_geometry.get("coordinates") or []:
+        if len(coord) < 2 or coord[0] is None or coord[1] is None:
+            continue
+        valid_points.append((float(coord[1]), float(coord[0])))
+    return valid_points
+
+
+def _geometry_supports_site_boundary(
+    imported_geometry: dict[str, Any] | None,
+    valid_points: list[tuple[float, float]],
+) -> bool:
+    geom_type = (imported_geometry or {}).get("geometry_type")
+    if geom_type == "polygon":
+        return len(valid_points) >= 3
+    if geom_type == "line":
+        return len(valid_points) >= 2
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +115,7 @@ def generate_terrain_base64(
 def generate_site_location_image(
     lat: float,
     lon: float,
+    imported_geometry: dict[str, Any] | None = None,
     zoom: int = 14,
     width: int = 800,
     height: int = 400,
@@ -94,14 +125,43 @@ def generate_site_location_image(
         return None
 
     try:
-        m = staticmap.StaticMap(width, height, url_template=OSM_URL)
+        geometry_points = _geometry_lon_lat_points(imported_geometry)
+        has_boundary = _geometry_supports_site_boundary(imported_geometry, geometry_points)
+        geom_type = (imported_geometry or {}).get("geometry_type")
+
+        m = staticmap.StaticMap(
+            width,
+            height,
+            padding_x=24 if has_boundary else 0,
+            padding_y=24 if has_boundary else 0,
+            url_template=OSM_URL,
+        )
+
+        if has_boundary:
+            if geom_type == "polygon":
+                m.add_polygon(
+                    staticmap.Polygon(
+                        geometry_points,
+                        _SITE_BOUNDARY_FILL,
+                        _SITE_BOUNDARY_STROKE,
+                    )
+                )
+                closed_ring = (
+                    geometry_points
+                    if geometry_points[0] == geometry_points[-1]
+                    else geometry_points + [geometry_points[0]]
+                )
+                m.add_line(staticmap.Line(closed_ring, _SITE_BOUNDARY_STROKE, 3))
+            elif geom_type == "line":
+                m.add_line(staticmap.Line(geometry_points, _SITE_BOUNDARY_STROKE, 3))
+
         # Outer ring
-        m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 14))
+        m.add_marker(staticmap.CircleMarker((lon, lat), _SITE_MARKER_OUTER, 14))
         # Inner dot (white center)
         m.add_marker(staticmap.CircleMarker((lon, lat), "white", 7))
         # Core dot
-        m.add_marker(staticmap.CircleMarker((lon, lat), "#2b6cb0", 5))
-        image = m.render(zoom=zoom)
+        m.add_marker(staticmap.CircleMarker((lon, lat), _SITE_MARKER_CORE, 5))
+        image = m.render(zoom=None if has_boundary else zoom, center=None if has_boundary else (lon, lat))
 
         buf = io.BytesIO()
         image.save(buf, format="PNG")
@@ -114,12 +174,22 @@ def generate_site_location_image(
 def generate_site_location_base64(
     lat: float,
     lon: float,
+    imported_geometry: dict[str, Any] | None = None,
     zoom: int = 14,
     width: int = 800,
     height: int = 400,
 ) -> Optional[str]:
     """Return a base64-encoded site location map for HTML embedding."""
-    return _to_base64(generate_site_location_image(lat, lon, zoom, width, height))
+    return _to_base64(
+        generate_site_location_image(
+            lat,
+            lon,
+            imported_geometry=imported_geometry,
+            zoom=zoom,
+            width=width,
+            height=height,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

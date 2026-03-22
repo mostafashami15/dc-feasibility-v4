@@ -5,6 +5,7 @@ import uuid
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -28,6 +29,7 @@ from engine.models import (
 from export import report_data
 from export.excel_export import build_excel_bytes
 from export.html_report import render_report_html
+from export.report.chapters.grid_context import _select_grid_display_assets
 from export.report_data import (
     build_report_bundle,
     build_report_context,
@@ -894,6 +896,184 @@ def test_full_analysis_export_keeps_primary_story_and_full_matrix_depth(
     assert workbook_summary_rows(workbook)["Full Scenario Matrix Rows"] == 2
 
 
+def test_render_report_html_moves_firm_capacity_into_advanced_analysis(
+    full_analysis_export_case,
+    monkeypatch,
+):
+    full_analysis_export_case.install_optional_inputs(monkeypatch, make_local_temp_dir())
+
+    html = render_report_html(**full_analysis_export_case.export_kwargs())
+
+    advanced_idx = html.index("Advanced Analysis")
+    firm_idx = html.index("Firm Capacity")
+    sensitivity_idx = html.index("Sensitivity")
+
+    assert advanced_idx < firm_idx < sensitivity_idx
+    assert "Confidential" not in html
+    assert 'content: string(sectionSubtitle);' in html
+
+
+def test_render_report_html_includes_toc_page_targets_and_page_counter(
+    full_analysis_export_case,
+    monkeypatch,
+):
+    full_analysis_export_case.install_optional_inputs(monkeypatch, make_local_temp_dir())
+
+    html = render_report_html(**full_analysis_export_case.export_kwargs())
+
+    assert 'content: "Page " counter(page);' in html
+    assert "content: target-counter(attr(href), page);" in html
+    assert 'id="site-1-site-specifications"' in html
+    assert 'href="#site-1-site-specifications"' in html
+    assert '<span class="toc-site-section-num">1</span>' in html
+    assert 'href="#site-1-site-map"' in html
+    assert 'href="#site-1-advanced-pue_decomposition"' in html
+    assert 'href="#appendix-green-energy-inputs"' in html
+    assert "1.1.1" in html
+    assert "1.6.1" in html
+    assert "Site Profile" not in html
+    assert "chapter-eyebrow-tag" not in html
+    assert "grid-template-columns: 40px auto minmax(0, 1fr) 32px;" in html
+
+
+def test_render_report_html_uses_split_layouts_for_climate_and_scenario_comparison(
+    full_analysis_export_case,
+    monkeypatch,
+):
+    full_analysis_export_case.install_optional_inputs(monkeypatch, make_local_temp_dir())
+
+    html = render_report_html(**full_analysis_export_case.export_kwargs())
+
+    assert "climate-chart-split" in html
+    assert "scenario-comparison-split" in html
+    assert "scenario-comparison-table" in html
+    assert "scenario-config-cell" in html
+    assert "scenario-headline-metrics" in html
+    assert "scenario-headline-value" in html
+    assert "repeat(5, minmax(0, 1fr))" in html
+    assert "pue-decomposition-layout" in html
+    assert "pue-summary-metrics" in html
+    assert "Derived from the representative hourly simulation used for the annual PUE result." not in html
+    assert "site-properties-grid" in html
+    assert "repeat(4, minmax(0, 1fr))" in html
+    assert "grid-infrastructure-split" in html
+    assert "grid-assets-table-wrap" in html
+    assert "grid-assets-note" in html
+    assert "Confidence</th>" not in html
+    assert "Source layers" not in html
+    assert "Confidence" not in html
+    assert "min-height: 314px" in html
+    assert "min-height: 356px" in html
+    assert "climate-appendix-table-wrap" in html
+    assert ".climate-appendix-table-wrap {" in html
+    assert "page-break-inside: auto;" in html
+
+
+def test_render_report_html_uses_compact_advanced_analysis_layouts(
+    full_analysis_export_case,
+    monkeypatch,
+):
+    full_analysis_export_case.install_optional_inputs(monkeypatch, make_local_temp_dir())
+
+    html = render_report_html(**full_analysis_export_case.export_kwargs())
+
+    assert "advanced-analysis-split-footprint" in html
+    assert "advanced-analysis-split-backup" in html
+    assert "advanced-compact-metric-card" in html
+    assert "advanced-compact-table" in html
+    assert "advanced-highlight-stack" in html
+    assert "expansion-summary-grid" in html
+    assert "expansion-snapshot-grid" in html
+    assert "advanced-note-list-tight" in html
+    assert "advanced-block-card-loadmix-summary" in html
+    assert "load-mix-candidate-card-featured" in html
+    assert "load-mix-candidate-pair" in html
+    assert "load-mix-allocation-card" in html
+    assert ".load-mix-candidate-card-featured .load-mix-allocations-grid {" in html
+    assert "firm-capacity-summary" in html
+    assert "firm-capacity-glossary" in html
+    assert "firm-capacity-context-note" in html
+    assert "firm-capacity-strategy-metrics" in html
+    assert "advanced-block-card-sensitivity" in html
+    assert "sensitivity-layout" in html
+    assert "break-even-layout" in html
+    assert "break-even-table-wrap" in html
+    assert "break-even-inline-note" in html
+    assert "Feasibility note" not in html
+    assert "Metric Definitions" in html
+    assert "Highest Score" in html
+    assert ".advanced-block-heading {" in html
+    assert "display: none;" in html
+
+
+def test_render_report_html_uses_na_in_land_and_building_panel(
+    full_analysis_export_case,
+    monkeypatch,
+):
+    full_analysis_export_case.install_optional_inputs(monkeypatch, make_local_temp_dir())
+
+    html = render_report_html(**full_analysis_export_case.export_kwargs())
+
+    land_panel = html.split("Land &amp; Building", 1)[1].split("Computed Capacity", 1)[0]
+
+    assert "NA" in land_panel
+    assert "Not available" not in land_panel
+
+
+def test_select_grid_display_assets_keeps_lines_visible_when_substations_dominate():
+    assets = [
+        {
+            "asset_id": "substation-400",
+            "asset_type": "substation",
+            "voltage_kv": 400.0,
+            "distance_km": 2.0,
+        },
+        {
+            "asset_id": "substation-220-a",
+            "asset_type": "substation",
+            "voltage_kv": 220.0,
+            "distance_km": 1.1,
+        },
+        {
+            "asset_id": "substation-220-b",
+            "asset_type": "substation",
+            "voltage_kv": 220.0,
+            "distance_km": 1.4,
+        },
+        {
+            "asset_id": "substation-132-a",
+            "asset_type": "substation",
+            "voltage_kv": 132.0,
+            "distance_km": 0.9,
+        },
+        {
+            "asset_id": "substation-132-b",
+            "asset_type": "substation",
+            "voltage_kv": 132.0,
+            "distance_km": 1.7,
+        },
+        {
+            "asset_id": "line-220",
+            "asset_type": "line",
+            "voltage_kv": 220.0,
+            "distance_km": 0.8,
+        },
+        {
+            "asset_id": "line-132",
+            "asset_type": "line",
+            "voltage_kv": 132.0,
+            "distance_km": 0.6,
+        },
+    ]
+
+    selected_assets = _select_grid_display_assets(assets)
+
+    assert len(selected_assets) == 6
+    assert any(asset["asset_type"] == "line" for asset in selected_assets)
+    assert any(asset["asset_type"] == "substation" for asset in selected_assets)
+    assert "line-220" in {asset["asset_id"] for asset in selected_assets}
+
+
 def test_render_report_html_with_site_only():
     site = make_site("Test Site")
 
@@ -1464,11 +1644,11 @@ def test_build_report_bundle_shapes_milestone_five_advanced_blocks(monkeypatch):
     blocks = bundle["report_bundle"]["studied_sites"][0]["chapters"]["deep_dive"]["advanced_blocks"]
     assert [block["key"] for block in blocks] == [
         "pue_decomposition",
-        "firm_capacity",
         "infrastructure_footprint",
         "backup_power_comparison",
         "expansion_advisory",
         "load_mix_planner",
+        "firm_capacity",
         "sensitivity",
         "break_even",
     ]
@@ -1651,6 +1831,197 @@ def test_build_report_bundle_shapes_export_safe_visuals(monkeypatch):
     assert chapters["climate"]["free_cooling_chart_visual"]["available"] is True
     assert "<svg" in chapters["climate"]["monthly_chart_visual"]["svg_markup"]
     assert "<svg" in chapters["climate"]["free_cooling_chart_visual"]["svg_markup"]
+
+
+def test_site_specifics_location_map_receives_imported_geometry(monkeypatch):
+    from export.report.chapters import site_specifics as site_specifics_chapter
+
+    site = make_site(
+        "Boundary Campus",
+        latitude=45.0,
+        longitude=9.0,
+        imported_geometry=ImportedGeometry(
+            geometry_type="polygon",
+            coordinates=[
+                [45.0000, 9.0000],
+                [45.0000, 9.0040],
+                [45.0030, 9.0040],
+                [45.0030, 9.0000],
+                [45.0000, 9.0000],
+            ],
+        ),
+    )
+    primary = make_result("site-boundary", site.name)
+    captured: dict[str, Any] = {}
+
+    monkeypatch.setattr(site_specifics_chapter, "generate_terrain_base64", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        site_specifics_chapter,
+        "generate_country_overview_base64",
+        lambda *args, **kwargs: None,
+    )
+
+    def fake_generate_site_location_base64(
+        lat: float,
+        lon: float,
+        *,
+        imported_geometry: dict[str, Any] | None = None,
+        width: int = 800,
+        height: int = 400,
+        zoom: int = 14,
+    ) -> str:
+        captured["lat"] = lat
+        captured["lon"] = lon
+        captured["imported_geometry"] = imported_geometry
+        captured["width"] = width
+        captured["height"] = height
+        captured["zoom"] = zoom
+        return "data:image/png;base64,fake-location-map"
+
+    monkeypatch.setattr(
+        site_specifics_chapter,
+        "generate_site_location_base64",
+        fake_generate_site_location_base64,
+    )
+
+    bundle = build_report_bundle(
+        report_type="detailed",
+        primary_color="#1a365d",
+        secondary_color="#2b6cb0",
+        font_family="Inter, sans-serif",
+        logo_url=None,
+        site_entries=[("site-boundary", site)],
+        scenario_results=[primary],
+        studied_site_ids=["site-boundary"],
+        primary_result_keys={"site-boundary": get_result_selection_key(primary)},
+    )
+
+    chapter = bundle["report_bundle"]["studied_sites"][0]["chapters"]["site_specifics"]
+
+    assert chapter["location_map"] == "data:image/png;base64,fake-location-map"
+    assert captured["lat"] == 45.0
+    assert captured["lon"] == 9.0
+    assert captured["width"] == 400
+    assert captured["height"] == 300
+    assert captured["zoom"] == 14
+    assert captured["imported_geometry"]["geometry_type"] == "polygon"
+    assert captured["imported_geometry"]["coordinate_count"] == 5
+
+
+def test_generate_site_location_image_draws_imported_polygon_perimeter(monkeypatch):
+    from export import terrain_map
+
+    fake_maps: list[Any] = []
+
+    class FakeImage:
+        def save(self, buf: BytesIO, format: str) -> None:
+            assert format == "PNG"
+            buf.write(b"fake-png")
+
+    class FakeStaticMap:
+        def __init__(self, width: int, height: int, **kwargs: Any) -> None:
+            self.width = width
+            self.height = height
+            self.kwargs = kwargs
+            self.markers: list[Any] = []
+            self.lines: list[Any] = []
+            self.polygons: list[Any] = []
+            self.render_calls: list[tuple[Any, Any]] = []
+            fake_maps.append(self)
+
+        def add_marker(self, marker: Any) -> None:
+            self.markers.append(marker)
+
+        def add_line(self, line: Any) -> None:
+            self.lines.append(line)
+
+        def add_polygon(self, polygon: Any) -> None:
+            self.polygons.append(polygon)
+
+        def render(
+            self,
+            zoom: int | None = None,
+            center: tuple[float, float] | None = None,
+        ) -> FakeImage:
+            self.render_calls.append((zoom, center))
+            return FakeImage()
+
+    class FakeCircleMarker:
+        def __init__(self, coords: tuple[float, float], color: str, size: int) -> None:
+            self.coords = coords
+            self.color = color
+            self.size = size
+
+    class FakeLine:
+        def __init__(
+            self,
+            coords: list[tuple[float, float]],
+            color: str,
+            width: int,
+            simplify: bool = True,
+        ) -> None:
+            self.coords = coords
+            self.color = color
+            self.width = width
+            self.simplify = simplify
+
+    class FakePolygon:
+        def __init__(
+            self,
+            coords: list[tuple[float, float]],
+            fill_color: str,
+            outline_color: str,
+            simplify: bool = True,
+        ) -> None:
+            self.coords = coords
+            self.fill_color = fill_color
+            self.outline_color = outline_color
+            self.simplify = simplify
+
+    monkeypatch.setattr(terrain_map, "_HAS_STATICMAP", True)
+    monkeypatch.setattr(
+        terrain_map,
+        "staticmap",
+        SimpleNamespace(
+            StaticMap=FakeStaticMap,
+            CircleMarker=FakeCircleMarker,
+            Line=FakeLine,
+            Polygon=FakePolygon,
+        ),
+    )
+
+    png_bytes = terrain_map.generate_site_location_image(
+        45.0,
+        9.0,
+        imported_geometry={
+            "present": True,
+            "geometry_type": "polygon",
+            "coordinates": [
+                [45.0000, 9.0000],
+                [45.0000, 9.0040],
+                [45.0030, 9.0040],
+                [45.0030, 9.0000],
+                [45.0000, 9.0000],
+            ],
+        },
+        width=400,
+        height=300,
+    )
+
+    assert png_bytes == b"fake-png"
+    assert len(fake_maps) == 1
+
+    fake_map = fake_maps[0]
+    assert fake_map.kwargs["padding_x"] == 24
+    assert fake_map.kwargs["padding_y"] == 24
+    assert len(fake_map.polygons) == 1
+    assert fake_map.polygons[0].coords[0] == (9.0, 45.0)
+    assert fake_map.polygons[0].fill_color == "#fee2e2"
+    assert fake_map.polygons[0].outline_color == "#dc2626"
+    assert len(fake_map.lines) == 1
+    assert fake_map.lines[0].width == 3
+    assert len(fake_map.markers) == 3
+    assert fake_map.render_calls == [(None, None)]
 
 
 def test_export_still_works_when_optional_analyses_are_missing(monkeypatch):
@@ -1870,6 +2241,9 @@ def test_render_report_html_includes_milestone_six_optional_chapters(monkeypatch
     assert "Annual energy breakdown" in html
     assert "Cached PVGIS normalized profile" in html
     assert "Renewable fraction" in html
+    assert "appendix-green-energy-inputs" in html
+    assert html.count("Operating Context") == 1
+    assert html.count("PV Source Provenance") == 1
 
 
 def test_render_report_html_includes_guardrailed_narratives(monkeypatch):

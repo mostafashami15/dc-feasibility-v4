@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  CheckCircle,
-  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Download,
   Eye,
+  FileText,
   Loader2,
-  Printer,
-  Settings,
-  Sliders,
   Table2,
 } from "lucide-react";
 import * as api from "../api/client";
@@ -59,16 +57,69 @@ type StudiedSiteOption = {
   results: ScenarioResult[];
 };
 
-type WizardStep = 1 | 2 | 3;
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function downloadBlob(blob: Blob, filename: string) {
+
+type SaveTarget =
+  | { kind: "file-system"; handle: any; filename: string }
+  | { kind: "download"; filename: string };
+
+/** Prompt for a destination while the click gesture is still active. */
+async function promptSaveTarget(defaultFilename: string): Promise<SaveTarget | null> {
+  if ("showSaveFilePicker" in window) {
+    try {
+      const ext = defaultFilename.split(".").pop() || "pdf";
+      const mimeMap: Record<string, string> = {
+        pdf: "application/pdf",
+        xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+      const handle = await (window as any).showSaveFilePicker({
+        suggestedName: defaultFilename,
+        types: [
+          {
+            description: `${ext.toUpperCase()} file`,
+            accept: { [mimeMap[ext] ?? "application/octet-stream"]: [`.${ext}`] },
+          },
+        ],
+      });
+      return { kind: "file-system", handle, filename: defaultFilename };
+    } catch (err: any) {
+      if (err?.name === "AbortError") return null; // user cancelled
+      // fall through to legacy download
+    }
+  }
+  return { kind: "download", filename: defaultFilename };
+}
+
+/** Persist the generated file to the chosen destination. */
+async function saveOrDownloadBlob(blob: Blob, target: SaveTarget) {
+  if (target.kind === "file-system") {
+    const writable = await target.handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return;
+  }
+
+  // Fallback: programmatic <a> download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = target.filename;
   a.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildExportFilename(
+  siteOptions: StudiedSiteOption[],
+  selectedIds: string[],
+  reportType: string,
+  extension: string,
+): string {
+  const siteNames = selectedIds
+    .map((id) => siteOptions.find((o) => o.siteId === id)?.siteName)
+    .filter(Boolean)
+    .map((name) => name!.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, ""));
+  const sitePart = siteNames.length > 0 ? siteNames.join("-") : "report";
+  return `${sitePart}-dc-feasibility-${reportType}-report.${extension}`;
 }
 
 function buildResultSelectionKey(result: ScenarioResult): string {
@@ -168,48 +219,7 @@ function buildStudiedSiteOptions(
   return options;
 }
 
-// ── Wizard step header ───────────────────────────────────────────────────────
-function StepHeader({
-  step,
-  activeStep,
-  label,
-  icon,
-}: {
-  step: WizardStep;
-  activeStep: WizardStep;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  const done = step < activeStep;
-  const active = step === activeStep;
-  return (
-    <div
-      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-        active
-          ? "bg-blue-600 text-white"
-          : done
-          ? "bg-green-50 text-green-700 border border-green-200"
-          : "text-gray-400 bg-gray-50 border border-gray-200"
-      }`}
-    >
-      {done ? (
-        <CheckCircle size={16} className="shrink-0" />
-      ) : (
-        <span
-          className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
-            active ? "bg-white text-blue-600" : "bg-gray-200 text-gray-500"
-          }`}
-        >
-          {step}
-        </span>
-      )}
-      {icon}
-      <span>{label}</span>
-    </div>
-  );
-}
-
-// ── Section title ────────────────────────────────────────────────────────────
+// ── Reusable UI pieces ──────────────────────────────────────────────────────
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
@@ -218,7 +228,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Card ─────────────────────────────────────────────────────────────────────
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 ${className}`}>
@@ -227,53 +236,26 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   );
 }
 
-// ── Layout option card ───────────────────────────────────────────────────────
-function OptionCard<T extends string>({
-  value,
-  selected,
-  onSelect,
-  title,
-  description,
+function ToggleButton({
+  active,
+  onClick,
+  children,
 }: {
-  value: T;
-  selected: T;
-  onSelect: (v: T) => void;
-  title: string;
-  description: string;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
 }) {
-  const isSelected = value === selected;
   return (
-    <label
-      className={`block p-4 rounded-xl border-2 cursor-pointer transition-all select-none ${
-        isSelected
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+    <button
+      onClick={onClick}
+      className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? "bg-blue-600 text-white shadow-sm"
+          : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200"
       }`}
     >
-      <input
-        type="radio"
-        name={`option-${title}`}
-        value={value}
-        checked={isSelected}
-        onChange={() => onSelect(value)}
-        className="sr-only"
-      />
-      <div className="flex items-start gap-2">
-        <span
-          className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-            isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300"
-          }`}
-        >
-          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-        </span>
-        <div>
-          <p className={`font-medium text-sm ${isSelected ? "text-blue-900" : "text-gray-800"}`}>
-            {title}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-        </div>
-      </div>
-    </label>
+      {children}
+    </button>
   );
 }
 
@@ -282,15 +264,13 @@ export default function Export() {
   const sites = useAppStore((s) => s.sites);
   const batchResults = useAppStore((s) => s.batchResults);
 
-  // Wizard state
-  const [step, setStep] = useState<WizardStep>(1);
-
-  // Step 1: Scope
+  // Core state
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [primaryResultKeys, setPrimaryResultKeys] = useState<Record<string, string>>({});
-
-  // Step 2: Options
   const [reportType, setReportType] = useState<"executive" | "detailed">("executive");
+
+  // Advanced state (hidden by default)
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [layoutMode, setLayoutMode] = useState<ReportLayoutMode>("presentation_16_9");
   const [includeAllScenarios, setIncludeAllScenarios] = useState(true);
   const [primaryColor, setPrimaryColor] = useState("#1a365d");
@@ -298,10 +278,10 @@ export default function Export() {
   const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
   const [logoUrl, setLogoUrl] = useState("");
 
-  // Step 3: Export
+  // Export state
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeFormat, setActiveFormat] = useState<"html" | "print" | "excel" | null>(null);
+  const [activeFormat, setActiveFormat] = useState<"html" | "pdf" | "excel" | null>(null);
 
   const studiedSiteOptions = buildStudiedSiteOptions(sites, batchResults);
   const orderedSelectedSiteIds = studiedSiteOptions
@@ -311,8 +291,7 @@ export default function Export() {
     (id) => Boolean(primaryResultKeys[id])
   ).length;
   const missingPrimaryCount = orderedSelectedSiteIds.length - selectedPrimaryCount;
-  const step1Complete = orderedSelectedSiteIds.length > 0 && missingPrimaryCount === 0;
-  const canExport = step1Complete;
+  const canExport = orderedSelectedSiteIds.length > 0 && missingPrimaryCount === 0;
 
   // Sync selections with batch results
   useEffect(() => {
@@ -425,25 +404,24 @@ export default function Export() {
     }
   }
 
-  async function handlePrintPdf() {
+  async function handleDownloadPdf() {
     if (!canExport) return;
+    const filename = buildExportFilename(studiedSiteOptions, orderedSelectedSiteIds, reportType, "pdf");
+    const target = await promptSaveTarget(filename);
+    if (!target) {
+      setError(null);
+      setStatus(null);
+      return;
+    }
     setError(null);
-    setStatus("Generating printable report…");
-    setActiveFormat("print");
+    setStatus("Generating PDF — this may take a moment…");
+    setActiveFormat("pdf");
     try {
-      const html = await api.exportHtmlReport(buildConfig());
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const printWindow = window.open(url, "_blank");
-      if (printWindow) {
-        printWindow.addEventListener("load", () => {
-          printWindow.print();
-        });
-      }
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setStatus("Print dialog opened — use 'Save as PDF' to export as PDF.");
+      const blob = await api.exportPdfReport(buildConfig());
+      await saveOrDownloadBlob(blob, target);
+      setStatus(target.kind === "file-system" ? "PDF saved." : "PDF download started.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate printable report.");
+      setError(err instanceof Error ? err.message : "Failed to generate PDF report.");
       setStatus(null);
     } finally {
       setActiveFormat(null);
@@ -452,13 +430,20 @@ export default function Export() {
 
   async function handleDownloadExcel() {
     if (!canExport) return;
+    const filename = buildExportFilename(studiedSiteOptions, orderedSelectedSiteIds, reportType, "xlsx");
+    const target = await promptSaveTarget(filename);
+    if (!target) {
+      setError(null);
+      setStatus(null);
+      return;
+    }
     setError(null);
     setStatus("Generating Excel…");
     setActiveFormat("excel");
     try {
       const blob = await api.exportExcelReport(buildConfig());
-      downloadBlob(blob, `dc-feasibility-${reportType}-report.xlsx`);
-      setStatus("Excel download started.");
+      await saveOrDownloadBlob(blob, target);
+      setStatus(target.kind === "file-system" ? "Excel saved." : "Excel download started.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to export Excel.");
       setStatus(null);
@@ -483,449 +468,298 @@ export default function Export() {
     );
   }
 
-  // ── Wizard progress bar ─────────────────────────────────────────────────
-  const progressSteps: { step: WizardStep; label: string; icon: React.ReactNode }[] = [
-    { step: 1, label: "Study Scope", icon: <Sliders size={14} /> },
-    { step: 2, label: "Report Options", icon: <Settings size={14} /> },
-    { step: 3, label: "Export", icon: <Download size={14} /> },
-  ];
-
+  // ── Main render ────────────────────────────────────────────────────────
   return (
     <div className="max-w-3xl mx-auto">
-      {/* ── Page header ─────────────────────────────────────────────────── */}
+      {/* Page header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Reports &amp; Export</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Configure your report, select sites and scenarios, then preview, print, or download.
+          Select your sites, choose a report type, and export.
         </p>
       </div>
 
-      {/* ── Step navigation ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-6">
-        {progressSteps.map(({ step: s, label, icon }, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (s < step || (s === 2 && step1Complete) || s === step) setStep(s);
-              }}
-              className="focus:outline-none"
-            >
-              <StepHeader step={s} activeStep={step} label={label} icon={icon} />
-            </button>
-            {i < progressSteps.length - 1 && (
-              <ChevronRight size={14} className="text-gray-300 shrink-0" />
-            )}
-          </div>
-        ))}
-      </div>
+      {/* ── 1. SELECT SITES ─────────────────────────────────────────────── */}
+      <Card className="mb-4">
+        <div className="flex items-start justify-between mb-4">
+          <SectionTitle>Select Sites</SectionTitle>
+          <span className="text-xs text-gray-400 shrink-0">
+            {orderedSelectedSiteIds.length} site{orderedSelectedSiteIds.length !== 1 ? "s" : ""} selected
+          </span>
+        </div>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          STEP 1: STUDY SCOPE
-         ══════════════════════════════════════════════════════════════════ */}
-      {step === 1 && (
-        <div className="space-y-4">
-          <Card>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <SectionTitle>Select Studied Sites</SectionTitle>
-                <p className="text-xs text-gray-500 -mt-2">
-                  Choose which sites and primary scenarios to include in the report.
-                </p>
-              </div>
-              <div className="text-right text-xs text-gray-400 shrink-0">
-                <div>{orderedSelectedSiteIds.length} site{orderedSelectedSiteIds.length !== 1 ? "s" : ""} selected</div>
-                <div>{selectedPrimaryCount} scenario{selectedPrimaryCount !== 1 ? "s" : ""} ready</div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {studiedSiteOptions.map((option) => {
-                const isSelected = selectedSiteIds.includes(option.siteId);
-                const resultKey =
-                  primaryResultKeys[option.siteId] ??
-                  buildResultSelectionKey(option.results[0]);
-                return (
-                  <div
-                    key={option.siteId}
-                    className={`rounded-xl border-2 p-4 transition-colors ${
-                      isSelected
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleSite(option, isSelected)}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-gray-900 text-sm">{option.siteName}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{option.locationLabel}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs font-medium text-gray-600">
-                              {option.availablePowerMw !== null
-                                ? `${option.availablePowerMw.toFixed(1)} MW available`
-                                : "Power TBC"}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {option.results.length} result{option.results.length !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </div>
+        <div className="space-y-3">
+          {studiedSiteOptions.map((option) => {
+            const isSelected = selectedSiteIds.includes(option.siteId);
+            const resultKey =
+              primaryResultKeys[option.siteId] ??
+              buildResultSelectionKey(option.results[0]);
+            return (
+              <div
+                key={option.siteId}
+                className={`rounded-xl border-2 p-4 transition-colors ${
+                  isSelected
+                    ? "border-blue-400 bg-blue-50"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSite(option, isSelected)}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">{option.siteName}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{option.locationLabel}</p>
                       </div>
-                    </label>
-
-                    {isSelected && (
-                      <div className="mt-3 pl-7">
-                        <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                          Primary scenario for this site
-                        </label>
-                        <select
-                          value={resultKey}
-                          onChange={(e) =>
-                            setPrimaryResultKeys((cur) => ({
-                              ...cur,
-                              [option.siteId]: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        >
-                          {option.results.map((r) => {
-                            const key = buildResultSelectionKey(r);
-                            return (
-                              <option key={key} value={key}>
-                                {describeScenarioChoice(r)}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <p className="text-xs text-gray-400 mt-1">
-                          This scenario will be featured as the primary result for this site.
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-medium text-gray-600">
+                          {option.availablePowerMw !== null
+                            ? `${option.availablePowerMw.toFixed(1)} MW available`
+                            : "Power TBC"}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {option.results.length} scenario{option.results.length !== 1 ? "s" : ""}
                         </p>
                       </div>
-                    )}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          </Card>
+                </label>
 
-          {/* Validation hint */}
-          {orderedSelectedSiteIds.length > 0 && missingPrimaryCount > 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-              Select a primary scenario for each chosen site to continue.
-            </p>
-          )}
+                {isSelected && (
+                  <div className="mt-3 pl-7">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Primary scenario
+                    </label>
+                    <select
+                      value={resultKey}
+                      onChange={(e) =>
+                        setPrimaryResultKeys((cur) => ({
+                          ...cur,
+                          [option.siteId]: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      {option.results.map((r) => {
+                        const key = buildResultSelectionKey(r);
+                        return (
+                          <option key={key} value={key}>
+                            {describeScenarioChoice(r)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={() => setStep(2)}
-              disabled={!step1Complete}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next: Report Options
-              <ChevronRight size={16} />
-            </button>
-          </div>
+        {orderedSelectedSiteIds.length > 0 && missingPrimaryCount > 0 && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mt-3">
+            Select a primary scenario for each chosen site to continue.
+          </p>
+        )}
+      </Card>
+
+      {/* ── 2. REPORT TYPE ─────────────────────────────────────────────── */}
+      <Card className="mb-4">
+        <SectionTitle>Report Type</SectionTitle>
+        <div className="flex gap-2">
+          <ToggleButton active={reportType === "executive"} onClick={() => setReportType("executive")}>
+            Executive Summary
+          </ToggleButton>
+          <ToggleButton active={reportType === "detailed"} onClick={() => setReportType("detailed")}>
+            Detailed Technical
+          </ToggleButton>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          {reportType === "executive"
+            ? "Concise view for leadership — key feasibility signals, site map, headline metrics."
+            : "Full report with all chapters: grid, climate, scenario deep-dive, advanced analysis."}
+        </p>
+      </Card>
+
+      {/* ── 3. EXPORT ──────────────────────────────────────────────────── */}
+      {(status || error) && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm mb-4 ${
+            error
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {error ?? status}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          STEP 2: REPORT OPTIONS
-         ══════════════════════════════════════════════════════════════════ */}
-      {step === 2 && (
-        <div className="space-y-4">
-          {/* Report template */}
-          <Card>
-            <SectionTitle>Report Template</SectionTitle>
-            <div className="grid grid-cols-2 gap-3">
-              <OptionCard
-                value="executive"
-                selected={reportType}
-                onSelect={setReportType}
-                title="Executive Summary"
-                description="Concise view for leadership — key feasibility signals, site map, headline metrics."
-              />
-              <OptionCard
-                value="detailed"
-                selected={reportType}
-                onSelect={setReportType}
-                title="Detailed Technical"
-                description="Full report with all chapters: grid, climate, scenario deep-dive, advanced analysis."
-              />
-            </div>
-          </Card>
+      <Card className="mb-4">
+        <SectionTitle>Export</SectionTitle>
 
+        {/* Primary action */}
+        <button
+          onClick={handleDownloadPdf}
+          disabled={!canExport || activeFormat !== null}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors mb-4"
+        >
+          {activeFormat === "pdf" ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <Download size={20} />
+          )}
+          Download PDF
+        </button>
+
+        {/* Secondary actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={handlePreviewHtml}
+            disabled={!canExport || activeFormat !== null}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {activeFormat === "html" ? (
+              <Loader2 size={16} className="animate-spin text-blue-500" />
+            ) : (
+              <Eye size={16} className="text-gray-400" />
+            )}
+            Preview in Browser
+          </button>
+          <button
+            onClick={handleDownloadExcel}
+            disabled={!canExport || activeFormat !== null}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {activeFormat === "excel" ? (
+              <Loader2 size={16} className="animate-spin text-green-500" />
+            ) : (
+              <Table2 size={16} className="text-gray-400" />
+            )}
+            Download Excel
+          </button>
+        </div>
+      </Card>
+
+      {/* ── ADVANCED SETTINGS (collapsed by default) ───────────────────── */}
+      <button
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium mb-2 transition-colors"
+      >
+        {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        Advanced Settings
+      </button>
+
+      {showAdvanced && (
+        <Card>
           {/* Layout mode */}
-          <Card>
-            <SectionTitle>Layout Mode</SectionTitle>
-            <div className="grid grid-cols-2 gap-3">
-              <OptionCard
-                value="presentation_16_9"
-                selected={layoutMode}
-                onSelect={setLayoutMode}
-                title="Presentation 16:9"
-                description="Slide-style pages — great for screen sharing and review meetings."
-              />
-              <OptionCard
-                value="report_a4_portrait"
-                selected={layoutMode}
-                onSelect={setLayoutMode}
-                title="Report A4 Portrait"
-                description="Formal document format for print and distribution."
-              />
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-gray-600 mb-2">Layout Mode</label>
+            <div className="flex gap-2">
+              <ToggleButton
+                active={layoutMode === "presentation_16_9"}
+                onClick={() => setLayoutMode("presentation_16_9")}
+              >
+                Presentation (Landscape)
+              </ToggleButton>
+              <ToggleButton
+                active={layoutMode === "report_a4_portrait"}
+                onClick={() => setLayoutMode("report_a4_portrait")}
+              >
+                A4 Portrait
+              </ToggleButton>
             </div>
-          </Card>
+          </div>
 
           {/* Scenario scope */}
-          <Card>
-            <SectionTitle>Scenario Scope</SectionTitle>
-            <div className="grid grid-cols-2 gap-3">
-              <OptionCard
-                value="all"
-                selected={includeAllScenarios ? "all" : "primary"}
-                onSelect={() => setIncludeAllScenarios(true)}
-                title="All Scenarios"
-                description="Include every scenario result per site — shows a ranked comparison table in the report."
-              />
-              <OptionCard
-                value="primary"
-                selected={includeAllScenarios ? "all" : "primary"}
-                onSelect={() => setIncludeAllScenarios(false)}
-                title="Primary Only"
-                description="Include only the selected primary scenario per site — focused, single-scenario view."
-              />
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-gray-600 mb-2">Scenario Scope</label>
+            <div className="flex gap-2">
+              <ToggleButton
+                active={includeAllScenarios}
+                onClick={() => setIncludeAllScenarios(true)}
+              >
+                All Scenarios
+              </ToggleButton>
+              <ToggleButton
+                active={!includeAllScenarios}
+                onClick={() => setIncludeAllScenarios(false)}
+              >
+                Primary Only
+              </ToggleButton>
             </div>
-          </Card>
+            <p className="text-xs text-gray-400 mt-1.5">
+              {includeAllScenarios
+                ? "Shows a ranked comparison table of all scenarios per site."
+                : "Only the selected primary scenario per site — focused view."}
+            </p>
+          </div>
 
-          {/* Theme & Branding */}
-          <Card>
-            <SectionTitle>Theme &amp; Branding</SectionTitle>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Primary Color
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-8 h-8 rounded-md border border-gray-300 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Secondary Color
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    className="w-8 h-8 rounded-md border border-gray-300 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Font Family
-                </label>
+          {/* Theme */}
+          <label className="block text-xs font-medium text-gray-600 mb-2">Theme &amp; Branding</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Primary Color</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-8 h-8 rounded-md border border-gray-300 cursor-pointer"
+                />
                 <input
                   type="text"
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Inter, sans-serif"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Logo URL{" "}
-                  <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Secondary Color</label>
+              <div className="flex items-center gap-2">
                 <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="https://example.com/logo.png"
+                  type="color"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="w-8 h-8 rounded-md border border-gray-300 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
-          </Card>
-
-          <div className="flex justify-between">
-            <button
-              onClick={() => setStep(1)}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
-            >
-              ← Back
-            </button>
-            <button
-              onClick={() => setStep(3)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-            >
-              Next: Export
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════
-          STEP 3: EXPORT
-         ══════════════════════════════════════════════════════════════════ */}
-      {step === 3 && (
-        <div className="space-y-4">
-          {/* Report summary */}
-          <Card>
-            <SectionTitle>Report Summary</SectionTitle>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500">Template</span>
-                <span className="font-medium text-gray-800">
-                  {reportType === "executive" ? "Executive Summary" : "Detailed Technical"}
-                </span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500">Layout</span>
-                <span className="font-medium text-gray-800">
-                  {layoutMode === "presentation_16_9" ? "Presentation 16:9" : "Report A4 Portrait"}
-                </span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500">Sites</span>
-                <span className="font-medium text-gray-800">
-                  {orderedSelectedSiteIds
-                    .map((id) => studiedSiteOptions.find((o) => o.siteId === id)?.siteName ?? id)
-                    .join(", ")}
-                </span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500">Primary scenarios</span>
-                <span className="font-medium text-gray-800">{selectedPrimaryCount}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-500">Scenario scope</span>
-                <span className="font-medium text-gray-800">
-                  {includeAllScenarios ? "All scenarios (comparison)" : "Primary only"}
-                </span>
-              </div>
-              {logoUrl && (
-                <div className="flex justify-between py-1.5 border-b border-gray-100">
-                  <span className="text-gray-500">Logo</span>
-                  <span className="font-medium text-gray-800 truncate max-w-[180px]">{logoUrl}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Color preview */}
-            <div className="flex items-center gap-3 mt-4">
-              <div
-                className="w-8 h-8 rounded-lg border border-gray-200"
-                style={{ background: primaryColor }}
-                title="Primary"
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Font Family</label>
+              <input
+                type="text"
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Inter, sans-serif"
               />
-              <div
-                className="w-8 h-8 rounded-lg border border-gray-200"
-                style={{ background: secondaryColor }}
-                title="Secondary"
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Logo URL <span className="text-gray-400">(optional)</span>
+              </label>
+              <input
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="https://example.com/logo.png"
               />
-              <span className="text-xs text-gray-500">Brand colors</span>
             </div>
-          </Card>
-
-          {/* Status / error */}
-          {(status || error) && (
-            <div
-              className={`rounded-xl border px-4 py-3 text-sm ${
-                error
-                  ? "border-rose-200 bg-rose-50 text-rose-700"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
-              }`}
-            >
-              {error ?? status}
-            </div>
-          )}
-
-          {/* Export buttons */}
-          <Card>
-            <SectionTitle>Download</SectionTitle>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={handlePreviewHtml}
-                disabled={!canExport || activeFormat !== null}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-sm font-medium text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {activeFormat === "html" ? (
-                  <Loader2 size={22} className="animate-spin text-blue-500" />
-                ) : (
-                  <Eye size={22} className="text-gray-500" />
-                )}
-                <span>Preview HTML</span>
-                <span className="text-xs text-gray-400 font-normal">Opens in browser</span>
-              </button>
-
-              <button
-                onClick={handlePrintPdf}
-                disabled={!canExport || activeFormat !== null}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-sm font-medium text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {activeFormat === "print" ? (
-                  <Loader2 size={22} className="animate-spin" />
-                ) : (
-                  <Printer size={22} />
-                )}
-                <span>Print / Save as PDF</span>
-                <span className="text-xs font-normal text-blue-400">
-                  Choose orientation in print dialog
-                </span>
-              </button>
-
-              <button
-                onClick={handleDownloadExcel}
-                disabled={!canExport || activeFormat !== null}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-300 text-sm font-medium text-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {activeFormat === "excel" ? (
-                  <Loader2 size={22} className="animate-spin" />
-                ) : (
-                  <Table2 size={22} />
-                )}
-                <span>Download Excel</span>
-                <span className="text-xs font-normal text-green-500">15+ data sheets</span>
-              </button>
-            </div>
-          </Card>
-
-          <div className="flex justify-start">
-            <button
-              onClick={() => setStep(2)}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
-            >
-              ← Back to Options
-            </button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

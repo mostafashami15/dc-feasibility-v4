@@ -41,7 +41,13 @@ def _build_site_specifics_chapter(
     lon = location.get("longitude")
     if lat is not None and lon is not None:
         terrain_image_uri = generate_terrain_base64(lat, lon, width=400, height=300)
-        location_map_uri = generate_site_location_base64(lat, lon, width=400, height=300)
+        location_map_uri = generate_site_location_base64(
+            lat,
+            lon,
+            imported_geometry=imported_geometry,
+            width=400,
+            height=300,
+        )
         country_overview_uri = generate_country_overview_base64(lat, lon, width=400, height=300)
 
     # Compute derived values
@@ -98,27 +104,43 @@ def _build_site_specifics_chapter(
             ),
         ],
         "property_items": [
-            _fact("Land area", _display_number(land["land_area_m2"], digits=0, suffix="m²")),
+            _fact(
+                "Land area",
+                _display_number(land["land_area_m2"], digits=0, suffix="m²", default="NA"),
+            ),
             _fact(
                 "Site coverage ratio",
-                _display_percent(land["site_coverage_ratio"], digits=0),
+                _display_percent(land["site_coverage_ratio"], digits=0, default="NA"),
             ),
             _fact(
                 "Buildable footprint",
-                _display_number(buildable_footprint_m2, digits=0, suffix="m²"),
+                _display_number(buildable_footprint_m2, digits=0, suffix="m²", default="NA"),
             ),
             _fact(
                 "Maximum building height",
-                _display_number(building["max_building_height_m"], digits=1, suffix="m"),
+                _display_number(
+                    building["max_building_height_m"],
+                    digits=1,
+                    suffix="m",
+                    default="NA",
+                ),
             ),
             _fact(
                 "Floor-to-floor height",
-                _display_number(building["floor_to_floor_height_m"], digits=1, suffix="m"),
+                _display_number(
+                    building["floor_to_floor_height_m"],
+                    digits=1,
+                    suffix="m",
+                    default="NA",
+                ),
             ),
-            _fact("Active floors", _display_number(building["num_floors"], digits=0)),
+            _fact(
+                "Active floors",
+                _display_number(building["num_floors"], digits=0, default="NA"),
+            ),
             _fact(
                 "Expansion floors",
-                _display_number(building["num_expansion_floors"], digits=0),
+                _display_number(building["num_expansion_floors"], digits=0, default="NA"),
             ),
         ],
         "computed_items": [
