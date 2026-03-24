@@ -1,51 +1,159 @@
 {% extends "base.html" %}
-{% from "_macros.html" import narrative, rag_badge, fact_rows, chapter_header, scenario_pills, page_logo, slide_footer with context %}
+{% from "_macros.html" import rag_badge with context %}
 
 {% block content %}
-{# ── COVER ─────────────────────────────────────────────────────── #}
-{% include "_cover.html" %}
+<style>
+  /* ── Executive: ultra-compact one-page dashboard ─────────────── */
+  .exec-page {
+    font-size: 5.5pt;
+    font-weight: 400;
+    line-height: 1.2;
+    color: #374151;
+    width: 100%;
+  }
+  .exec-page * { font-weight: 400 !important; }
 
-{# ── TABLE OF CONTENTS ─────────────────────────────────────────── #}
-<section class="page-break toc-page">
-  {{ page_logo() }}
-  <div class="toc-title">Table of Contents</div>
-  {% for site_bundle in report_bundle.studied_sites %}
-    {% set site = site_bundle.site_data %}
-    {% set ch   = site_bundle.chapters %}
-    <div class="toc-site-group">
-      <div class="toc-site-name">{{ site.name }}</div>
-      <div class="toc-entry">
-        <span class="toc-entry-num">{{ loop.index }}.1</span>
-        <span class="toc-entry-label">Site Specifications</span>
-        <span class="toc-entry-dots"></span>
-      </div>
-      {% if ch.grid_context.included %}
-        <div class="toc-entry">
-          <span class="toc-entry-num">{{ loop.index }}.2</span>
-          <span class="toc-entry-label">Grid Infrastructure</span>
-          <span class="toc-entry-dots"></span>
-        </div>
-      {% endif %}
-      {% if ch.climate.included %}
-        <div class="toc-entry">
-          <span class="toc-entry-num">{{ loop.index }}.3</span>
-          <span class="toc-entry-label">Weather &amp; Climate</span>
-          <span class="toc-entry-dots"></span>
-        </div>
-      {% endif %}
-      {% if ch.selected_scenario.available %}
-        <div class="toc-entry">
-          <span class="toc-entry-num">{{ loop.index }}.4</span>
-          <span class="toc-entry-label">Scenario Results</span>
-          <span class="toc-entry-dots"></span>
-        </div>
-      {% endif %}
-    </div>
-  {% endfor %}
-  {{ slide_footer() }}
-</section>
+  /* ── Header ─────────────────────────────────────────────────── */
+  .exec-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 0 1.5px 0;
+    border-bottom: 1.5px solid var(--primary);
+    margin-bottom: 2px;
+  }
+  .exec-header-logo img { height: 16px; width: auto; }
+  .exec-header-title { font-size: 7pt; color: var(--primary); flex: 1; }
+  .exec-header-site { font-size: 6pt; color: #374151; }
+  .exec-header-date { font-size: 4.5pt; color: #d1d5db; }
 
-{# ── PER-SITE SECTIONS ─────────────────────────────────────────── #}
+  /* ── Grid ────────────────────────────────────────────────────── */
+  .exec-grid { display: flex; gap: 3px; width: 100%; }
+  .exec-col-left   { flex: 0 0 24%; max-width: 24%; }
+  .exec-col-center { flex: 0 0 40%; max-width: 40%; }
+  .exec-col-right  { flex: 0 0 36%; max-width: 36%; }
+
+  /* ── Cards ───────────────────────────────────────────────────── */
+  .exec-card {
+    border: 0.5px solid #e5e7eb;
+    border-radius: 2px;
+    padding: 2px 3px;
+    margin-bottom: 2px;
+    background: #fff;
+  }
+  .exec-card-title {
+    font-size: 4.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary);
+    margin-bottom: 1px;
+    padding-bottom: 0.5px;
+    border-bottom: 0.5px solid #f3f4f6;
+  }
+
+  /* ── Metrics row ─────────────────────────────────────────────── */
+  .exec-metrics-row { display: flex; gap: 2px; }
+  .exec-metric {
+    flex: 1;
+    text-align: center;
+    padding: 1.5px 1px;
+    border: 0.5px solid #e5e7eb;
+    border-radius: 2px;
+    background: #f9fafb;
+  }
+  .exec-metric-label { font-size: 4pt; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; }
+  .exec-metric-value { font-size: 6.5pt; color: #111827; }
+  .exec-metric.featured { background: var(--primary); border-color: var(--primary); }
+  .exec-metric.featured .exec-metric-label { color: rgba(255,255,255,0.7); }
+  .exec-metric.featured .exec-metric-value { color: #fff; font-size: 7pt; }
+
+  /* ── Fact rows ───────────────────────────────────────────────── */
+  .exec-card .fact-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3px 0;
+    font-size: 5pt;
+    line-height: 1.15;
+    border-bottom: none;
+  }
+  .exec-card .fact-label { color: #9ca3af; flex-shrink: 0; margin-right: 3px; }
+  .exec-card .fact-value {
+    text-align: right;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+  }
+
+  /* ── Charts ──────────────────────────────────────────────────── */
+  .exec-chart {
+    width: 100%;
+    overflow: hidden;
+    margin: 1px 0;
+    max-height: 82px;
+  }
+  .exec-chart svg {
+    width: 100%;
+    height: auto;
+    max-height: 82px;
+    display: block;
+  }
+  /* Hide the internal SVG title/subtitle text to avoid duplication with card title */
+  .exec-chart svg > text { display: none; }
+  .exec-chart svg > line[y1="44"] { display: none; }
+
+  .exec-chart-lg { max-height: 95px; }
+  .exec-chart-lg svg { max-height: 95px; }
+
+  /* ── Maps ─────────────────────────────────────────────────────── */
+  .exec-map {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+    margin: 1px 0;
+    max-height: 62px;
+  }
+  .exec-map img {
+    width: 100%;
+    height: 62px;
+    display: block;
+    object-fit: cover;
+  }
+
+  /* ── Pills ───────────────────────────────────────────────────── */
+  .exec-pills { display: flex; flex-wrap: wrap; gap: 1px; margin: 1px 0; }
+  .exec-pill {
+    font-size: 4pt;
+    padding: 0.5px 2.5px;
+    border-radius: 1px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 0.5px solid #e5e7eb;
+  }
+
+  /* ── Allocation bar ──────────────────────────────────────────── */
+  .exec-alloc-bar { display: flex; height: 5px; border-radius: 1px; overflow: hidden; margin: 1px 0; }
+  .exec-alloc-segment { height: 100%; }
+  .exec-alloc-legend { display: flex; flex-wrap: wrap; gap: 1px 3px; font-size: 4pt; color: #9ca3af; }
+  .exec-alloc-dot { display: inline-block; width: 3px; height: 3px; border-radius: 1px; margin-right: 1px; vertical-align: middle; }
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  .exec-footer {
+    font-size: 4pt;
+    color: #d1d5db;
+    text-align: center;
+    padding-top: 1px;
+    border-top: 0.5px solid #f3f4f6;
+    margin-top: 1px;
+  }
+
+  /* ── RAG badge compact ───────────────────────────────────────── */
+  .exec-page .rag-badge { font-size: 4.5pt; padding: 0.5px 3px; }
+</style>
+
+{% set alloc_colors = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#8b5cf6", "#06b6d4", "#ec4899"] %}
+
 {% for site_bundle in report_bundle.studied_sites %}
   {% set site           = site_bundle.site_data %}
   {% set ch             = site_bundle.chapters %}
@@ -54,269 +162,278 @@
   {% set climate        = ch.climate %}
   {% set selected_scenario = ch.selected_scenario %}
   {% set deep_dive      = ch.deep_dive %}
+  {% set load_mix       = ch.load_mix %}
+  {% set green_energy   = ch.green_energy %}
 
-  {# ── SITE SPECIFICATIONS ─────────────────────────────────────── #}
-  <section class="page-break">
-    {{ page_logo() }}
-    {{ chapter_header(
-        loop.index ~ ".1",
-        "Site Specifications",
-        subtitle=(site.location.city or '') ~ (', ' if site.location.city and site.location.country else '') ~ (site.location.country or '') ~ ' — ' ~ site.name,
-        tag="Site Profile",
-        badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.available and deep_dive.status_items else ""]
-    ) }}
+  {% if not loop.first %}<div style="page-break-before:always;"></div>{% endif %}
 
-    {# Three maps side by side #}
-    {% if site_specifics.country_overview or site_specifics.location_map or site_specifics.terrain_image %}
-      <div class="map-strip">
-        {% if site_specifics.country_overview %}
-          <div class="map-container">
-            <img src="{{ site_specifics.country_overview }}" alt="Country overview" />
-            <div class="map-caption">Country Overview</div>
-          </div>
-        {% else %}
-          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Overview</div>
-        {% endif %}
-        {% if site_specifics.location_map %}
-          <div class="map-container">
-            <img src="{{ site_specifics.location_map }}" alt="Site area" />
-            <div class="map-caption">Site Area</div>
-          </div>
-        {% else %}
-          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Street map</div>
-        {% endif %}
-        {% if site_specifics.terrain_image %}
-          <div class="map-container">
-            <img src="{{ site_specifics.terrain_image }}" alt="Terrain" />
-            <div class="map-caption">Terrain</div>
-          </div>
-        {% else %}
-          <div class="empty-state" style="display:flex;align-items:center;justify-content:center;min-height:180px;">Terrain</div>
-        {% endif %}
-      </div>
-    {% endif %}
+  <div class="exec-page">
 
-    {# Key metrics #}
-    {% if deep_dive.available %}
-      <div class="metric-row metric-row-4 mt-sm">
-        {% for item in deep_dive.headline_metrics[:4] %}
-          <div class="metric-card {% if loop.first %}featured{% endif %}">
-            <div class="metric-label">{{ item.label }}</div>
-            <div class="metric-value{% if loop.first %} highlight{% endif %}">{{ item.value }}</div>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    <div class="fact-grid mt-sm">
-      <div class="fact-panel">
-        <div class="fact-panel-title">Site Essentials</div>
-        {{ fact_rows(site_specifics.power_items[:2] + site_specifics.property_items[:2]) }}
-        {% if selected_scenario.available %}
-          <div class="fact-row">
-            <span class="fact-label">Primary Scenario</span>
-            <span class="fact-value" style="font-size:8pt;">{{ selected_scenario.label }}</span>
-          </div>
-        {% endif %}
-      </div>
-      {% if deep_dive.available %}
-        <div class="fact-panel">
-          <div class="fact-panel-title">Feasibility Assessment</div>
-          {{ fact_rows(deep_dive.status_items) }}
-          {% if deep_dive.status_reasons %}
-            <ul class="note-list mt-xs">
-              {% for reason in deep_dive.status_reasons %}<li>{{ reason }}</li>{% endfor %}
-            </ul>
-          {% endif %}
-        </div>
+    {# ── HEADER ─────────────────────────────────────────────────── #}
+    <div class="exec-header">
+      {% if theme.page_logo_url %}
+        <div class="exec-header-logo"><img src="{{ theme.page_logo_url }}" alt="" /></div>
       {% endif %}
+      <span class="exec-header-title">DC Feasibility — Executive Summary</span>
+      <span class="exec-header-site">{{ site.name }}</span>
+      <span class="exec-header-date">{{ report.generated_on }}</span>
     </div>
-    {{ slide_footer() }}
-  </section>
 
-  {# ── GRID INFRASTRUCTURE (compact) ─────────────────────────── #}
-  {% if grid_context.included %}
-    <section class="page-break">
-      {{ page_logo() }}
-      {{ chapter_header(
-          loop.index ~ ".2",
-          "Grid Infrastructure",
-          subtitle="Power access screening for " ~ site.name,
-          tag="Grid Context"
-      ) }}
+    {# ── 3-COLUMN LAYOUT ───────────────────────────────────────── #}
+    <div class="exec-grid">
 
-      {{ narrative(grid_context.narrative) }}
+      {# ── LEFT COLUMN (24%) ──────────────────────────────────── #}
+      <div class="exec-col-left">
 
-      {# Map + Network Overview side by side #}
-      <div class="two-col" style="align-items:start;">
-        <div>
-          {% if grid_context.grid_context_map %}
-            <div class="map-container" style="margin:0;">
-              <img src="{{ grid_context.grid_context_map }}" alt="Grid context map"
-                   style="width:100%; object-fit:contain;" />
-              <div class="map-caption">
-                Site (dark) · Substations · Power lines · Dashed circle = search radius
+        <div class="exec-card">
+          <div class="exec-card-title">Site</div>
+          <div class="fact-row"><span class="fact-label">Location</span><span class="fact-value">{{ (site.location.city or '') }}{% if site.location.city and site.location.country %}, {% endif %}{{ (site.location.country or '') }}</span></div>
+          {% if site.location.latitude and site.location.longitude %}
+            <div class="fact-row"><span class="fact-label">Coords</span><span class="fact-value">{{ "%.4f"|format(site.location.latitude) }}, {{ "%.4f"|format(site.location.longitude) }}</span></div>
+          {% endif %}
+          {% for item in site_specifics.property_items[:2] %}
+            <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+          {% endfor %}
+          {% for item in site_specifics.power_items[:2] %}
+            <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+          {% endfor %}
+        </div>
+
+        {% if site_specifics.location_map %}
+          <div class="exec-card" style="padding:1px;">
+            <div class="exec-map"><img src="{{ site_specifics.location_map }}" alt="" /></div>
+          </div>
+        {% endif %}
+
+        {% if grid_context.included %}
+          <div class="exec-card">
+            <div class="exec-card-title">Grid</div>
+            {% if grid_context.grid_context_map %}
+              <div class="exec-map"><img src="{{ grid_context.grid_context_map }}" alt="" /></div>
+            {% endif %}
+            {% for item in grid_context.summary_items[:2] %}
+              <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+            {% endfor %}
+            {% if grid_context.score_items %}
+              {% for item in grid_context.score_items[:2] %}
+                <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if climate.included %}
+          <div class="exec-card">
+            <div class="exec-card-title">Climate</div>
+            {% for item in climate.temperature_items[:3] %}
+              <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+            {% endfor %}
+            {% if climate.best_free_cooling_summary %}
+              <div class="fact-row"><span class="fact-label">{{ climate.best_free_cooling_summary[0].label }}</span><span class="fact-value">{{ climate.best_free_cooling_summary[0].value }}</span></div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if load_mix.included and load_mix.has_candidates %}
+          <div class="exec-card">
+            <div class="exec-card-title">Load Mix</div>
+            {% for item in load_mix.headline_items[:2] %}
+              <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+            {% endfor %}
+            {% if load_mix.top_candidate_table and load_mix.top_candidate_table.rows %}
+              <div class="exec-alloc-bar">
+                {% for row in load_mix.top_candidate_table.rows %}
+                  <div class="exec-alloc-segment" style="flex:{{ row.share_pct | replace('%','') }};background:{{ alloc_colors[loop.index0 % alloc_colors|length] }};"></div>
+                {% endfor %}
               </div>
+              <div class="exec-alloc-legend">
+                {% for row in load_mix.top_candidate_table.rows %}
+                  <span><span class="exec-alloc-dot" style="background:{{ alloc_colors[loop.index0 % alloc_colors|length] }};"></span>{{ row.load_type }} {{ row.share_pct }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if green_energy.included %}
+          <div class="exec-card">
+            <div class="exec-card-title">Green Energy</div>
+            {% for item in green_energy.headline_items[:3] %}
+              <div class="fact-row"><span class="fact-label">{{ item.label }}</span><span class="fact-value">{{ item.value }}</span></div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+      </div>
+
+      {# ── CENTER COLUMN (40%) ────────────────────────────────── #}
+      <div class="exec-col-center">
+
+        {% if deep_dive.available %}
+          <div class="exec-card">
+            <div class="exec-card-title">Key Metrics</div>
+            <div class="exec-metrics-row">
+              {% if deep_dive.status_items %}
+                <div class="exec-metric featured">
+                  <div class="exec-metric-label">Status</div>
+                  <div class="exec-metric-value">{{ rag_badge(deep_dive.status_items[0].value) }}</div>
+                </div>
+              {% endif %}
+              {% for item in deep_dive.headline_metrics[:3] %}
+                <div class="exec-metric">
+                  <div class="exec-metric-label">{{ item.label }}</div>
+                  <div class="exec-metric-value">{{ item.value }}</div>
+                </div>
+              {% endfor %}
             </div>
-          {% endif %}
-        </div>
-        <div class="fact-panel" style="margin:0; height:fit-content;">
-          <div class="fact-panel-title">Network Overview</div>
-          {{ fact_rows(grid_context.summary_items[:5]) }}
-          {% if grid_context.score_items %}
-            <div class="fact-panel-title" style="margin-top:10px;">Grid Score</div>
-            {{ fact_rows(grid_context.score_items[:3]) }}
-          {% endif %}
-        </div>
-      </div>
-
-      {% if grid_context.asset_rows %}
-        <div class="subsection-title">Key Infrastructure Assets</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Type</th><th>Name</th><th>Voltage</th><th>Distance</th></tr>
-            </thead>
-            <tbody>
-              {% for asset in grid_context.asset_rows[:4] %}
-                <tr>
-                  <td>{{ asset.asset_type }}</td><td>{{ asset.name }}</td>
-                  <td>{{ asset.voltage }}</td><td>{{ asset.distance }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% endif %}
-      {{ slide_footer() }}
-    </section>
-  {% endif %}
-
-  {# ── WEATHER & CLIMATE (compact) ────────────────────────────── #}
-  {% if climate.included %}
-    <section class="page-break">
-      {{ page_logo() }}
-      {{ chapter_header(
-          loop.index ~ ".3",
-          "Weather & Climate",
-          subtitle="Climate suitability for " ~ site.name,
-          tag="Climate"
-      ) }}
-
-      {{ narrative(climate.narrative) }}
-
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">Temperature Summary</div>
-          {{ fact_rows(climate.temperature_items[:4]) }}
-        </div>
-        {% if climate.best_free_cooling_summary %}
-          <div class="fact-panel">
-            <div class="fact-panel-title">Best Free Cooling</div>
-            {{ fact_rows(climate.best_free_cooling_summary) }}
           </div>
         {% endif %}
-      </div>
 
-      <div class="chart-pair">
-        {% if climate.monthly_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Monthly Temperature</div>
-            {{ climate.monthly_chart_visual.svg_markup | safe }}
+        {% if selected_scenario.available and site_bundle.results.primary %}
+          <div class="exec-card">
+            <div class="exec-card-title">Primary Scenario</div>
+            <div class="exec-pills">
+              <span class="exec-pill">{{ site_bundle.results.primary.scenario.load_type }}</span>
+              <span class="exec-pill">{{ site_bundle.results.primary.scenario.cooling_type }}</span>
+              <span class="exec-pill">{{ site_bundle.results.primary.scenario.redundancy }}</span>
+              <span class="exec-pill">{{ site_bundle.results.primary.scenario.density_scenario }}</span>
+              <span class="exec-pill">{{ site_bundle.results.primary.scenario.backup_power }}</span>
+            </div>
           </div>
         {% endif %}
-        {% if climate.cooling_suitability_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Cooling Suitability</div>
-            {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
-          </div>
-        {% elif climate.free_cooling_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">Free Cooling Hours</div>
-            {{ climate.free_cooling_chart_visual.svg_markup | safe }}
+
+        {% if site_bundle.scenario_comparison_chart.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Scenario Comparison</div>
+            <div class="exec-chart exec-chart-lg">
+              {{ site_bundle.scenario_comparison_chart.svg_markup | safe }}
+            </div>
           </div>
         {% endif %}
-      </div>
-      {{ slide_footer() }}
-    </section>
-  {% endif %}
 
-  {# ── SCENARIO RESULTS ─────────────────────────────────────────── #}
-  {% if selected_scenario.available and deep_dive.available %}
-    <section class="page-break">
-      {{ page_logo() }}
-      {{ chapter_header(
-          loop.index ~ ".4",
-          "Scenario Results",
-          subtitle=selected_scenario.label ~ " — " ~ site.name,
-          tag="Feasibility",
-          badges=[rag_badge(deep_dive.status_items[0].value) if deep_dive.status_items else ""]
-      ) }}
-
-      {% if selected_scenario.available %}
-        {{ scenario_pills(site_bundle.results.primary.scenario) }}
-      {% endif %}
-
-      {# Charts #}
-      <div class="chart-pair">
-        {% if deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">IT Capacity Spectrum</div>
-            {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
+        {% if deep_dive.available and deep_dive.it_capacity_chart_visual is defined and deep_dive.it_capacity_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">IT Capacity Spectrum</div>
+            <div class="exec-chart">
+              {{ deep_dive.it_capacity_chart_visual.svg_markup | safe }}
+            </div>
           </div>
         {% endif %}
-        {% if deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
-          <div class="chart-container">
-            <div class="chart-title">PUE Breakdown</div>
-            {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
+
+        {% if climate.included and climate.monthly_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Monthly Temperature</div>
+            <div class="exec-chart">
+              {{ climate.monthly_chart_visual.svg_markup | safe }}
+            </div>
           </div>
         {% endif %}
+
       </div>
 
-      <div class="fact-grid">
-        <div class="fact-panel">
-          <div class="fact-panel-title">IT Capacity</div>
-          {{ fact_rows(deep_dive.capacity_items[:5]) }}
-        </div>
-        <div class="fact-panel">
-          <div class="fact-panel-title">Power Chain</div>
-          {{ fact_rows(deep_dive.power_items[:5]) }}
-        </div>
+      {# ── RIGHT COLUMN (36%) ─────────────────────────────────── #}
+      <div class="exec-col-right">
+
+        {% if deep_dive.available and deep_dive.pue_breakdown_chart_visual is defined and deep_dive.pue_breakdown_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">PUE Breakdown</div>
+            <div class="exec-chart exec-chart-lg">
+              {{ deep_dive.pue_breakdown_chart_visual.svg_markup | safe }}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if deep_dive.available and deep_dive.firm_capacity_chart_visual is defined and deep_dive.firm_capacity_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Firm Capacity</div>
+            <div class="exec-chart exec-chart-lg">
+              {{ deep_dive.firm_capacity_chart_visual.svg_markup | safe }}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if climate.included and climate.cooling_suitability_chart_visual is defined and climate.cooling_suitability_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Cooling Suitability</div>
+            <div class="exec-chart exec-chart-lg">
+              {{ climate.cooling_suitability_chart_visual.svg_markup | safe }}
+            </div>
+          </div>
+        {% elif climate.included and climate.free_cooling_chart_visual is defined and climate.free_cooling_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Free Cooling</div>
+            <div class="exec-chart exec-chart-lg">
+              {{ climate.free_cooling_chart_visual.svg_markup | safe }}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if green_energy.included and green_energy.energy_breakdown_chart_visual is defined and green_energy.energy_breakdown_chart_visual.available %}
+          <div class="exec-card" style="padding:1px 2px;">
+            <div class="exec-card-title">Green Energy Dispatch</div>
+            <div class="exec-chart">
+              {{ green_energy.energy_breakdown_chart_visual.svg_markup | safe }}
+            </div>
+          </div>
+        {% endif %}
+
       </div>
+    </div>
 
-      {# Scenario comparison #}
-      {% if report.include_all_scenarios and site_bundle.results.all_ranked | length > 1 %}
-        <div class="subsection-title">Scenario Comparison</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>#</th><th>Configuration</th><th>IT Load</th><th>PUE</th><th>Score</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {% for r in site_bundle.results.all_ranked %}
-                <tr {% if r.is_primary %}style="background:#eff6ff;font-weight:600;"{% endif %}>
-                  <td><span class="rank-badge {% if r.rank_within_site == 1 %}rank-1{% elif r.rank_within_site == 2 %}rank-2{% elif r.rank_within_site == 3 %}rank-3{% endif %}">{{ r.rank_within_site }}</span></td>
-                  <td style="font-size:8.5pt;">{{ r.scenario.load_type }} / {{ r.scenario.cooling_type }} / {{ r.scenario.redundancy }}{% if r.is_primary %} <span style="font-size:7.5pt;color:#2563eb;">(primary)</span>{% endif %}</td>
-                  <td>{{ r.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
-                  <td>{{ r.metrics.pue | default(0) | round(3) }}</td>
-                  <td>{{ r.metrics.score | default(0) | round(1) }}</td>
-                  <td>{{ rag_badge(r.status.rag_status) }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% endif %}
+    {# ── FOOTER ─────────────────────────────────────────────────── #}
+    <div class="exec-footer">
+      DC Feasibility Tool v4 &middot; {{ report.generated_on }} &middot; Confidential
+    </div>
 
-      {{ narrative(deep_dive.narrative) }}
-      {{ slide_footer() }}
-    </section>
-  {% endif %}
+  </div>
 {% endfor %}
 
-{# ── FOOTER ────────────────────────────────────────────────────── #}
-<div class="report-footer">
-  <span>Generated by DC Feasibility Tool v4 &middot; {{ report.generated_on }}</span>
-  <span>Executive Summary</span>
-</div>
+{# ── Multi-site comparison ──────────────────────────────────────────── #}
+{% if report_bundle.studied_sites | length > 1 %}
+  <div style="page-break-before:always;"></div>
+  <div class="exec-page">
+    <div class="exec-header">
+      {% if theme.page_logo_url %}
+        <div class="exec-header-logo"><img src="{{ theme.page_logo_url }}" alt="" /></div>
+      {% endif %}
+      <span class="exec-header-title">Multi-Site Comparison</span>
+      <span class="exec-header-date">{{ report.generated_on }}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:5pt;margin-top:3px;">
+      <thead>
+        <tr style="background:#f9fafb;border-bottom:1px solid #d1d5db;">
+          <th style="padding:1.5px 3px;text-align:left;">Site</th>
+          <th style="padding:1.5px 3px;text-align:left;">Location</th>
+          <th style="padding:1.5px 3px;">IT Load</th>
+          <th style="padding:1.5px 3px;">PUE</th>
+          <th style="padding:1.5px 3px;">Score</th>
+          <th style="padding:1.5px 3px;">Status</th>
+          <th style="padding:1.5px 3px;">Cooling</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sb in report_bundle.studied_sites %}
+          {% set s = sb.site_data %}
+          {% set p = sb.results.primary %}
+          <tr style="border-bottom:0.5px solid #e5e7eb;">
+            <td style="padding:1px 3px;">{{ s.name }}</td>
+            <td style="padding:1px 3px;">{{ (s.location.city or '') }}{% if s.location.city and s.location.country %}, {% endif %}{{ (s.location.country or '') }}</td>
+            {% if p %}
+              <td style="padding:1px 3px;text-align:center;">{{ p.metrics.committed_it_mw | default(0) | round(2) }} MW</td>
+              <td style="padding:1px 3px;text-align:center;">{{ p.metrics.pue | default(0) | round(3) }}</td>
+              <td style="padding:1px 3px;text-align:center;">{{ p.metrics.score | default(0) | round(1) }}</td>
+              <td style="padding:1px 3px;text-align:center;">{{ rag_badge(p.status.rag_status) }}</td>
+              <td style="padding:1px 3px;">{{ p.scenario.cooling_type }}</td>
+            {% else %}
+              <td colspan="5" style="padding:1px 3px;color:#9ca3af;">No result</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="exec-footer" style="margin-top:4px;">
+      DC Feasibility Tool v4 &middot; {{ report.generated_on }} &middot; Confidential
+    </div>
+  </div>
+{% endif %}
 {% endblock %}

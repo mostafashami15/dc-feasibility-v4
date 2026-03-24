@@ -29,7 +29,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.COLOCATION_STANDARD,
         "cooling_type": CoolingType.AIR_CHILLER_ECON,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Air-Cooled Chiller + Economizer is the industry standard for "
             "retail colocation. Best PUE (1.38) among compatible options with "
@@ -40,7 +40,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.COLOCATION_HIGH_DENSITY,
         "cooling_type": CoolingType.RDHX,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Rear Door Heat Exchanger provides the best balance of PUE (1.30) "
             "and practicality for high-density colocation at 20 kW/rack."
@@ -50,7 +50,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.HPC,
         "cooling_type": CoolingType.AIR_CHILLER_ECON,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Air-Cooled Chiller + Economizer is a proven HPC topology with "
             "wide industry adoption and free-cooling capability."
@@ -60,7 +60,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.AI_GPU,
         "cooling_type": CoolingType.DLC,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Direct Liquid Cooling is required for GPU-dense racks at 100 kW "
             "typical density. Best PUE (1.12) with warm water economizer."
@@ -70,7 +70,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.HYPERSCALE,
         "cooling_type": CoolingType.AIR_CHILLER_ECON,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Air-Cooled Chiller + Economizer is the industry standard for "
             "hyperscale deployments with proven reliability at scale."
@@ -80,7 +80,7 @@ GUIDED_PRESETS: dict[str, dict] = {
         "load_type": LoadType.EDGE_TELCO,
         "cooling_type": CoolingType.AIR_CHILLER_ECON,
         "density_scenario": DensityScenario.TYPICAL,
-        "redundancy": RedundancyLevel.N_PLUS_1,
+        "redundancy": RedundancyLevel.N,
         "rationale": (
             "Air-Cooled Chiller + Economizer is the best option among the "
             "3 compatible cooling types for edge/telco workloads."

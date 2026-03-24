@@ -642,6 +642,60 @@
           "justification": "Project-specific UPS selection performs better than the baseline 2N derate."
         }
       ]
+    },
+    {
+      "id": "6a51cd30074448e38468753414adc006",
+      "recorded_at_utc": "2026-03-23T20:34:51.700881+00:00",
+      "event_type": "settings_update",
+      "title": "Controlled overrides updated",
+      "summary": "1 override change saved; 1 active persistent override now configured.",
+      "preset_key": null,
+      "preset_label": null,
+      "active_override_count": 1,
+      "site_count": null,
+      "scenario_count": null,
+      "changes": [
+        {
+          "action": "activated",
+          "key": "redundancy.two_n.eta_chain_derate",
+          "label": "2N - Chain Efficiency (eta_chain_derate)",
+          "scope_label": "2N",
+          "parameter_label": "Chain Efficiency (eta_chain_derate)",
+          "unit": "eta",
+          "origin": "settings_override",
+          "previous_value": 0.95,
+          "effective_value": 0.965,
+          "source": "UPS vendor partial-load curve",
+          "justification": "Project-specific UPS selection performs better than the baseline 2N derate."
+        }
+      ]
+    },
+    {
+      "id": "62b48918cfa94b94a105fe537dff73c8",
+      "recorded_at_utc": "2026-03-23T20:50:20.971684+00:00",
+      "event_type": "settings_update",
+      "title": "Controlled overrides updated",
+      "summary": "1 override change saved; 1 active persistent override now configured.",
+      "preset_key": null,
+      "preset_label": null,
+      "active_override_count": 1,
+      "site_count": null,
+      "scenario_count": null,
+      "changes": [
+        {
+          "action": "activated",
+          "key": "redundancy.two_n.eta_chain_derate",
+          "label": "2N - Chain Efficiency (eta_chain_derate)",
+          "scope_label": "2N",
+          "parameter_label": "Chain Efficiency (eta_chain_derate)",
+          "unit": "eta",
+          "origin": "settings_override",
+          "previous_value": 0.95,
+          "effective_value": 0.965,
+          "source": "UPS vendor partial-load curve",
+          "justification": "Project-specific UPS selection performs better than the baseline 2N derate."
+        }
+      ]
     }
   ]
 }

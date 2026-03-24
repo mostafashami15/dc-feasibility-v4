@@ -459,7 +459,7 @@ export default function ScenarioRunner() {
             <div className="p-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-800">What Will Run</h3>
               <p className="text-xs text-gray-500 mt-1">
-                All 6 load types with fixed best-practice cooling, typical density, and N+1 redundancy — using full 8,760-hour climate simulation
+                All 6 load types with fixed best-practice cooling, typical density, and N redundancy — using full 8,760-hour climate simulation
               </p>
             </div>
             <div className="p-4">

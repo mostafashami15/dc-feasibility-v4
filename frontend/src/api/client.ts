@@ -381,6 +381,7 @@ export async function optimizeLoadMix(request: {
   step_pct?: number;
   min_racks?: number;
   top_n?: number;
+  assumption_override_preset_key?: string | null;
 }): Promise<LoadMixResult> {
   const { data } = await api.post<LoadMixResult>("/api/scenarios/load-mix", request);
   return data;

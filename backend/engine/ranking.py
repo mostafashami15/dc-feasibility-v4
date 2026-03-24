@@ -37,6 +37,7 @@ from engine.assumptions import (
     evaluate_compatibility,
     get_rack_density_kw,
 )
+from engine.assumption_overrides import get_effective_cooling_profile
 
 
 # ─────────────────────────────────────────────────────────────
@@ -193,6 +194,10 @@ class LoadMixResult(BaseModel):
     )
     top_candidates: list[LoadMixCandidate] = Field(
         description="Top N candidates ranked by score"
+    )
+    assumption_override_preset_key: str | None = Field(
+        default=None,
+        description="Assumption override preset used for PUE lookup (if any)",
     )
 
 
@@ -357,6 +362,7 @@ def optimize_load_mix(
     step_pct: int = DEFAULT_STEP_PCT,
     min_racks: int = DEFAULT_MIN_RACKS,
     top_n: int = DEFAULT_TOP_N,
+    assumption_override_preset_key: str | None = None,
 ) -> LoadMixResult:
     """Find optimal workload allocation across load types.
 
@@ -436,7 +442,9 @@ def optimize_load_mix(
         raise ValueError(f"step_pct must be 1–50, got {step_pct}")
 
     n_types = len(allowed_load_types)
-    cooling_profile = COOLING_PROFILES[cooling_type.value]
+    cooling_profile = get_effective_cooling_profile(
+        cooling_type.value, preset_key=assumption_override_preset_key
+    )
     cooling_pue_typical = cooling_profile["pue_typical"]
 
     # ── Pre-compute rack densities per type ──
@@ -598,4 +606,5 @@ def optimize_load_mix(
         min_racks=min_racks,
         total_candidates_evaluated=len(candidates),
         top_candidates=top,
+        assumption_override_preset_key=assumption_override_preset_key,
     )

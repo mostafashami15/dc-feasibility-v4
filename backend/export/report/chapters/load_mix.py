@@ -77,6 +77,12 @@ def _build_load_mix_chapter(
         ),
     ]
 
+    preset_key = result.get("assumption_override_preset_key")
+    if preset_key:
+        input_items.append(
+            _fact("Assumption preset", _display_text(preset_key))
+        )
+
     if top_candidate is None:
         return {
             "title": "Load Mix Scenario",

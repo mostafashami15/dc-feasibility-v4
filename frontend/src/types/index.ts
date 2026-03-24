@@ -1071,6 +1071,7 @@ export interface LoadMixResult {
   min_racks: number;
   total_candidates_evaluated: number;
   top_candidates: LoadMixCandidate[];
+  assumption_override_preset_key?: string | null;
 }
 
 

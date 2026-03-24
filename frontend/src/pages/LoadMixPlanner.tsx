@@ -159,6 +159,7 @@ export default function LoadMixPlanner() {
         step_pct: Number.parseInt(stepPct, 10),
         min_racks: Number.parseInt(minRacks, 10),
         top_n: Number.parseInt(topN, 10),
+        assumption_override_preset_key: selectedResult?.scenario.assumption_override_preset_key ?? undefined,
       });
       setResult(data);
       setResultSelectionKey(selectedScenarioKey);

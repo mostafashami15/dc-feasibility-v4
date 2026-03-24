@@ -193,6 +193,10 @@ class LoadMixRequest(BaseModel):
     step_pct: int = Field(default=10, ge=5, le=50, description="Step size in %")
     min_racks: int = Field(default=10, ge=1, description="Minimum racks per type")
     top_n: int = Field(default=5, ge=1, le=20, description="Number of top results")
+    assumption_override_preset_key: str | None = Field(
+        default=None,
+        description="Optional assumption override preset key for PUE lookup",
+    )
 
 
 class TornadoRequest(BaseModel):
@@ -946,6 +950,7 @@ async def load_mix_endpoint(request: LoadMixRequest):
             step_pct=request.step_pct,
             min_racks=request.min_racks,
             top_n=request.top_n,
+            assumption_override_preset_key=request.assumption_override_preset_key,
         )
         return result.model_dump(mode="json")
     except ValueError as e:
