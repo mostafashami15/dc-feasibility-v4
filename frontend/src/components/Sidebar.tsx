@@ -9,6 +9,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+import metlenLogoWhite from "../metlen_logo_white.png";
 
 
 const NAV_ITEMS = [
@@ -61,7 +62,14 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-gray-700 space-y-2">
+      <div className="p-4 border-t border-gray-700 space-y-3">
+        <div className="flex justify-center px-2 pt-1">
+          <img
+            src={metlenLogoWhite}
+            alt="Metlen"
+            className="w-full max-w-[164px] h-auto object-contain"
+          />
+        </div>
         <div className="text-xs text-gray-400">
           {siteCount} site{siteCount !== 1 ? "s" : ""} saved
         </div>

@@ -178,6 +178,13 @@ def _build_pue_decomposition_block(
     block["component_pie_visual"] = component_pie
     block["mode_pie_visual"] = mode_pie
     block["energy_sankey_visual"] = energy_sankey
+    # Attach raw component data for executive summary compact pie
+    block["component_slices"] = [
+        {"label": item["label"], "value": item["energy_kwh"]}
+        for item in components
+        if item["energy_kwh"] > 0
+    ]
+    block["annual_pue"] = sim.annual_pue
     return block
 
 

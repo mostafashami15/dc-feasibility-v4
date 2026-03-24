@@ -2613,3 +2613,490 @@ def build_green_dispatch_hourly_chart(
             body=body_dispatch,
         ),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXECUTIVE SUMMARY — PURPOSE-BUILT MINI CHARTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_RAG_BAR_COLORS: dict[str, str] = {
+    "BLUE": "#3b82f6",
+    "GREEN": "#16a34a",
+    "AMBER": "#f59e0b",
+    "RED": "#ef4444",
+}
+
+
+def build_exec_comparison_chart(
+    ranked_results: list[dict[str, Any]],
+    *,
+    primary_key: str | None,
+    primary_color: str,
+    width: int = 400,
+    height: int = 140,
+) -> str | None:
+    """Horizontal bar chart for executive summary — top 5 scenarios.
+
+    Shows load type, IT load bar, PUE, rack density, and racks per scenario.
+    Returns raw ``<svg>`` markup (no wrapper dict).
+    """
+    results = ranked_results[:5]
+    if len(results) < 2:
+        return None
+
+    pc = _c(primary_color, "#1a365d")
+
+    # Extract data
+    rows: list[dict[str, Any]] = []
+    for r in results:
+        m = r.get("metrics", {})
+        s = r.get("scenario", {})
+        it_mw = float(m.get("committed_it_mw") or m.get("it_load_mw") or 0)
+        pue = float(m.get("pue") or 0)
+        rag = r.get("status", {}).get("rag_status", "GREEN")
+        load_type = s.get("load_type", "?")
+        cooling = s.get("cooling_type", "?")
+        redundancy = s.get("redundancy", "?")
+        rack_density = float(m.get("rack_density_kw") or 0)
+        racks = int(m.get("racks_deployed") or 0)
+        is_primary = r.get("result_key") == primary_key if primary_key else r.get("is_primary", False)
+        # Short label: cooling / redundancy
+        label = f"{cooling} / {redundancy}"
+        rows.append({
+            "it_mw": it_mw, "pue": pue, "rag": rag,
+            "label": label, "load_type": load_type,
+            "rack_density": rack_density, "racks": racks,
+            "is_primary": is_primary,
+        })
+
+    max_it = max(row["it_mw"] for row in rows) or 1
+    upper = max_it * 1.25
+
+    # Layout — compact rows with annotations
+    n = len(rows)
+    label_w = 100
+    annot_w = 120  # Right side: IT MW, PUE, density, racks
+    plot_left = label_w
+    plot_right = width - annot_w
+    plot_w = plot_right - plot_left
+    row_h = height / n
+    bar_h = min(row_h * 0.45, 14)
+
+    parts: list[str] = []
+
+    # Background
+    parts.append(
+        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#f9fafb" />'
+        f'<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="3.5" '
+        f'fill="white" stroke="#e5e7eb" stroke-width="0.5" />'
+    )
+
+    for idx, row in enumerate(rows):
+        cy = row_h * idx + row_h / 2
+        by = cy - bar_h / 2
+
+        bar_px = max((row["it_mw"] / upper) * plot_w, 2)
+        color = pc if row["is_primary"] else _RAG_BAR_COLORS.get(row["rag"], "#94a3b8")
+        opacity = "1" if row["is_primary"] else "0.7"
+        weight = "600" if row["is_primary"] else "400"
+
+        # Load type + cooling/redundancy label (left side, two lines)
+        load_short = escape(row["load_type"][:16])
+        label_short = escape(row["label"][:20])
+        parts.append(
+            f'<text x="{plot_left - 4}" y="{cy - 2}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="7" font-weight="{weight}" '
+            f'text-anchor="end">{load_short}</text>'
+        )
+        parts.append(
+            f'<text x="{plot_left - 4}" y="{cy + 7}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="6" '
+            f'text-anchor="end">{label_short}</text>'
+        )
+
+        # Bar
+        parts.append(
+            f'<rect x="{plot_left}" y="{by:.1f}" width="{bar_px:.1f}" height="{bar_h:.1f}" '
+            f'rx="2" fill="{color}" opacity="{opacity}" />'
+        )
+
+        # Row separator
+        if idx < n - 1:
+            sep_y = row_h * (idx + 1)
+            parts.append(
+                f'<line x1="4" y1="{sep_y:.1f}" x2="{width - 4}" y2="{sep_y:.1f}" '
+                f'stroke="#f3f4f6" stroke-width="0.5" />'
+            )
+
+        # Right annotations: IT MW | PUE | Density | Racks
+        ax = plot_right + 4
+        parts.append(
+            f'<text x="{ax}" y="{cy - 5}" fill="#111827" '
+            f'font-family="system-ui,sans-serif" font-size="8" font-weight="600">'
+            f'{row["it_mw"]:.2f} MW</text>'
+        )
+        parts.append(
+            f'<text x="{ax}" y="{cy + 4}" fill="#6b7280" '
+            f'font-family="system-ui,sans-serif" font-size="6.5">'
+            f'PUE {row["pue"]:.3f} · {row["rack_density"]:.0f} kW/rack</text>'
+        )
+        parts.append(
+            f'<text x="{ax}" y="{cy + 12}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="6">'
+            f'{row["racks"]:,} racks</text>'
+        )
+
+        # Primary dot
+        if row["is_primary"]:
+            parts.append(
+                f'<circle cx="5" cy="{cy}" r="2" fill="{pc}" />'
+            )
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Scenario comparison">'
+        + "".join(parts)
+        + "</svg>"
+    )
+    return svg
+
+
+def build_exec_firm_capacity_chart(
+    *,
+    worst_mw: float,
+    firm_mw: float,
+    mean_mw: float,
+    best_mw: float,
+    primary_color: str,
+    secondary_color: str,
+    width: int = 400,
+    height: int = 80,
+) -> str | None:
+    """Compact horizontal firm capacity chart for executive summary.
+
+    Shows Worst → P99 (Firm) → Mean → Best as horizontal bars.
+    Returns raw ``<svg>`` markup.
+    """
+    if firm_mw <= 0 and mean_mw <= 0:
+        return None
+
+    pc = _c(primary_color, "#1a365d")
+    sc = _c(secondary_color, "#2b6cb0")
+
+    items = [
+        ("Worst", worst_mw, "#ef4444"),
+        ("P99 Firm", firm_mw, pc),
+        ("Mean", mean_mw, sc),
+        ("Best", best_mw, "#16a34a"),
+    ]
+    items = [(label, val, color) for label, val, color in items if val and val > 0]
+    if not items:
+        return None
+
+    upper = max(val for _, val, _ in items) * 1.15
+    n = len(items)
+    label_w = 55
+    value_w = 55
+    plot_left = label_w
+    plot_right = width - value_w
+    plot_w = plot_right - plot_left
+    row_h = height / n
+    bar_h = min(row_h * 0.5, 12)
+
+    parts: list[str] = []
+    parts.append(
+        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#f9fafb" />'
+        f'<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="3.5" '
+        f'fill="white" stroke="#e5e7eb" stroke-width="0.5" />'
+    )
+
+    for idx, (label, val, color) in enumerate(items):
+        cy = row_h * idx + row_h / 2
+        by = cy - bar_h / 2
+        bar_px = max((val / upper) * plot_w, 2)
+
+        # Label
+        parts.append(
+            f'<text x="{plot_left - 4}" y="{cy + 3}" fill="#6b7280" '
+            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'text-anchor="end">{escape(label)}</text>'
+        )
+
+        # Bar
+        parts.append(
+            f'<rect x="{plot_left}" y="{by:.1f}" width="{bar_px:.1f}" height="{bar_h:.1f}" '
+            f'rx="2" fill="{color}" opacity="0.85" />'
+        )
+
+        # Value
+        parts.append(
+            f'<text x="{plot_right + 4}" y="{cy + 3}" fill="{color}" '
+            f'font-family="system-ui,sans-serif" font-size="8" font-weight="600">'
+            f'{val:.2f} MW</text>'
+        )
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Firm capacity spectrum">'
+        + "".join(parts)
+        + "</svg>"
+    )
+    return svg
+
+
+# ---------------------------------------------------------------------------
+# Executive — compact hourly IT capacity deficit chart
+# ---------------------------------------------------------------------------
+
+def build_exec_deficit_chart(
+    hourly_it_kw: list[float],
+    firm_kw: float,
+    mean_kw: float,
+    *,
+    primary_color: str = "#1a365d",
+    width: int = 400,
+    height: int = 120,
+) -> str | None:
+    """Compact hourly IT capacity & deficit chart for executive summary.
+
+    Shows the annual hourly IT capacity line, mean/firm reference lines,
+    and shaded deficit area — all in a small footprint suitable for a
+    one-page report.  Returns raw ``<svg>`` markup.
+    """
+    if not hourly_it_kw or len(hourly_it_kw) < 24:
+        return None
+
+    pc = _c(primary_color, "#1a365d")
+    n = len(hourly_it_kw)
+
+    pad_l, pad_r, pad_t, pad_b = 42, 6, 10, 18
+    pw = width - pad_l - pad_r
+    ph = height - pad_t - pad_b
+
+    # Scale
+    all_vals = hourly_it_kw + [firm_kw, mean_kw]
+    y_min = min(all_vals) * 0.95
+    y_max = max(all_vals) * 1.05
+    y_range = y_max - y_min if y_max > y_min else 1
+
+    def sx(i: int) -> float:
+        return pad_l + (i / (n - 1)) * pw
+
+    def sy(v: float) -> float:
+        return pad_t + ph - ((v - y_min) / y_range) * ph
+
+    # Sample every ~12 hours for SVG efficiency
+    step = max(1, n // 365)
+    indices = list(range(0, n, step))
+    if indices[-1] != n - 1:
+        indices.append(n - 1)
+
+    parts: list[str] = []
+
+    # Background
+    parts.append(
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="white" />'
+    )
+
+    # Y-axis grid (3 lines)
+    for tick_i in range(3):
+        v = y_min + y_range * (tick_i / 2)
+        yp = sy(v)
+        parts.append(
+            f'<line x1="{pad_l}" y1="{yp:.1f}" x2="{width - pad_r}" y2="{yp:.1f}" '
+            f'stroke="#f3f4f6" stroke-width="0.5" />'
+        )
+        parts.append(
+            f'<text x="{pad_l - 3}" y="{yp + 2.5}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+            f'{v / 1000:.1f}</text>'
+        )
+
+    # Deficit area (where IT < mean) — shaded red
+    deficit_path = []
+    in_deficit = False
+    for i in indices:
+        x = sx(i)
+        it_v = hourly_it_kw[i]
+        if it_v < mean_kw:
+            if not in_deficit:
+                deficit_path.append(f"M{x:.1f},{sy(mean_kw):.1f}")
+                in_deficit = True
+            deficit_path.append(f"L{x:.1f},{sy(it_v):.1f}")
+        else:
+            if in_deficit:
+                deficit_path.append(f"L{x:.1f},{sy(mean_kw):.1f}Z")
+                in_deficit = False
+    if in_deficit:
+        deficit_path.append(f"L{sx(indices[-1]):.1f},{sy(mean_kw):.1f}Z")
+    if deficit_path:
+        parts.append(
+            f'<path d="{"".join(deficit_path)}" fill="#ef4444" opacity="0.2" />'
+        )
+
+    # Hourly IT capacity line
+    points = " ".join(f"{sx(i):.1f},{sy(hourly_it_kw[i]):.1f}" for i in indices)
+    parts.append(
+        f'<polyline points="{points}" fill="none" stroke="{pc}" '
+        f'stroke-width="0.8" opacity="0.8" />'
+    )
+
+    # Mean line (dashed red)
+    my = sy(mean_kw)
+    parts.append(
+        f'<line x1="{pad_l}" y1="{my:.1f}" x2="{width - pad_r}" y2="{my:.1f}" '
+        f'stroke="#ef4444" stroke-width="0.6" stroke-dasharray="3,2" />'
+    )
+    parts.append(
+        f'<text x="{width - pad_r}" y="{my - 2}" fill="#ef4444" '
+        f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+        f'Mean {mean_kw / 1000:.2f} MW</text>'
+    )
+
+    # Firm line (dashed green)
+    fy = sy(firm_kw)
+    parts.append(
+        f'<line x1="{pad_l}" y1="{fy:.1f}" x2="{width - pad_r}" y2="{fy:.1f}" '
+        f'stroke="#16a34a" stroke-width="0.6" stroke-dasharray="3,2" />'
+    )
+    parts.append(
+        f'<text x="{width - pad_r}" y="{fy - 2}" fill="#16a34a" '
+        f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+        f'Firm {firm_kw / 1000:.2f} MW</text>'
+    )
+
+    # X-axis month labels
+    months = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+    for mi, label in enumerate(months):
+        xi = pad_l + (mi / 12) * pw
+        parts.append(
+            f'<text x="{xi:.0f}" y="{height - 4}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="5">{label}</text>'
+        )
+
+    # Y-axis label
+    parts.append(
+        f'<text x="3" y="{pad_t + ph / 2}" fill="#9ca3af" '
+        f'font-family="system-ui,sans-serif" font-size="5" '
+        f'transform="rotate(-90,3,{pad_t + ph / 2})" text-anchor="middle">IT MW</text>'
+    )
+
+    # Deficit energy annotation
+    deficit_kwh = sum(max(mean_kw - kw, 0) for kw in hourly_it_kw)
+    deficit_hours = sum(1 for kw in hourly_it_kw if kw < mean_kw)
+    gap_mw = (mean_kw - firm_kw) / 1000
+    parts.append(
+        f'<text x="{pad_l + 2}" y="{pad_t + 6}" fill="#6b7280" '
+        f'font-family="system-ui,sans-serif" font-size="5">'
+        f'Gap: {gap_mw:.2f} MW · Deficit: {deficit_kwh / 1000:.0f} MWh ({deficit_hours}h)</text>'
+    )
+
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="Hourly IT capacity and deficit">'
+        + "".join(parts)
+        + "</svg>"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Executive — compact PUE decomposition pie chart
+# ---------------------------------------------------------------------------
+
+def build_exec_pue_pie_chart(
+    slices: list[dict[str, Any]],
+    *,
+    pue_value: float | None = None,
+    width: int = 200,
+    height: int = 130,
+) -> str | None:
+    """Compact PUE overhead pie chart for executive summary.
+
+    Each slice: {"label": str, "value": float, "color": str (optional)}.
+    Returns raw ``<svg>`` markup.
+    """
+    slices = [s for s in slices if s.get("value") and s["value"] > 0]
+    if not slices:
+        return None
+
+    total = sum(s["value"] for s in slices)
+    cx, cy = 50, 52
+    r = 36
+
+    parts: list[str] = []
+
+    # Draw pie
+    angle = -pi / 2
+    for idx, s in enumerate(slices):
+        fraction = s["value"] / total
+        sweep = fraction * 2 * pi
+        color = s.get("color") or _PIE_PALETTE[idx % len(_PIE_PALETTE)]
+
+        x1 = cx + r * cos(angle)
+        y1 = cy + r * sin(angle)
+        x2 = cx + r * cos(angle + sweep)
+        y2 = cy + r * sin(angle + sweep)
+        large_arc = 1 if sweep > pi else 0
+
+        if len(slices) == 1:
+            parts.append(
+                f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.85" />'
+            )
+        else:
+            parts.append(
+                f'<path d="M{cx},{cy} L{x1:.1f},{y1:.1f} '
+                f'A{r},{r} 0 {large_arc},1 {x2:.1f},{y2:.1f} Z" '
+                f'fill="{color}" opacity="0.85" />'
+            )
+        angle += sweep
+
+    # PUE value in center
+    if pue_value is not None:
+        parts.append(
+            f'<text x="{cx}" y="{cy + 2}" fill="#111827" '
+            f'font-family="system-ui,sans-serif" font-size="9" font-weight="700" '
+            f'text-anchor="middle">{pue_value:.3f}</text>'
+        )
+        parts.append(
+            f'<text x="{cx}" y="{cy + 9}" fill="#9ca3af" '
+            f'font-family="system-ui,sans-serif" font-size="5" '
+            f'text-anchor="middle">PUE</text>'
+        )
+
+    # Legend (right side, compact)
+    lx = 105
+    ly_start = 12
+    row_h = 12
+    for idx, s in enumerate(slices):
+        fraction = s["value"] / total
+        color = s.get("color") or _PIE_PALETTE[idx % len(_PIE_PALETTE)]
+        ly = ly_start + idx * row_h
+        # Color swatch
+        parts.append(
+            f'<rect x="{lx}" y="{ly}" width="6" height="6" rx="1" fill="{color}" opacity="0.85" />'
+        )
+        # Shortened label
+        label = s["label"]
+        if len(label) > 18:
+            label = label[:17] + "…"
+        parts.append(
+            f'<text x="{lx + 9}" y="{ly + 5.5}" fill="#374151" '
+            f'font-family="system-ui,sans-serif" font-size="5.5">{escape(label)}</text>'
+        )
+        # Percentage
+        parts.append(
+            f'<text x="{width - 4}" y="{ly + 5.5}" fill="#6b7280" '
+            f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+            f'{fraction * 100:.0f}%</text>'
+        )
+
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'preserveAspectRatio="xMidYMid meet" role="img" '
+        f'aria-label="PUE overhead breakdown">'
+        + "".join(parts)
+        + "</svg>"
+    )

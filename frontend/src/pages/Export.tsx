@@ -275,7 +275,7 @@ export default function Export() {
   const [includeAllScenarios, setIncludeAllScenarios] = useState(true);
   const [primaryColor, setPrimaryColor] = useState("#1a365d");
   const [secondaryColor, setSecondaryColor] = useState("#2b6cb0");
-  const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
+  const [fontFamily, setFontFamily] = useState("Arial, Helvetica, sans-serif");
   const [logoUrl, setLogoUrl] = useState("");
 
   // Export state

@@ -53,6 +53,7 @@ from export.report.chapters.scenario import (
     _build_selected_scenario_chapter,
 )
 from export.report.chapters.site_specifics import _build_site_specifics_chapter
+from export.report._executive_context import build_executive_site_context
 from export.visual_assets import build_scenario_comparison_chart
 
 
@@ -351,6 +352,15 @@ def _assemble_report_data(
                 site_bundle=site_bundle,
             )
         )
+
+    # Build executive-summary context per site (flat, purpose-built data)
+    if report_type == "executive":
+        for site_bundle in studied_sites:
+            site_bundle["exec"] = build_executive_site_context(
+                site_bundle,
+                primary_color=primary_color,
+                secondary_color=secondary_color,
+            )
 
     all_annual_pues = [_result_pue(result) for result in all_ranked_results]
     all_it_loads = [result.power.it_load_mw for result in all_ranked_results]

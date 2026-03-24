@@ -6,7 +6,9 @@ Scoped report export endpoints for HTML, PDF, and Excel outputs.
 
 from __future__ import annotations
 
+import base64
 import logging
+import re
 from io import BytesIO
 from typing import Literal, Optional
 
@@ -25,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/export", tags=["Export"])
+
+_INLINE_SVG_PATTERN = re.compile(r"<svg\b[\s\S]*?</svg>", re.IGNORECASE)
 
 
 class ReportConfig(BaseModel):
@@ -71,7 +75,10 @@ class ReportConfig(BaseModel):
     primary_color: str = Field(default="#1a365d", description="Primary brand color (hex)")
     secondary_color: str = Field(default="#2b6cb0", description="Secondary brand color (hex)")
     logo_url: Optional[str] = Field(default=None, description="URL or path to company logo")
-    font_family: str = Field(default="Inter, sans-serif", description="Report font family")
+    font_family: str = Field(
+        default="Arial, Helvetica, sans-serif",
+        description="Report font family",
+    )
 
 
 # ── Private helpers ──────────────────────────────────────────────────────────
@@ -186,6 +193,50 @@ def _ensure_weasyprint_libs():
             )
 
 
+def _rasterize_inline_svgs_for_pdf(html: str) -> str:
+    """Replace inline SVG markup with PNG data URIs for Acrobat-friendly PDFs."""
+    try:
+        import cairosvg  # type: ignore
+    except ImportError:
+        logger.warning("PDF export: CairoSVG unavailable, keeping inline SVG markup")
+        return html
+
+    def replace(match: re.Match[str]) -> str:
+        svg_markup = match.group(0)
+        opening_tag = re.match(r"<svg\b([^>]*)>", svg_markup, re.IGNORECASE)
+        attrs = opening_tag.group(1) if opening_tag else ""
+        width_match = re.search(r'\bwidth="([^"]+)"', attrs)
+        height_match = re.search(r'\bheight="([^"]+)"', attrs)
+        aria_match = re.search(r'\baria-label="([^"]+)"', attrs)
+
+        img_attrs = ['class="pdf-rasterized-svg"']
+        if width_match:
+            img_attrs.append(f'width="{width_match.group(1)}"')
+        if height_match:
+            img_attrs.append(f'height="{height_match.group(1)}"')
+        if aria_match:
+            img_attrs.append(f'alt="{aria_match.group(1)}"')
+        else:
+            img_attrs.append('alt=""')
+        if not width_match:
+            img_attrs.append('style="display:block;width:100%;height:auto;"')
+
+        try:
+            png_bytes = cairosvg.svg2png(
+                bytestring=svg_markup.encode("utf-8"),
+                dpi=192,
+                scale=2,
+            )
+        except Exception as exc:
+            logger.warning("PDF export: failed to rasterize inline SVG: %s", exc)
+            return svg_markup
+
+        encoded = base64.b64encode(png_bytes).decode("ascii")
+        return f'<img {" ".join(img_attrs)} src="data:image/png;base64,{encoded}" />'
+
+    return _INLINE_SVG_PATTERN.sub(replace, html)
+
+
 @router.post("/pdf")
 async def export_pdf_endpoint(config: ReportConfig):
     """Generate a PDF report via WeasyPrint and return it as a downloadable file."""
@@ -198,12 +249,13 @@ async def export_pdf_endpoint(config: ReportConfig):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     try:
+        html_for_pdf = _rasterize_inline_svgs_for_pdf(html)
         _ensure_weasyprint_libs()
         from weasyprint import HTML as WeasyHTML
         from weasyprint.text.fonts import FontConfiguration
 
         font_config = FontConfiguration()
-        pdf_bytes = WeasyHTML(string=html, media_type="print").write_pdf(
+        pdf_bytes = WeasyHTML(string=html_for_pdf, media_type="print").write_pdf(
             font_config=font_config,
         )
     except ImportError:
