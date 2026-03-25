@@ -108,7 +108,7 @@ export default function TornadoChart({
           <Tooltip
             contentStyle={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #E7E6E6",
               borderRadius: "8px",
               fontSize: "12px",
             }}
@@ -149,14 +149,14 @@ export default function TornadoChart({
           {/* Low delta bars (typically red/decrease) */}
           <Bar dataKey="lowDelta" name="Decrease" fill="#ef4444" barSize={20}>
             {data.map((_, i) => (
-              <Cell key={`low-${i}`} fill={data[i].lowDelta < 0 ? "#ef4444" : "#22c55e"} />
+              <Cell key={`low-${i}`} fill={data[i].lowDelta < 0 ? "#ef4444" : "#5FE838"} />
             ))}
           </Bar>
 
           {/* High delta bars (typically green/increase) */}
-          <Bar dataKey="highDelta" name="Increase" fill="#22c55e" barSize={20}>
+          <Bar dataKey="highDelta" name="Increase" fill="#5FE838" barSize={20}>
             {data.map((_, i) => (
-              <Cell key={`high-${i}`} fill={data[i].highDelta > 0 ? "#22c55e" : "#ef4444"} />
+              <Cell key={`high-${i}`} fill={data[i].highDelta > 0 ? "#5FE838" : "#ef4444"} />
             ))}
           </Bar>
         </BarChart>

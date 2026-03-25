@@ -28,11 +28,20 @@ Sensitivity parameters:
     - site_coverage_ratio: fraction of land for building
     - available_power_mw: grid power input (power-constrained only)
 
+NOTE: The helper formulas below (_it_load_power_constrained,
+_it_load_area_constrained, etc.) are kept as thin wrappers that
+replicate the core power chain from power.py and space.py.
+They use the same arithmetic so that tornado / break-even results
+stay in sync with the actual engine. They exist to avoid
+constructing full Site/Scenario objects for each OAT sweep point.
+
 Reference: Architecture Agreement v3.0, Sections 3.1, 3.3, 3.14
 """
 
 from typing import Optional
 from pydantic import BaseModel, Field
+
+from engine.space import compute_effective_racks, compute_it_load_from_racks
 
 
 # ─────────────────────────────────────────────────────────────
@@ -173,6 +182,9 @@ def _it_load_area_constrained(
 ) -> float:
     """IT load in area-constrained mode (MW).
 
+    Delegates to the shared geometry helpers in space.py to ensure
+    sensitivity results stay in sync with the actual engine.
+
     Formula chain (Architecture Agreement Section 3.14):
         buildable = land_area × coverage_ratio
         gross = buildable × floors
@@ -183,12 +195,11 @@ def _it_load_area_constrained(
 
     Returns IT load in MW.
     """
-    buildable = land_area_m2 * coverage_ratio
-    gross = buildable * num_floors
-    whitespace = gross * whitespace_ratio
-    max_racks = int(whitespace / rack_footprint_m2) if rack_footprint_m2 > 0 else 0
-    effective = int(max_racks * whitespace_adjustment)
-    return effective * rack_density_kw / 1000.0
+    effective = compute_effective_racks(
+        land_area_m2, coverage_ratio, num_floors,
+        whitespace_ratio, rack_footprint_m2, whitespace_adjustment,
+    )
+    return compute_it_load_from_racks(effective, rack_density_kw)
 
 
 def _facility_power_from_it(
@@ -685,13 +696,13 @@ def _effective_racks_from_geometry(
 ) -> int:
     """Compute effective racks from site geometry parameters.
 
-    Pure geometry — same chain as space.py but inline for sensitivity.
+    Delegates to the shared compute_effective_racks() in space.py
+    so that sensitivity and the main engine use identical arithmetic.
     """
-    buildable = land_area_m2 * coverage_ratio
-    gross = buildable * num_floors
-    whitespace = gross * whitespace_ratio
-    max_racks = int(whitespace / rack_footprint_m2) if rack_footprint_m2 > 0 else 0
-    return int(max_racks * whitespace_adjustment)
+    return compute_effective_racks(
+        land_area_m2, coverage_ratio, num_floors,
+        whitespace_ratio, rack_footprint_m2, whitespace_adjustment,
+    )
 
 
 def _bisect_solve(

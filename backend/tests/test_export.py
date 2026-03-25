@@ -37,9 +37,9 @@ from export.report_data import (
 )
 
 DEFAULT_EXPORT_STYLE = {
-    "primary_color": "#1a365d",
-    "secondary_color": "#2b6cb0",
-    "font_family": "Inter, sans-serif",
+    "primary_color": "#0A2240",
+    "secondary_color": "#795AFD",
+    "font_family": "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "logo_url": None,
 }
 
@@ -157,6 +157,8 @@ def make_result(
             gross_building_area_m2=5000.0,
             it_whitespace_m2=2000.0,
             support_area_m2=3000.0,
+            gray_space_m2=3000.0,
+            gray_space_ratio=0.60,
             max_racks_by_space=1600,
             effective_racks=1400,
             whitespace_adjustment_factor=0.92,
@@ -1079,8 +1081,8 @@ def test_render_report_html_with_site_only():
 
     html = render_report_html(
         report_type="executive",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1096,8 +1098,8 @@ def test_build_excel_bytes_with_site_only():
 
     workbook = build_excel_bytes(
         report_type="executive",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1147,8 +1149,8 @@ def test_build_excel_bytes_uses_full_studied_site_scenario_matrix():
 
     workbook = build_excel_bytes(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[
@@ -1234,8 +1236,8 @@ def test_build_excel_bytes_adds_optional_depth_sheets(monkeypatch):
 
     workbook = build_excel_bytes(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1289,8 +1291,8 @@ def test_build_excel_bytes_omits_optional_analysis_sheets_when_missing(monkeypat
 
     workbook = build_excel_bytes(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1322,8 +1324,8 @@ def test_build_report_context_filters_to_selected_studied_sites():
 
     context = build_report_context(
         report_type="executive",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[
@@ -1371,8 +1373,8 @@ def test_build_report_context_filters_to_selected_primary_results():
 
     context = build_report_context(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site_one), ("site-2", site_two)],
@@ -1423,8 +1425,8 @@ def test_build_report_bundle_normalizes_primary_and_alternatives(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1460,8 +1462,8 @@ def test_build_report_bundle_includes_cached_grid_context(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="executive",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1510,8 +1512,8 @@ def test_build_report_bundle_includes_climate_analysis_from_cached_weather(
 
     bundle = build_report_bundle(
         report_type="executive",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1551,8 +1553,8 @@ def test_build_report_bundle_shapes_core_chapter_context(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1631,8 +1633,8 @@ def test_build_report_bundle_shapes_milestone_five_advanced_blocks(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1684,8 +1686,8 @@ def test_build_report_bundle_shapes_milestone_six_optional_chapters(monkeypatch)
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1742,8 +1744,8 @@ def test_build_report_bundle_omits_stale_milestone_six_payloads(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1811,8 +1813,8 @@ def test_build_report_bundle_shapes_export_safe_visuals(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -1886,8 +1888,8 @@ def test_site_specifics_location_map_receives_imported_geometry(monkeypatch):
 
     bundle = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-boundary", site)],
@@ -2041,8 +2043,8 @@ def test_export_still_works_when_optional_analyses_are_missing(monkeypatch):
 
     context = build_report_bundle(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2052,8 +2054,8 @@ def test_export_still_works_when_optional_analyses_are_missing(monkeypatch):
     )
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2063,8 +2065,8 @@ def test_export_still_works_when_optional_analyses_are_missing(monkeypatch):
     )
     workbook = build_excel_bytes(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2109,8 +2111,8 @@ def test_render_report_html_omits_missing_hourly_advanced_blocks(monkeypatch):
 
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2179,8 +2181,8 @@ def test_render_report_html_includes_core_chapters_when_optional_analyses_exist(
 
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2220,8 +2222,8 @@ def test_render_report_html_includes_milestone_six_optional_chapters(monkeypatch
 
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2264,8 +2266,8 @@ def test_render_report_html_includes_guardrailed_narratives(monkeypatch):
 
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site)],
@@ -2304,8 +2306,8 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
 
     html = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site_one)],
@@ -2318,8 +2320,8 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
 
     html_presentation = render_report_html(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site_one)],
@@ -2332,8 +2334,8 @@ def test_render_report_html_and_excel_include_layout_mode_and_filtered_results()
 
     workbook = build_excel_bytes(
         report_type="detailed",
-        primary_color="#1a365d",
-        secondary_color="#2b6cb0",
+        primary_color="#0A2240",
+        secondary_color="#795AFD",
         font_family="Inter, sans-serif",
         logo_url=None,
         site_entries=[("site-1", site_one)],

@@ -72,11 +72,11 @@ class ReportConfig(BaseModel):
         description="Include all scenario results per site for comparison. "
         "When False, only the selected primary result is included.",
     )
-    primary_color: str = Field(default="#1a365d", description="Primary brand color (hex)")
-    secondary_color: str = Field(default="#2b6cb0", description="Secondary brand color (hex)")
+    primary_color: str = Field(default="#0A2240", description="Primary brand color (hex)")
+    secondary_color: str = Field(default="#795AFD", description="Secondary brand color (hex)")
     logo_url: Optional[str] = Field(default=None, description="URL or path to company logo")
     font_family: str = Field(
-        default="Arial, Helvetica, sans-serif",
+        default="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
         description="Report font family",
     )
 

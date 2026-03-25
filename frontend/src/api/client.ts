@@ -418,7 +418,8 @@ export async function computeFootprint(request: {
   facility_power_mw: number;
   procurement_power_mw: number;
   buildable_footprint_m2: number;
-  land_area_m2: number;
+  gray_space_m2: number;
+  roof_usable: boolean;
   backup_power_type?: BackupPowerType;
   cooling_m2_per_kw_override?: number;
 }): Promise<FootprintResult> {

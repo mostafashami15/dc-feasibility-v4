@@ -76,7 +76,7 @@ export default function DailyProfileChart({
   const avgLabel = metric === "it" ? "Daily Avg IT" : "Daily Avg PUE";
   const minLabel = metric === "it" ? "Daily Min IT" : "Daily Min PUE";
   const maxLabel = metric === "it" ? "Daily Max IT" : "Daily Max PUE";
-  const avgColor = metric === "it" ? "#2563eb" : "#059669";
+  const avgColor = metric === "it" ? "#795AFD" : "#5FE838";
 
   return (
     <div className="h-64">
@@ -99,7 +99,7 @@ export default function DailyProfileChart({
           <Tooltip
             contentStyle={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #E7E6E6",
               borderRadius: "8px",
               fontSize: "12px",
             }}
@@ -114,13 +114,13 @@ export default function DailyProfileChart({
           {referenceValue !== undefined && (
             <ReferenceLine
               y={referenceValue}
-              stroke="#f59e0b"
+              stroke="#00F1F2"
               strokeWidth={1.5}
               strokeDasharray="4 4"
               label={{
                 value: referenceLabel,
                 position: "insideTopRight",
-                style: { fontSize: 10, fill: "#f59e0b" },
+                style: { fontSize: 10, fill: "#00F1F2" },
               }}
             />
           )}
@@ -128,7 +128,7 @@ export default function DailyProfileChart({
             type="monotone"
             dataKey={minKey}
             name={minLabel}
-            stroke="#cbd5e1"
+            stroke="#BCACFE"
             strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}
@@ -137,7 +137,7 @@ export default function DailyProfileChart({
             type="monotone"
             dataKey={maxKey}
             name={maxLabel}
-            stroke="#94a3b8"
+            stroke="#0A2240"
             strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}

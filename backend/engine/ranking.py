@@ -36,6 +36,7 @@ from engine.assumptions import (
     COOLING_PROFILES,
     evaluate_compatibility,
     get_rack_density_kw,
+    get_pue_for_load_type,
 )
 from engine.assumption_overrides import get_effective_cooling_profile
 
@@ -135,6 +136,26 @@ class ScoreBreakdown(BaseModel):
         description="Weighted composite score (0–100)"
     )
 
+    # ── Feasibility gate (infrastructure fit can override RAG) ──
+    equipment_fits: bool = Field(
+        default=True,
+        description="Whether all infrastructure equipment fits in the available space"
+    )
+    score_capped: bool = Field(
+        default=False,
+        description="True if composite was capped due to a feasibility-breaking constraint"
+    )
+    score_cap_reason: Optional[str] = Field(
+        default=None,
+        description="Reason the score was capped (displayed to the user)"
+    )
+
+    # ── Human-readable explanations for each component ──
+    component_reasons: dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-component explanation strings for the tooltip"
+    )
+
 
 class LoadMixAllocation(BaseModel):
     """One allocation in a load mix combination.
@@ -214,6 +235,7 @@ def score_scenario(
     rag_status: RAGStatus,
     ground_utilization_ratio: float = 0.0,
     roof_utilization_ratio: float = 0.0,
+    gray_space_ratio: float = 0.60,
     weights: Optional[dict[str, float]] = None,
 ) -> ScoreBreakdown:
     """Compute composite ranking score for one scenario.
@@ -328,6 +350,42 @@ def score_scenario(
         infra_score = 100.0 - (worst_util - 0.5) * 100.0
     infra_score = max(0.0, min(100.0, infra_score))
 
+    # Gray space sufficiency penalty (Phase 1.3)
+    # Tier III minimum gray space ratio is 0.55. Below this, support
+    # infrastructure (power rooms, cooling plant, corridors) may not fit.
+    # If equipment also doesn't fit (worst_util > 1.0), score drops to 0.
+    GRAY_SPACE_MIN = 0.55
+    if gray_space_ratio < GRAY_SPACE_MIN:
+        if worst_util > 1.0:
+            # Equipment doesn't fit AND gray space is tight → hard zero
+            infra_score = 0.0
+        else:
+            # Gray space tight but equipment fits → proportional penalty
+            # Ratio 0.55 → no penalty, ratio 0.40 → 20-point penalty
+            shortfall = GRAY_SPACE_MIN - gray_space_ratio
+            penalty = min(20.0, shortfall * 133.0)  # ~20 pts at 0.40 ratio
+            infra_score = max(0.0, infra_score - penalty)
+
+    # ══════════════════════════════════════════════════════════
+    # Feasibility Gate — equipment must fit
+    # ══════════════════════════════════════════════════════════
+    # If equipment physically does not fit in the available space,
+    # this scenario is NOT feasible regardless of other scores.
+    # Override RAG score to RED (0) and cap composite at 25.
+    equipment_fits = worst_util <= 1.0
+    score_capped = False
+    score_cap_reason: str | None = None
+
+    if not equipment_fits:
+        # Force RAG to RED equivalent — scenario is not feasible
+        rag_score = 0.0
+        score_cap_reason = (
+            f"Infrastructure equipment does not fit "
+            f"(utilization {worst_util:.0%}). "
+            f"Scenario is not feasible at this building size."
+        )
+        score_capped = True
+
     # ══════════════════════════════════════════════════════════
     # Weighted Composite
     # ══════════════════════════════════════════════════════════
@@ -339,6 +397,42 @@ def score_scenario(
         + infra_score * w["infrastructure_fit"]
     )
 
+    # Hard cap: if equipment doesn't fit, composite cannot exceed 25
+    # regardless of how good the other components are.
+    INFEASIBLE_CAP = 25.0
+    if not equipment_fits:
+        composite = min(composite, INFEASIBLE_CAP)
+
+    # ══════════════════════════════════════════════════════════
+    # Component Reasons (for frontend tooltip)
+    # ══════════════════════════════════════════════════════════
+    component_reasons: dict[str, str] = {
+        "pue_efficiency": (
+            f"PUE {pue:.2f} → score {pue_score:.0f}/100 "
+            f"(range {PUE_BEST}–{PUE_WORST}, lower is better)"
+        ),
+        "it_capacity": (
+            f"IT capacity {it_load_mw:.2f} MW of {max_it_load_mw:.2f} MW max "
+            f"→ score {it_score:.0f}/100"
+        ),
+        "space_utilization": (
+            f"{racks_deployed} of {effective_racks} racks deployed "
+            f"({racks_deployed/effective_racks*100:.0f}%) → score {space_score:.0f}/100"
+            if effective_racks > 0
+            else "No rack capacity available → score 0/100"
+        ),
+        "rag_status": (
+            f"RAG: {rag_status.value}"
+            + (" (overridden to RED — equipment does not fit)" if not equipment_fits else "")
+            + f" → score {rag_score:.0f}/100"
+        ),
+        "infrastructure_fit": (
+            f"Equipment utilization {worst_util:.0%} of available space "
+            f"→ score {infra_score:.0f}/100"
+            + (" — DOES NOT FIT" if not equipment_fits else "")
+        ),
+    }
+
     return ScoreBreakdown(
         pue_score=round(pue_score, 2),
         it_capacity_score=round(it_score, 2),
@@ -347,6 +441,10 @@ def score_scenario(
         infrastructure_fit_score=round(infra_score, 2),
         weights=w,
         composite_score=round(composite, 2),
+        equipment_fits=equipment_fits,
+        score_capped=score_capped,
+        score_cap_reason=score_cap_reason,
+        component_reasons=component_reasons,
     )
 
 
@@ -445,12 +543,13 @@ def optimize_load_mix(
     cooling_profile = get_effective_cooling_profile(
         cooling_type.value, preset_key=assumption_override_preset_key
     )
-    cooling_pue_typical = cooling_profile["pue_typical"]
 
-    # ── Pre-compute rack densities per type ──
+    # ── Pre-compute rack densities and per-load-type PUE ──
     densities: dict[str, float] = {}
+    pue_per_load_type: dict[str, float] = {}
     for lt in allowed_load_types:
         densities[lt.value] = get_rack_density_kw(lt.value, density_scenario.value)
+        pue_per_load_type[lt.value] = get_pue_for_load_type(lt.value, cooling_type.value)
 
     # ── Generate all share combinations summing to 100% ──
     # Using integer arithmetic: steps from 0 to 100 in step_pct increments.
@@ -509,11 +608,13 @@ def optimize_load_mix(
                 notes.extend(compatibility_reasons)
 
             # ── Blended PUE contribution ──
-            # Each load type uses the same cooling system PUE (since they
-            # share the same facility). The "blended" PUE is simply the
-            # cooling profile's typical PUE — it doesn't change with mix.
-            # However, we weight by share to support future per-type cooling.
-            weighted_pue_sum += share_frac * cooling_pue_typical
+            # Per-load-type PUE lookup: different load types may have different
+            # effective PUE values based on their cooling compatibility.
+            # Currently all types in one facility share the same cooling system,
+            # so this is the same value — but the per-type lookup supports
+            # future per-zone cooling (e.g., DLC zone vs air-cooled zone).
+            load_type_pue = pue_per_load_type[lt.value]
+            weighted_pue_sum += share_frac * load_type_pue
 
             allocations.append(LoadMixAllocation(
                 load_type=lt.value,

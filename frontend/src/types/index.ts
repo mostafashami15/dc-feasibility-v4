@@ -81,6 +81,7 @@ export interface Site {
   floor_to_floor_height_m: number;
   num_floors: number;
   num_expansion_floors: number;
+  roof_usable: boolean;
   whitespace_ratio: number;
   rack_footprint_m2: number;
   available_power_mw: number;
@@ -106,6 +107,7 @@ export const DEFAULT_SITE: Site = {
   floor_to_floor_height_m: 4.5,
   num_floors: 1,
   num_expansion_floors: 0,
+  roof_usable: true,
   whitespace_ratio: 0.40,
   rack_footprint_m2: 3.0,
   available_power_mw: 0,
@@ -140,6 +142,8 @@ export interface SpaceResult {
   gross_building_area_m2: number;
   it_whitespace_m2: number;
   support_area_m2: number;
+  gray_space_m2: number;
+  gray_space_ratio: number;
   max_racks_by_space: number;
   effective_racks: number;
   whitespace_adjustment_factor: number;
@@ -195,6 +199,7 @@ export interface ScenarioResult {
   space: SpaceResult;
   power: PowerResult;
   score: number;
+  score_breakdown?: ScoreBreakdown;
   annual_pue: number | null;
   overtemperature_hours: number | null;
   pue_source: "static" | "hourly";
@@ -474,13 +479,27 @@ export interface GuidedRunResponse {
   presets: GuidedPreset[];
 }
 
+export interface ScoreBreakdown {
+  pue_score: number;
+  it_capacity_score: number;
+  space_utilization_score: number;
+  rag_score: number;
+  infrastructure_fit_score: number;
+  weights: Record<string, number>;
+  composite_score: number;
+  equipment_fits: boolean;
+  score_capped: boolean;
+  score_cap_reason: string | null;
+  component_reasons: Record<string, string>;
+}
+
 export interface ScoreRequest {
   results: ScenarioResult[];
   weights?: Record<string, number>;
 }
 
 export interface ScoreResponse {
-  scored_results: Array<ScenarioResult & { score_breakdown?: Record<string, number> }>;
+  scored_results: Array<ScenarioResult & { score_breakdown?: ScoreBreakdown }>;
   count: number;
 }
 
@@ -590,7 +609,7 @@ export interface BreakEvenResult {
 export interface FootprintElement {
   name: string;
   area_m2: number;
-  location: "ground" | "roof";
+  location: "gray_space" | "roof";
   sizing_basis_kw: number;
   m2_per_kw_used: number;
   num_units: number | null;
@@ -600,19 +619,24 @@ export interface FootprintElement {
 
 export interface FootprintResult {
   elements: FootprintElement[];
-  total_ground_m2: number;
-  total_roof_m2: number;
+  total_gray_space_equipment_m2: number;
+  total_roof_equipment_m2: number;
   total_infrastructure_m2: number;
-  available_outdoor_m2: number;
+  gray_space_m2: number;
   building_roof_m2: number;
-  ground_utilization_ratio: number;
+  roof_usable: boolean;
+  gray_space_utilization_ratio: number;
   roof_utilization_ratio: number;
-  ground_fits: boolean;
+  gray_space_fits: boolean;
   roof_fits: boolean;
   all_fits: boolean;
+  gray_space_remaining_m2: number;
+  ground_utilization_ratio: number;
+  ground_fits: boolean;
   backup_power_type: string;
   backup_num_units: number;
   backup_unit_size_kw: number;
+  warnings: string[];
 }
 
 
@@ -629,6 +653,8 @@ export interface BackupPowerSizing {
   total_rated_kw: number;
   footprint_m2: number;
   ramp_time_seconds: number;
+  efficiency_min: number;
+  efficiency_max: number;
   efficiency_typical: number;
   annual_runtime_hours: number;
   electrical_energy_mwh: number;
@@ -647,7 +673,7 @@ export interface BackupPowerComparison {
   technologies: BackupPowerSizing[];
   diesel_co2_tonnes: number;
   lowest_co2_technology: string;
-  smallest_footprint_technology: string;
+  lowest_footprint_technology: string;
   fastest_ramp_technology: string;
 }
 

@@ -102,7 +102,7 @@ export default function TemperatureChart({ monthlyStats }: TemperatureChartProps
           <Tooltip
             contentStyle={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #E7E6E6",
               borderRadius: "8px",
               fontSize: "12px",
             }}
@@ -123,13 +123,13 @@ export default function TemperatureChart({ monthlyStats }: TemperatureChartProps
           <Bar
             dataKey="mean"
             name="Mean"
-            fill="#3b82f6"
+            fill="#795AFD"
             radius={[2, 2, 0, 0]}
           />
           <Bar
             dataKey="min"
             name="Min"
-            fill="#06b6d4"
+            fill="#00F1F2"
             opacity={0.6}
             radius={[2, 2, 0, 0]}
           />

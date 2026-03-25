@@ -134,6 +134,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 5.5,
         "T_ref_C": 35.0,
         "COP_slope": 0.12,  # dCOP/dT — Engineering judgment, typical for DX scroll
+        "COP_quadratic": 0.0,  # Quadratic coefficient (dCOP/dT²), 0 = linear model
         "k_fan": 0.08,  # 8% of IT load — floor-standing CRAC units with internal fans
         "k_econ": 0.0,  # No economizer
         # Whitespace adjustment
@@ -156,6 +157,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 7.0,
         "T_ref_C": 35.0,
         "COP_slope": 0.12,
+        "COP_quadratic": 0.0,
         "k_fan": 0.06,  # 6% — AHU fans less overhead than CRAC
         "k_econ": 0.0,
         "whitespace_adjustment_factor": 1.00,  # AHU in separate plant room
@@ -179,6 +181,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 9.0,
         "T_ref_C": 35.0,
         "COP_slope": 0.15,
+        "COP_quadratic": 0.0,
         "k_fan": 0.05,  # 5%
         "k_econ": 0.015,  # 1.5% — economizer pump/fan when compressor off
         # Chiller integral economizer thresholds
@@ -208,6 +211,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 12.0,
         "T_ref_C": 35.0,  # This is wet-bulb reference
         "COP_slope": 0.20,
+        "COP_quadratic": 0.0,
         "k_fan": 0.06,  # 6% — includes cooling tower fans and pumps
         "k_econ": 0.015,
         # Water-side economizer threshold
@@ -232,6 +236,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 9.0,
         "T_ref_C": 35.0,
         "COP_slope": 0.15,
+        "COP_quadratic": 0.0,
         "k_fan": 0.04,  # 4% — less fan overhead (rear door handles airflow)
         "k_econ": 0.015,
         "CHWS_set_C": 16.0,
@@ -260,6 +265,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 12.0,
         "T_ref_C": 35.0,
         "COP_slope": 0.18,
+        "COP_quadratic": 0.0,
         "k_fan": 0.03,  # 3% — minimal air movement needed
         "k_econ": 0.012,  # Slightly lower — just CDU pumps
         # Partial liquid coverage
@@ -301,6 +307,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 15.0,
         "T_ref_C": 35.0,
         "COP_slope": 0.20,
+        "COP_quadratic": 0.0,
         "k_fan": 0.02,  # 2% — almost no air movement
         "k_econ": 0.010,
         # High fluid temp thresholds — dry cooler approach = 6°C (v3 correction)
@@ -330,6 +337,7 @@ COOLING_PROFILES: dict[str, dict] = {
         "COP_max": 20.0,
         "T_ref_C": 20.0,  # Lower reference — fan COP drops at higher ambient
         "COP_slope": 0.30,
+        "COP_quadratic": 0.0,
         "k_fan": 0.04,  # 4%
         "k_econ": 0.015,
         # Air-side economizer thresholds
@@ -622,6 +630,27 @@ def get_rack_density_kw(load_type: str, density_scenario: str) -> float:
     profile = LOAD_PROFILES[load_type]
     key = f"density_{density_scenario}_kw"
     return profile[key]
+
+
+def get_pue_for_load_type(load_type: str, cooling_type: str) -> float:
+    """Get the effective PUE for a specific load type with a given cooling system.
+
+    If the cooling type is compatible with the load type, returns the cooling
+    profile's pue_typical. If incompatible, still returns pue_typical as a
+    fallback (compatibility should be checked separately).
+
+    This supports per-load-type PUE in the load mix optimizer, where different
+    load types may achieve different effective PUE values depending on cooling
+    compatibility and topology.
+
+    Args:
+        load_type: Key from LOAD_PROFILES (e.g., "AI / GPU Clusters")
+        cooling_type: Key from COOLING_PROFILES (e.g., "Direct Liquid Cooling (DLC / Cold Plate)")
+
+    Returns:
+        PUE typical value for the cooling type.
+    """
+    return COOLING_PROFILES[cooling_type]["pue_typical"]
 
 
 def is_compatible(load_type: str, cooling_type: str) -> bool:

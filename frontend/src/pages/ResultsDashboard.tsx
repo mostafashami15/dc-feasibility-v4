@@ -18,6 +18,8 @@ import {
   BarChart3,
   Layers,
   Layers3,
+  HelpCircle,
+  X,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
 import * as api from "../api/client";
@@ -28,6 +30,7 @@ import FirmCapacityDeficitChart from "../components/charts/FirmCapacityDeficitCh
 import TabGroup from "../components/ui/TabGroup";
 import type {
   ScenarioResult,
+  ScoreBreakdown,
   RAGStatus,
   FootprintResult,
   BackupPowerComparison,
@@ -69,6 +72,136 @@ const DETAIL_TABS = [
   { key: "expansion", label: "Expansion", icon: <Layers size={14} /> },
   { key: "firm", label: "Firm Capacity", icon: <Target size={14} /> },
 ];
+
+
+// ─────────────────────────────────────────────────────────────
+// Score & RAG Info Popover
+// ─────────────────────────────────────────────────────────────
+
+function ScoreInfoButton({ result }: { result: ScenarioResult }) {
+  const [open, setOpen] = useState(false);
+  const bd = result.score_breakdown;
+
+  const WEIGHT_LABELS: Record<string, string> = {
+    pue_efficiency: "PUE Efficiency",
+    it_capacity: "IT Capacity",
+    space_utilization: "Space Utilization",
+    rag_status: "Feasibility (RAG)",
+    infrastructure_fit: "Infrastructure Fit",
+  };
+  const SCORE_KEYS: Array<{ key: string; field: keyof ScoreBreakdown }> = [
+    { key: "pue_efficiency", field: "pue_score" },
+    { key: "it_capacity", field: "it_capacity_score" },
+    { key: "space_utilization", field: "space_utilization_score" },
+    { key: "rag_status", field: "rag_score" },
+    { key: "infrastructure_fit", field: "infrastructure_fit_score" },
+  ];
+
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
+        title="Score & RAG breakdown"
+      >
+        <HelpCircle size={13} />
+      </button>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          {/* Popover */}
+          <div
+            className="absolute right-0 top-6 z-50 w-80 bg-white rounded-xl shadow-xl border border-gray-200 p-4 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-bold text-gray-900">Score Breakdown</h4>
+              <button type="button" onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={14} />
+              </button>
+            </div>
+
+            {bd ? (
+              <div className="space-y-2">
+                {/* Component score bars */}
+                {SCORE_KEYS.map(({ key, field }) => {
+                  const score = bd[field] as number;
+                  const weight = bd.weights[key] ?? 0;
+                  const reason = bd.component_reasons?.[key];
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">{WEIGHT_LABELS[key]}</span>
+                        <span className="font-mono text-gray-800">{score.toFixed(0)} <span className="text-gray-400">× {(weight * 100).toFixed(0)}%</span></span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mt-0.5">
+                        <div
+                          className={`h-1.5 rounded-full ${score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-400" : "bg-red-400"}`}
+                          style={{ width: `${Math.min(100, score)}%` }}
+                        />
+                      </div>
+                      {reason && <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{reason}</p>}
+                    </div>
+                  );
+                })}
+
+                {/* Composite */}
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-gray-800">Composite Score</span>
+                    <span className={`font-mono ${bd.score_capped ? "text-red-600" : "text-gray-900"}`}>
+                      {bd.composite_score.toFixed(1)}
+                    </span>
+                  </div>
+                  {bd.score_capped && bd.score_cap_reason && (
+                    <p className="text-[10px] text-red-500 mt-1 bg-red-50 rounded p-1.5 leading-tight">
+                      {bd.score_cap_reason}
+                    </p>
+                  )}
+                </div>
+
+                {/* RAG reasons */}
+                {result.power.rag_reasons.length > 0 && (
+                  <div className="border-t border-gray-100 pt-2 mt-2">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">RAG Reasons ({result.power.rag_status})</p>
+                    <ul className="space-y-0.5">
+                      {result.power.rag_reasons.map((reason, i) => (
+                        <li key={i} className="text-[10px] text-gray-500 leading-tight flex gap-1">
+                          <span className="text-gray-300 shrink-0">•</span>
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Fallback: just show RAG reasons when no score breakdown */}
+                <p className="text-xs text-gray-500">Score breakdown not available for this run.</p>
+                {result.power.rag_reasons.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">RAG Reasons ({result.power.rag_status})</p>
+                    <ul className="space-y-0.5">
+                      {result.power.rag_reasons.map((reason, i) => (
+                        <li key={i} className="text-[10px] text-gray-500 leading-tight flex gap-1">
+                          <span className="text-gray-300 shrink-0">•</span>
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
 
 
 export default function ResultsDashboard() {
@@ -163,7 +296,12 @@ export default function ResultsDashboard() {
                         {r.power.rag_status}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono font-medium text-xs">{r.score.toFixed(1)}</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-medium text-xs">
+                      <span className={r.score_breakdown?.score_capped ? "text-red-600" : ""}>
+                        {r.score.toFixed(1)}
+                      </span>
+                      <ScoreInfoButton result={r} />
+                    </td>
                   </tr>
                 );
               })}
@@ -194,6 +332,11 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
   const rag = RAG_COLORS[r.power.rag_status];
   const pue = r.annual_pue ?? r.power.pue_used;
   const [activeTab, setActiveTab] = useState("overview");
+  const sites = useAppStore((s) => s.sites);
+  const siteRoofUsable = useMemo(() => {
+    const site = sites.find((s) => s.id === r.site_id);
+    return site?.site?.roof_usable ?? true;
+  }, [sites, r.site_id]);
 
   // ── Lazy-loaded advanced data ──
   const [footprint, setFootprint] = useState<FootprintResult | null>(null);
@@ -270,6 +413,14 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
   ]);
 
 
+  // ── Actual power values for footprint sizing ──
+  // Use committed IT capacity (p99 hourly or static) to derive actual
+  // facility and procurement power — not the grid availability envelope.
+  const committedItMw = r.it_capacity_p99_mw ?? r.power.it_load_mw;
+  const effectivePue = r.annual_pue ?? r.power.pue_used;
+  const actualFacilityMw = committedItMw * effectivePue / r.power.eta_chain;
+  const actualProcurementMw = actualFacilityMw * r.power.procurement_factor;
+
   // ── Fetch functions ──
   async function loadFootprint() {
     setFootprintLoading(true);
@@ -279,10 +430,11 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
         ? Number.parseFloat(coolingFootprintOverride)
         : undefined;
       const data = await api.computeFootprint({
-        facility_power_mw: r.power.facility_power_mw,
-        procurement_power_mw: r.power.procurement_power_mw,
+        facility_power_mw: actualFacilityMw,
+        procurement_power_mw: actualProcurementMw,
         buildable_footprint_m2: r.space.buildable_footprint_m2,
-        land_area_m2: r.space.buildable_footprint_m2 / r.space.site_coverage_used,
+        gray_space_m2: r.space.gray_space_m2,
+        roof_usable: siteRoofUsable,
         backup_power_type: footprintBackupType,
         cooling_m2_per_kw_override:
           parsedOverride !== undefined && Number.isFinite(parsedOverride)
@@ -300,7 +452,6 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
     setBackupLoading(true);
     try {
       const data = await api.compareBackupPower({
-        facility_power_mw: r.power.facility_power_mw,
         procurement_power_mw: r.power.procurement_power_mw,
       });
       setBackup(data as BackupPowerComparison);
@@ -478,9 +629,12 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
               <p className="text-xs text-gray-500">PUE</p>
               <p className="font-bold text-gray-900">{pue.toFixed(3)}</p>
             </div>
-            <div className="text-center">
+            <div className="text-center relative">
               <p className="text-xs text-gray-500">Score</p>
-              <p className="font-bold text-gray-900">{r.score.toFixed(1)}</p>
+              <p className={`font-bold ${r.score_breakdown?.score_capped ? "text-red-600" : "text-gray-900"}`}>
+                {r.score.toFixed(1)}
+                <ScoreInfoButton result={r} />
+              </p>
             </div>
           </div>
         </div>
@@ -530,6 +684,7 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
             footprintError={footprintError}
             footprintBackupType={footprintBackupType}
             setFootprintBackupType={setFootprintBackupType}
+            siteRoofUsable={siteRoofUsable}
             coolingFootprintOverride={coolingFootprintOverride}
             setCoolingFootprintOverride={setCoolingFootprintOverride}
             loadFootprint={loadFootprint}
@@ -633,6 +788,49 @@ function OverviewTab({ r, pue }: { r: ScenarioResult; pue: number }) {
           <Metric label="Whitespace Ratio" value={`${(r.space.whitespace_ratio_used * 100).toFixed(0)}%`} />
           <Metric label="Site Coverage" value={`${(r.space.site_coverage_used * 100).toFixed(0)}%`} />
         </div>
+      </div>
+
+      {/* Gray space breakdown */}
+      <div>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          Building Area Split
+          {r.space.gray_space_ratio < 0.55 && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+              Gray space tight
+            </span>
+          )}
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          <Metric label="Gross Building Area" value={`${r.space.gross_building_area_m2.toLocaleString()} m²`} />
+          <Metric label="IT Whitespace" value={`${r.space.it_whitespace_m2.toLocaleString()} m²`} />
+          <Metric label="Gray Space" value={`${r.space.gray_space_m2.toLocaleString()} m²`} />
+          <Metric label="Gray Space Ratio" value={`${(r.space.gray_space_ratio * 100).toFixed(0)}%`} />
+        </div>
+        {/* Stacked bar: whitespace vs gray space */}
+        <div className="w-full h-6 rounded-md overflow-hidden flex" title={`Whitespace: ${(r.space.whitespace_ratio_used * 100).toFixed(0)}% | Gray: ${(r.space.gray_space_ratio * 100).toFixed(0)}%`}>
+          <div
+            className="h-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-medium"
+            style={{ width: `${r.space.whitespace_ratio_used * 100}%` }}
+          >
+            {r.space.whitespace_ratio_used >= 0.15 && `IT ${(r.space.whitespace_ratio_used * 100).toFixed(0)}%`}
+          </div>
+          <div
+            className="h-full bg-gray-400 flex items-center justify-center text-[10px] text-white font-medium"
+            style={{ width: `${r.space.gray_space_ratio * 100}%` }}
+          >
+            {r.space.gray_space_ratio >= 0.15 && `Gray ${(r.space.gray_space_ratio * 100).toFixed(0)}%`}
+          </div>
+        </div>
+        <div className="flex gap-4 mt-1 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500 inline-block"></span>IT Whitespace</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-gray-400 inline-block"></span>Gray Space (Support)</span>
+        </div>
+        {r.space.gray_space_ratio < 0.55 && (
+          <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            Gray space ratio is {(r.space.gray_space_ratio * 100).toFixed(0)}% (below 55% threshold for Tier III).
+            Support infrastructure (power rooms, cooling plant, corridors) may be constrained.
+          </p>
+        )}
       </div>
 
       {/* IT Capacity Spectrum chart (if hourly) */}
@@ -790,7 +988,8 @@ function CapacityPueTab({
 
 function InfrastructureTab({
   r, footprint, footprintLoading, footprintError, footprintBackupType,
-  setFootprintBackupType, coolingFootprintOverride, setCoolingFootprintOverride,
+  setFootprintBackupType, siteRoofUsable,
+  coolingFootprintOverride, setCoolingFootprintOverride,
   loadFootprint, backup, backupLoading, loadBackup,
 }: {
   r: ScenarioResult;
@@ -799,6 +998,7 @@ function InfrastructureTab({
   footprintError: string | null;
   footprintBackupType: BackupPowerType;
   setFootprintBackupType: (v: BackupPowerType) => void;
+  siteRoofUsable: boolean;
   coolingFootprintOverride: string;
   setCoolingFootprintOverride: (v: string) => void;
   loadFootprint: () => void;
@@ -806,6 +1006,16 @@ function InfrastructureTab({
   backupLoading: boolean;
   loadBackup: () => void;
 }) {
+  // Auto-load footprint and backup comparison when tab opens
+  useEffect(() => {
+    if (!footprint && !footprintLoading && !footprintError) {
+      loadFootprint();
+    }
+    if (!backup && !backupLoading) {
+      loadBackup();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-6">
       <SectionCard
@@ -815,11 +1025,11 @@ function InfrastructureTab({
           <button type="button" onClick={loadFootprint} disabled={footprintLoading}
             className="text-xs px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
           >
-            {footprintLoading ? <Loader2 size={12} className="animate-spin" /> : "Compute"}
+            {footprintLoading ? <Loader2 size={12} className="animate-spin" /> : "Recompute"}
           </button>
         )}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Backup technology</label>
             <select
@@ -842,35 +1052,74 @@ function InfrastructureTab({
               className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+          <div className="flex items-center gap-2 self-end pb-1">
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${siteRoofUsable ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+              Roof {siteRoofUsable ? "usable" : "not usable"}
+            </span>
+            <span className="text-xs text-gray-400">(set in Site Manager)</span>
+          </div>
           <div className="text-xs text-gray-500 self-end">
-            Uses the engine's cited footprint factors. Override applies only to cooling equipment.
+            All equipment placed in gray space. Cooling on roof only if usable.
           </div>
         </div>
         {footprintError && <p className="text-xs text-red-600 mb-3">{footprintError}</p>}
         {footprint && (
           <div className="space-y-3">
+            {/* Warnings */}
+            {footprint.warnings.length > 0 && (
+              <div className="space-y-1">
+                {footprint.warnings.map((w, i) => (
+                  <p key={i} className={`text-xs px-3 py-2 rounded border ${
+                    !footprint.all_fits
+                      ? "text-red-700 bg-red-50 border-red-200"
+                      : "text-amber-700 bg-amber-50 border-amber-200"
+                  }`}>{w}</p>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <Metric label="Ground Equipment" value={`${footprint.total_ground_m2.toLocaleString()} m²`} />
-              <Metric label="Roof Equipment" value={`${footprint.total_roof_m2.toLocaleString()} m²`} />
-              <Metric label="Ground Utilization" value={`${(footprint.ground_utilization_ratio * 100).toFixed(0)}%`} />
-              <Metric label="Roof Utilization" value={`${(footprint.roof_utilization_ratio * 100).toFixed(0)}%`} />
-              <Metric label="Outdoor Available" value={`${footprint.available_outdoor_m2.toLocaleString()} m²`} />
-              <Metric label="Roof Available" value={`${footprint.building_roof_m2.toLocaleString()} m²`} />
+              <Metric label="Gray Space Equipment" value={`${footprint.total_gray_space_equipment_m2.toLocaleString()} m²`} />
+              <Metric label="Roof Equipment" value={`${footprint.total_roof_equipment_m2.toLocaleString()} m²`} />
+              <Metric label="Gray Space Available" value={`${footprint.gray_space_m2.toLocaleString()} m²`} />
+              <Metric label="Gray Space Remaining" value={`${footprint.gray_space_remaining_m2.toLocaleString()} m²`} />
+              <Metric label="Gray Space Utilization" value={`${(footprint.gray_space_utilization_ratio * 100).toFixed(0)}%`} />
+              <Metric label="Roof Utilization" value={footprint.roof_usable ? `${(footprint.roof_utilization_ratio * 100).toFixed(0)}%` : "N/A"} />
               <Metric label="Backup Units" value={footprint.backup_num_units.toLocaleString()} />
               <Metric label="Unit Size" value={`${footprint.backup_unit_size_kw.toLocaleString()} kW`} />
             </div>
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <span className={`px-2 py-0.5 rounded-full font-medium ${
-                footprint.ground_fits ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                footprint.gray_space_fits ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
               }`}>
-                Ground {footprint.ground_fits ? "fits" : "does not fit"}
+                Gray space {footprint.gray_space_fits ? "fits" : "does NOT fit"}
               </span>
-              <span className={`px-2 py-0.5 rounded-full font-medium ${
-                footprint.roof_fits ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-              }`}>
-                Roof {footprint.roof_fits ? "fits" : "does not fit"}
-              </span>
-              <span className="text-gray-500">Backup basis: {footprint.backup_power_type}</span>
+              {footprint.roof_usable && (
+                <span className={`px-2 py-0.5 rounded-full font-medium ${
+                  footprint.roof_fits ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                }`}>
+                  Roof {footprint.roof_fits ? "fits" : "does NOT fit"}
+                </span>
+              )}
+              {!footprint.roof_usable && (
+                <span className="px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
+                  Roof not usable — cooling in gray space
+                </span>
+              )}
+              <span className="text-gray-500">Backup: {footprint.backup_power_type}</span>
+            </div>
+            {/* Gray space utilization bar */}
+            <div>
+              <div className="text-[10px] text-gray-500 mb-1">Gray Space Utilization</div>
+              <div className="w-full h-5 rounded-md overflow-hidden flex bg-gray-100">
+                <div
+                  className={`h-full flex items-center justify-center text-[10px] text-white font-medium ${
+                    footprint.gray_space_fits ? "bg-blue-500" : "bg-red-500"
+                  }`}
+                  style={{ width: `${Math.min(100, footprint.gray_space_utilization_ratio * 100)}%` }}
+                >
+                  {footprint.gray_space_utilization_ratio >= 0.15 && `${(footprint.gray_space_utilization_ratio * 100).toFixed(0)}%`}
+                </div>
+              </div>
             </div>
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
               <table className="w-full text-xs">
@@ -889,7 +1138,9 @@ function InfrastructureTab({
                   {footprint.elements.map((element) => (
                     <tr key={`${element.name}-${element.location}`} className="align-top">
                       <td className="px-3 py-2 text-gray-700">{element.name}</td>
-                      <td className="px-3 py-2 capitalize text-gray-500">{element.location}</td>
+                      <td className="px-3 py-2 text-gray-500">
+                        {element.location === "gray_space" ? "Gray Space" : "Roof"}
+                      </td>
                       <td className="px-3 py-2 text-right font-mono">{element.area_m2.toFixed(1)} m²</td>
                       <td className="px-3 py-2 text-right font-mono">{element.sizing_basis_kw.toFixed(0)} kW</td>
                       <td className="px-3 py-2 text-right font-mono">{element.m2_per_kw_used.toFixed(3)}</td>
@@ -946,7 +1197,7 @@ function InfrastructureTab({
             </div>
             <div className="mt-2 text-xs text-gray-500 space-y-0.5">
               <p>Lowest CO₂: {backup.lowest_co2_technology}</p>
-              <p>Smallest footprint: {backup.smallest_footprint_technology}</p>
+              <p>Smallest footprint: {backup.lowest_footprint_technology}</p>
               <p>Fastest ramp: {backup.fastest_ramp_technology}</p>
             </div>
           </div>

@@ -170,9 +170,9 @@ def _voltage_color(voltage_kv: float | None, *, primary: str, secondary: str) ->
     if voltage_kv is None:
         return "#94a3b8"
     if voltage_kv >= 300:
-        return "#b45309"
+        return "#4E2589"
     if voltage_kv >= 220:
-        return "#ea580c"
+        return "#795AFD"
     if voltage_kv >= 132:
         return secondary
     return primary
@@ -194,17 +194,17 @@ def _svg_shell(
         f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="{escape(title)}">'
         f"{defs}"
         # background
-        f'<rect x="0" y="0" width="{width}" height="{height}" rx="12" fill="#f9fafb" />'
+        f'<rect x="0" y="0" width="{width}" height="{height}" rx="12" fill="#F5F5F5" />'
         f'<rect x="1" y="1" width="{width - 2}" height="{height - 2}" rx="11" '
-        f'fill="white" stroke="#e5e7eb" stroke-width="1" />'
+        f'fill="white" stroke="#E7E6E6" stroke-width="1" />'
         # title + subtitle
-        f'<text x="{_PAD_OUTER}" y="22" fill="#111827" font-family="system-ui,sans-serif" '
+        f'<text x="{_PAD_OUTER}" y="22" fill="#1B303A" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
         f'font-size="12" font-weight="700" letter-spacing="-0.01em">{escape(title)}</text>'
-        f'<text x="{_PAD_OUTER}" y="38" fill="#6b7280" font-family="system-ui,sans-serif" '
+        f'<text x="{_PAD_OUTER}" y="38" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
         f'font-size="9">{escape(subtitle)}</text>'
         # subtle title separator
         f'<line x1="{_PAD_OUTER}" y1="44" x2="{width - _PAD_OUTER}" y2="44" '
-        f'stroke="#f3f4f6" stroke-width="1" />'
+        f'stroke="#E7E6E6" stroke-width="1" />'
         f"{body}"
         "</svg>"
     )
@@ -226,14 +226,14 @@ def _grid_lines(
         parts.append(
             f'<line x1="{x:.1f}" y1="{_PAD_OUTER + top_offset}" '
             f'x2="{x:.1f}" y2="{height - _PAD_OUTER}" '
-            'stroke="#f3f4f6" stroke-width="1" />'
+            'stroke="#F5F5F5" stroke-width="1" />'
         )
     for i in range(rows + 1):
         y = _PAD_OUTER + top_offset + uh * i / rows
         parts.append(
             f'<line x1="{_PAD_OUTER}" y1="{y:.1f}" '
             f'x2="{width - _PAD_OUTER}" y2="{y:.1f}" '
-            'stroke="#f3f4f6" stroke-width="1" />'
+            'stroke="#F5F5F5" stroke-width="1" />'
         )
     return "".join(parts)
 
@@ -309,8 +309,8 @@ def build_site_map_visual(
             "svg_markup": None,
         }
 
-    primary  = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary  = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
     bounds = _map_bounds(geometry_points + [anchor], min_span_lat=0.008, min_span_lon=0.008)
 
     # Geometry layer
@@ -354,9 +354,9 @@ def build_site_map_visual(
         + f'<rect x="{ax + 14:.1f}" y="{ay - 18:.1f}" width="{len(name) * 6.5 + 8:.0f}" height="30" '
         + f'rx="4" fill="white" fill-opacity="0.9" stroke="{_rgba(primary, 0.15)}" stroke-width="1" />'
         + f'<text x="{ax + 18:.1f}" y="{ay - 5:.1f}" fill="{primary}" '
-        + f'font-family="system-ui,sans-serif" font-size="10" font-weight="700">{name}</text>'
+        + f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700">{name}</text>'
         + f'<text x="{ax + 18:.1f}" y="{ay + 8:.1f}" fill="#6b7280" '
-        + f'font-family="system-ui,sans-serif" font-size="8">{city}</text>'
+        + f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">{city}</text>'
     )
 
     subtitle = (
@@ -407,8 +407,8 @@ def build_grid_context_map_visual(
             "svg_markup": None,
         }
 
-    primary  = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary  = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     lat_r = (radius_km / 111.0) if radius_km else 0.03
     lon_r = (
@@ -490,9 +490,9 @@ def build_grid_context_map_visual(
         + f'<rect x="{sx + 12:.1f}" y="{sy - 18:.1f}" width="{len(site_name) * 6.5 + 8:.0f}" height="30" '
         + f'rx="4" fill="white" fill-opacity="0.92" stroke="{_rgba(primary, 0.15)}" stroke-width="1" />'
         + f'<text x="{sx + 16:.1f}" y="{sy - 5:.1f}" fill="{primary}" '
-        + f'font-family="system-ui,sans-serif" font-size="10" font-weight="700">{site_name}</text>'
+        + f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700">{site_name}</text>'
         + f'<text x="{sx + 16:.1f}" y="{sy + 8:.1f}" fill="#6b7280" '
-        + f'font-family="system-ui,sans-serif" font-size="8">{radius_label}</text>'
+        + f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">{radius_label}</text>'
     )
 
     return {
@@ -523,8 +523,8 @@ def build_monthly_temperature_chart(
 
     Matches the frontend UI TemperatureChart (Recharts BarChart) with:
       - Max bars: red #ef4444 at 60% opacity
-      - Mean bars: blue #3b82f6
-      - Min bars: cyan #06b6d4 at 60% opacity
+      - Mean bars: purple #795AFD
+      - Min bars: cyan #00F1F2 at 60% opacity
     """
     if not monthly_stats:
         return {
@@ -547,8 +547,8 @@ def build_monthly_temperature_chart(
 
     # UI-matching colors
     COLOR_MAX  = "#ef4444"
-    COLOR_MEAN = "#3b82f6"
-    COLOR_MIN  = "#06b6d4"
+    COLOR_MEAN = "#795AFD"
+    COLOR_MIN  = "#00F1F2"
 
     all_vals = monthly_min + monthly_max
     lo = min(all_vals)
@@ -580,7 +580,7 @@ def build_monthly_temperature_chart(
         zero_line = (
             f'<line x1="{plot_left}" y1="{zy:.1f}" '
             f'x2="{plot_right}" y2="{zy:.1f}" '
-            'stroke="#d1d5db" stroke-width="1" stroke-dasharray="4 3" />'
+            'stroke="#E7E6E6" stroke-width="1" stroke-dasharray="4 3" />'
         )
 
     # Grid lines + Y-axis ticks
@@ -593,7 +593,7 @@ def build_monthly_temperature_chart(
             f'x2="{plot_right}" y2="{y:.1f}" '
             'stroke="#f0f0f0" stroke-width="1" />'
             f'<text x="{plot_left - 5}" y="{y + 3:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">{val:.0f}°C</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">{val:.0f}°C</text>'
         )
 
     # X-axis month labels
@@ -604,7 +604,7 @@ def build_monthly_temperature_chart(
         cx = plot_left + group_w * i + group_w / 2
         x_parts.append(
             f'<text x="{cx:.1f}" y="{plot_bottom + 14}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle">{label}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="middle">{label}</text>'
         )
 
     # Bars (3 per month: max, mean, min)
@@ -638,11 +638,11 @@ def build_monthly_temperature_chart(
     ly = 32
     legend = (
         f'<rect x="{w - 200}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_MAX}" opacity="0.6" />'
-        f'<text x="{w - 186}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Max</text>'
+        f'<text x="{w - 186}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Max</text>'
         f'<rect x="{w - 155}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_MEAN}" />'
-        f'<text x="{w - 141}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Mean</text>'
+        f'<text x="{w - 141}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Mean</text>'
         f'<rect x="{w - 107}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_MIN}" opacity="0.6" />'
-        f'<text x="{w - 93}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Min</text>'
+        f'<text x="{w - 93}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Min</text>'
     )
 
     body = (
@@ -676,8 +676,8 @@ def build_cooling_suitability_chart(
     """Stacked bar chart matching the frontend FreeCoolingChart UI.
 
     Each bar stacks three segments:
-      - Free Cooling (green #22c55e)
-      - Partial / Economic (yellow #facc15)
+      - Free Cooling (green #5FE838)
+      - Partial / Economic (lavender #BCACFE)
       - Mechanical (red #ef4444)
     Suitability badges and percentage labels appear below the chart.
     """
@@ -689,8 +689,8 @@ def build_cooling_suitability_chart(
             "svg_markup": None,
         }
 
-    COLOR_FREE = "#22c55e"
-    COLOR_PARTIAL = "#facc15"
+    COLOR_FREE = "#5FE838"
+    COLOR_PARTIAL = "#BCACFE"
     COLOR_MECH = "#ef4444"
 
     n = len(free_cooling_rows)
@@ -719,12 +719,12 @@ def build_cooling_suitability_chart(
             f'x2="{plot_right}" y2="{y:.1f}" '
             'stroke="#f0f0f0" stroke-width="1" />'
             f'<text x="{plot_left - 5}" y="{y + 3:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">{val:.0f}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">{val:.0f}</text>'
         )
     # Y-axis label
     tick_parts.append(
         f'<text x="{plot_left - 5}" y="{plot_top - 8}" fill="#9ca3af" '
-        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">Hours</text>'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">Hours</text>'
     )
 
     def _shorten_cooling_label(ct: str) -> str:
@@ -772,20 +772,20 @@ def build_cooling_suitability_chart(
         for li, line in enumerate(wrapped):
             bar_parts.append(
                 f'<text x="{cx:.1f}" y="{plot_bottom + 13 + li * 10:.1f}" fill="#6b7280" '
-                f'font-family="system-ui,sans-serif" font-size="7.5" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" '
                 f'text-anchor="middle">{escape(line)}</text>'
             )
 
         # Suitability badge below x-axis labels
         suit_bg = (
-            "#dbeafe" if "excellent" in suitability.lower()
-            else "#dcfce7" if "good" in suitability.lower()
+            "#E8E0FF" if "excellent" in suitability.lower()
+            else "#E0FFE0" if "good" in suitability.lower()
             else "#fef9c3" if "marginal" in suitability.lower()
             else "#fee2e2"
         )
         suit_fg = (
-            "#1e40af" if "excellent" in suitability.lower()
-            else "#166534" if "good" in suitability.lower()
+            "#4E2589" if "excellent" in suitability.lower()
+            else "#2A8C0A" if "good" in suitability.lower()
             else "#854d0e" if "marginal" in suitability.lower()
             else "#991b1b"
         )
@@ -796,13 +796,13 @@ def build_cooling_suitability_chart(
             f'<rect x="{cx - tw / 2:.1f}" y="{badge_y - 7:.1f}" width="{tw:.1f}" '
             f'height="13" rx="6.5" fill="{suit_bg}" />'
             f'<text x="{cx:.1f}" y="{badge_y + 3:.1f}" fill="{suit_fg}" '
-            f'font-family="system-ui,sans-serif" font-size="6.5" font-weight="600" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5" font-weight="600" '
             f'text-anchor="middle">{escape(badge_text)}</text>'
         )
         # Percentage label
         badge_parts.append(
             f'<text x="{cx:.1f}" y="{badge_y + 16:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" '
             f'text-anchor="middle">{fraction * 100:.0f}% free</text>'
         )
 
@@ -810,11 +810,11 @@ def build_cooling_suitability_chart(
     ly = 32
     legend = (
         f'<rect x="{w - 240}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_FREE}" />'
-        f'<text x="{w - 226}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Free Cooling</text>'
+        f'<text x="{w - 226}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Free Cooling</text>'
         f'<rect x="{w - 160}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_PARTIAL}" />'
-        f'<text x="{w - 146}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Partial</text>'
+        f'<text x="{w - 146}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Partial</text>'
         f'<rect x="{w - 108}" y="{ly - 4}" width="10" height="10" rx="2" fill="{COLOR_MECH}" />'
-        f'<text x="{w - 94}" y="{ly + 5}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="8">Mechanical</text>'
+        f'<text x="{w - 94}" y="{ly + 5}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8">Mechanical</text>'
     )
 
     body = "".join(tick_parts) + "".join(bar_parts) + "".join(badge_parts) + legend
@@ -849,8 +849,8 @@ def build_free_cooling_chart(
             "svg_markup": None,
         }
 
-    primary   = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary   = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     max_hours = max(float(item.get("free_cooling_hours") or 0.0) for item in free_cooling_rows)
     upper = max(max_hours * 1.12, 1.0)
@@ -868,9 +868,9 @@ def build_free_cooling_chart(
         tick_parts.append(
             f'<line x1="{x:.1f}" y1="{_PAD_TOP}" '
             f'x2="{x:.1f}" y2="{_PAD_TOP + plot_h}" '
-            'stroke="#f3f4f6" stroke-width="1" />'
+            'stroke="#F5F5F5" stroke-width="1" />'
             f'<text x="{x:.1f}" y="{_PAD_TOP + plot_h + 14}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle">{val:.0f}h</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="middle">{val:.0f}h</text>'
         )
 
     bar_parts: list[str] = []
@@ -899,10 +899,10 @@ def build_free_cooling_chart(
         # Value label inside / outside bar
         label_x = _PAD_AXIS + bar_w + 6 if bar_w < plot_w * 0.7 else _PAD_AXIS + bar_w - 6
         label_anchor = "start" if bar_w < plot_w * 0.7 else "end"
-        label_fill = "#111827" if bar_w < plot_w * 0.7 else "white"
+        label_fill = "#1B303A" if bar_w < plot_w * 0.7 else "white"
         bar_parts.append(
             f'<text x="{label_x:.1f}" y="{y + bar_h / 2 + 4:.1f}" fill="{label_fill}" '
-            f'font-family="system-ui,sans-serif" font-size="9" font-weight="600" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" '
             f'text-anchor="{label_anchor}">{hours:.0f} h</text>'
         )
 
@@ -912,8 +912,8 @@ def build_free_cooling_chart(
         for li, line in enumerate(wrapped):
             bar_parts.append(
                 f'<text x="{_PAD_AXIS - 6}" y="{y + bar_h / 2 - 4 + li * 10:.1f}" '
-                f'fill={"#111827" if is_selected else "#374151"}" '
-                f'font-family="system-ui,sans-serif" font-size="8" '
+                f'fill={"#1B303A" if is_selected else "#1B303A"}" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" '
                 f'font-weight="{"700" if is_selected else "400"}" text-anchor="end">'
                 f'{escape(line)}</text>'
             )
@@ -925,7 +925,7 @@ def build_free_cooling_chart(
                 f'<rect x="{badge_x:.1f}" y="{y + bar_h / 2 - 7:.1f}" '
                 f'width="46" height="14" rx="7" fill="{_rgba(primary, 0.12)}" />'
                 f'<text x="{badge_x + 23:.1f}" y="{y + bar_h / 2 + 4:.1f}" '
-                f'fill="{primary}" font-family="system-ui,sans-serif" '
+                f'fill="{primary}" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
                 f'font-size="7" font-weight="700" text-anchor="middle">SELECTED</text>'
             )
 
@@ -960,10 +960,10 @@ def build_it_capacity_spectrum_chart(
     Enhanced: larger bars, value labels above each bar, color-coded by level.
     """
     checkpoints = [
-        ("Best\nhour", metrics.get("it_capacity_best_mw"), "#16a34a"),
-        ("Mean", metrics.get("it_capacity_mean_mw"), "#2563eb"),
-        ("P90", metrics.get("it_capacity_p90_mw"), "#7c3aed"),
-        ("P99\n(Committed)", metrics.get("it_capacity_p99_mw") or metrics.get("committed_it_mw"), "#1a365d"),
+        ("Best\nhour", metrics.get("it_capacity_best_mw"), "#5FE838"),
+        ("Mean", metrics.get("it_capacity_mean_mw"), "#795AFD"),
+        ("P90", metrics.get("it_capacity_p90_mw"), "#4E2589"),
+        ("P99\n(Committed)", metrics.get("it_capacity_p99_mw") or metrics.get("committed_it_mw"), "#0A2240"),
         ("Worst\nhour", metrics.get("it_capacity_worst_mw"), "#dc2626"),
         ("Nominal\ndesign", metrics.get("it_load_mw"), "#6b7280"),
     ]
@@ -976,7 +976,7 @@ def build_it_capacity_spectrum_chart(
             "svg_markup": None,
         }
 
-    primary = _c(primary_color, "#1a365d")
+    primary = _c(primary_color, "#0A2240")
 
     max_val = max(v for _, v, _ in available)
     upper = max_val * 1.18
@@ -1001,11 +1001,11 @@ def build_it_capacity_spectrum_chart(
             f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" '
             'stroke="#f0f0f0" stroke-width="1" />'
             f'<text x="{plot_left - 5}" y="{y + 3:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">{val:.1f}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">{val:.1f}</text>'
         )
     tick_parts.append(
         f'<text x="{plot_left - 5}" y="{plot_top - 8}" fill="#9ca3af" '
-        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">MW</text>'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">MW</text>'
     )
 
     bar_parts: list[str] = []
@@ -1023,7 +1023,7 @@ def build_it_capacity_spectrum_chart(
         # Value above bar
         bar_parts.append(
             f'<text x="{cx:.1f}" y="{by - 6:.1f}" fill="{color}" '
-            f'font-family="system-ui,sans-serif" font-size="9" font-weight="700" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="700" '
             f'text-anchor="middle">{value:.2f}</text>'
         )
         # Multi-line X-axis label
@@ -1031,8 +1031,8 @@ def build_it_capacity_spectrum_chart(
         for li, line in enumerate(lines):
             is_key = "P99" in line or "Committed" in line
             bar_parts.append(
-                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 10:.1f}" fill="#374151" '
-                f'font-family="system-ui,sans-serif" font-size="7.5" '
+                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 10:.1f}" fill="#1B303A" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" '
                 f'font-weight="{"700" if is_key else "400"}" '
                 f'text-anchor="middle">{escape(line)}</text>'
             )
@@ -1063,8 +1063,8 @@ def build_pue_breakdown_chart(
     if pue is None or pue <= 0:
         return {"available": False, "title": "PUE Breakdown", "message": "No PUE data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     it_mw = float(power_data.get("it_load_mw") or 0)
     facility_mw = float(power_data.get("facility_power_mw") or 0)
@@ -1106,9 +1106,9 @@ def build_pue_breakdown_chart(
         arcs = f'<path d="{_arc(0, it_angle, r_outer, r_inner)}" fill="{primary}" /><path d="{_arc(it_angle, it_angle + oh_angle, r_outer, r_inner)}" fill="{secondary}" opacity="0.7" />'
 
     center_text = (
-        f'<text x="{cx}" y="{cy - 4}" fill="{primary}" font-family="system-ui,sans-serif" '
+        f'<text x="{cx}" y="{cy - 4}" fill="{primary}" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
         f'font-size="18" font-weight="800" text-anchor="middle">{pue:.3f}</text>'
-        f'<text x="{cx}" y="{cy + 9}" fill="#6b7280" font-family="system-ui,sans-serif" '
+        f'<text x="{cx}" y="{cy + 9}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
         f'font-size="7" text-anchor="middle">Annual PUE</text>'
     )
 
@@ -1116,10 +1116,10 @@ def build_pue_breakdown_chart(
     ly = cy + r_outer + 16
     legend = (
         f'<rect x="{cx - 120}" y="{ly}" width="8" height="8" rx="2" fill="{primary}" />'
-        f'<text x="{cx - 109}" y="{ly + 7}" fill="#374151" font-family="system-ui,sans-serif" font-size="7.5">'
+        f'<text x="{cx - 109}" y="{ly + 7}" fill="#1B303A" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5">'
         f'IT Load {it_mw:.2f} MW ({it_pct:.1f}%)</text>'
         f'<rect x="{cx + 15}" y="{ly}" width="8" height="8" rx="2" fill="{secondary}" opacity="0.7" />'
-        f'<text x="{cx + 26}" y="{ly + 7}" fill="#374151" font-family="system-ui,sans-serif" font-size="7.5">'
+        f'<text x="{cx + 26}" y="{ly + 7}" fill="#1B303A" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5">'
         f'Overhead {overhead_mw:.2f} MW ({oh_pct:.1f}%)</text>'
     )
 
@@ -1151,8 +1151,8 @@ def build_power_chain_waterfall(
     if facility_mw <= 0 and it_load_mw <= 0:
         return {"available": False, "title": "Power Flow", "message": "No power data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     overhead_mw = max(facility_mw - it_load_mw, 0)
     procurement_overhead_mw = max(procurement_mw - facility_mw, 0)
@@ -1220,7 +1220,7 @@ def build_power_chain_waterfall(
         parts.append(_flow_band(
             col_mid + node_w, fac_y, fac_y + fac_it_h,
             col_right, it_y, it_y + it_h,
-            "#16a34a", 0.18,
+            "#5FE838", 0.18,
         ))
 
     # Facility → Overhead
@@ -1230,7 +1230,7 @@ def build_power_chain_waterfall(
         parts.append(_flow_band(
             col_mid + node_w, fac_oh_start, fac_y + fac_h,
             col_right, oh_y, oh_y + oh_h,
-            "#ea580c", 0.15,
+            "#795AFD", 0.15,
         ))
 
     # ── Nodes ──
@@ -1240,25 +1240,25 @@ def build_power_chain_waterfall(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{nw}" height="{nh:.1f}" '
             f'rx="{node_radius}" fill="{color}" />'
             f'<text x="{x + nw / 2:.1f}" y="{y + nh / 2 - 4:.1f}" fill="white" '
-            f'font-family="system-ui,sans-serif" font-size="8" font-weight="700" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="700" '
             f'text-anchor="middle">{escape(label)}</text>'
             f'<text x="{x + nw / 2:.1f}" y="{y + nh / 2 + 7:.1f}" fill="rgba(255,255,255,0.85)" '
-            f'font-family="system-ui,sans-serif" font-size="7.5" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" '
             f'text-anchor="middle">{escape(value_str)}</text>'
         )
 
     if procurement_mw > 0.001:
         parts.append(_node(col_left, grid_y, node_w, grid_h, primary, "Grid", f"{procurement_mw:.2f} MW"))
     parts.append(_node(col_mid, fac_y, node_w, fac_h, secondary, "Facility", f"{facility_mw:.2f} MW"))
-    parts.append(_node(col_right, it_y, node_w, it_h, "#16a34a", "IT Load", f"{it_load_mw:.2f} MW"))
+    parts.append(_node(col_right, it_y, node_w, it_h, "#5FE838", "IT Load", f"{it_load_mw:.2f} MW"))
     if overhead_mw > 0.001 and oh_h > 0:
-        parts.append(_node(col_right, oh_y, node_w, oh_h, "#ea580c", "Overhead", f"{overhead_mw:.2f} MW"))
+        parts.append(_node(col_right, oh_y, node_w, oh_h, "#795AFD", "Overhead", f"{overhead_mw:.2f} MW"))
 
     # Procurement overhead (small label if present)
     if procurement_overhead_mw > 0.01:
         parts.append(
             f'<text x="{(col_left + col_mid) / 2 + node_w / 2:.1f}" y="{top_y + max_node_h + 18:.1f}" '
-            f'fill="#94a3b8" font-family="system-ui,sans-serif" font-size="7" text-anchor="middle">'
+            f'fill="#94a3b8" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" text-anchor="middle">'
             f'Procurement overhead: {procurement_overhead_mw:.2f} MW</text>'
         )
 
@@ -1282,8 +1282,8 @@ def build_energy_decomposition_sankey(
     total_it_kwh: float,
     total_overhead_kwh: float,
     *,
-    primary_color: str = "#1a365d",
-    secondary_color: str = "#2b6cb0",
+    primary_color: str = "#0A2240",
+    secondary_color: str = "#795AFD",
 ) -> dict[str, Any]:
     """Three-tier Sankey: Total Facility → IT Energy + Overhead → overhead sub-categories.
 
@@ -1293,8 +1293,8 @@ def build_energy_decomposition_sankey(
     if total_facility_kwh <= 0:
         return {"available": False, "title": "Energy Decomposition", "message": "No data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     # Convert to GWh for display
     total_fac_gwh = total_facility_kwh / 1_000_000
@@ -1338,7 +1338,7 @@ def build_energy_decomposition_sankey(
     right_top = top_y + (max_node_h - right_total) / 2
 
     # Overhead sub-category colours
-    comp_colors = ["#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#6b7280"]
+    comp_colors = ["#ef4444", "#795AFD", "#4E2589", "#00F1F2", "#1B303A"]
 
     parts: list[str] = []
 
@@ -1359,14 +1359,14 @@ def build_energy_decomposition_sankey(
     parts.append(_flow(
         col_left + node_w, fac_y, fac_y + fac_it_h,
         col_mid, it_y, it_y + it_h,
-        "#16a34a", 0.18,
+        "#5FE838", 0.18,
     ))
 
     # Flow: Facility → Overhead (bottom portion of facility)
     parts.append(_flow(
         col_left + node_w, fac_y + fac_it_h, fac_y + fac_h,
         col_mid, oh_y, oh_y + oh_h,
-        "#ea580c", 0.15,
+        "#795AFD", 0.15,
     ))
 
     # Flows: Overhead → each sub-component
@@ -1397,7 +1397,7 @@ def build_energy_decomposition_sankey(
                 f'<rect x="{x:.1f}" y="{y:.1f}" width="{nw}" height="{nh:.1f}" '
                 f'rx="{node_radius}" fill="{color}" />'
                 f'<text x="{x + nw + 4:.1f}" y="{y + nh / 2 + 3:.1f}" fill="{color}" '
-                f'font-family="system-ui,sans-serif" font-size="6.6" font-weight="600" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.6" font-weight="600" '
                 f'text-anchor="start">{escape(label)}'
                 f'{" · " + value_str if value_str else ""}'
                 f'{" · " + pct_str if pct_str else ""}</text>'
@@ -1409,16 +1409,16 @@ def build_energy_decomposition_sankey(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{nw}" height="{nh:.1f}" '
             f'rx="{node_radius}" fill="{color}" />'
             f'<text x="{x + nw / 2:.1f}" y="{label_y:.1f}" fill="white" '
-            f'font-family="system-ui,sans-serif" font-size="{label_fs}" font-weight="700" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="{label_fs}" font-weight="700" '
             f'text-anchor="middle">{escape(label)}</text>'
             f'<text x="{x + nw / 2:.1f}" y="{val_y:.1f}" fill="rgba(255,255,255,0.85)" '
-            f'font-family="system-ui,sans-serif" font-size="{val_fs}" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="{val_fs}" '
             f'text-anchor="middle">{escape(value_str)}</text>'
         )
         if pct_str and nh >= 30:
             result += (
                 f'<text x="{x + nw / 2:.1f}" y="{pct_y:.1f}" fill="rgba(255,255,255,0.7)" '
-                f'font-family="system-ui,sans-serif" font-size="6.0" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.0" '
                 f'text-anchor="middle">{escape(pct_str)}</text>'
             )
         return result
@@ -1428,10 +1428,10 @@ def build_energy_decomposition_sankey(
                         "Total Facility", f"{total_fac_gwh:.2f} GWh"))
 
     # Middle nodes
-    parts.append(_node(col_mid, it_y, node_w, it_h, "#16a34a",
+    parts.append(_node(col_mid, it_y, node_w, it_h, "#5FE838",
                         "IT Energy", f"{it_gwh:.2f} GWh",
                         f"{total_it_kwh / total_facility_kwh * 100:.1f}%"))
-    parts.append(_node(col_mid, oh_y, node_w, oh_h, "#ea580c",
+    parts.append(_node(col_mid, oh_y, node_w, oh_h, "#795AFD",
                         "Overhead", f"{oh_gwh:.2f} GWh",
                         f"{total_overhead_kwh / total_facility_kwh * 100:.1f}%"))
 
@@ -1461,7 +1461,7 @@ def build_energy_decomposition_sankey(
                          (col_right + detail_node_w / 2, "Overhead Detail")]:
         parts.append(
             f'<text x="{cx_pos:.1f}" y="{top_y - 6:.1f}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="7.2" font-weight="600" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.2" font-weight="600" '
             f'text-anchor="middle">{lbl}</text>'
         )
 
@@ -1484,10 +1484,10 @@ def build_pue_minmax_chart(
     pue_avg: float,
     pue_max: float,
     *,
-    primary_color: str = "#1a365d",
+    primary_color: str = "#0A2240",
 ) -> dict[str, Any]:
     """Compact horizontal bar/gauge showing PUE min, avg, max."""
-    primary = _c(primary_color, "#1a365d")
+    primary = _c(primary_color, "#0A2240")
 
     w, h = CHART_WIDTH, 80
     bar_y = 52
@@ -1510,7 +1510,7 @@ def build_pue_minmax_chart(
     # Background bar
     parts.append(
         f'<rect x="{margin_l}" y="{bar_y}" width="{bar_w}" height="{bar_h}" '
-        f'rx="5" fill="#f3f4f6" />'
+        f'rx="5" fill="#F5F5F5" />'
     )
 
     # Filled range bar (min to max)
@@ -1538,13 +1538,13 @@ def build_pue_minmax_chart(
         ly = bar_y - 8 if label == "Avg" else bar_y + bar_h / 2 + 3
         parts.append(
             f'<text x="{x_pos:.1f}" y="{ly:.1f}" fill="{primary}" '
-            f'font-family="system-ui,sans-serif" font-size="11" font-weight="700" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="11" font-weight="700" '
             f'text-anchor="{anchor}">{val:.3f}</text>'
         )
         label_y = ly + 11 if label == "Avg" else ly + 11
         parts.append(
             f'<text x="{x_pos:.1f}" y="{label_y:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" '
             f'text-anchor="{anchor}">{label}</text>'
         )
 
@@ -1577,9 +1577,9 @@ def build_scenario_comparison_chart(
             "svg_markup": None,
         }
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
-    palette = [primary, secondary, "#16a34a", "#7c3aed", "#ea580c", "#0891b2"]
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
+    palette = [primary, secondary, "#5FE838", "#4E2589", "#00F1F2", "#BCACFE"]
 
     it_values = []
     labels = []
@@ -1612,9 +1612,9 @@ def build_scenario_comparison_chart(
         y = plot_bottom - (val / upper) * plot_h
         tick_parts.append(
             f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" '
-            'stroke="#f3f4f6" stroke-width="1" />'
+            'stroke="#F5F5F5" stroke-width="1" />'
             f'<text x="{plot_left - 4}" y="{y + 3:.1f}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">'
             f'{val:.1f}</text>'
         )
 
@@ -1634,29 +1634,29 @@ def build_scenario_comparison_chart(
         )
         bar_parts.append(
             f'<text x="{cx:.1f}" y="{by - 4:.1f}" fill="{color}" '
-            f'font-family="system-ui,sans-serif" font-size="8" font-weight="700" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="700" '
             f'text-anchor="middle">{it_mw:.2f}</text>'
         )
         # PUE below
         pue = results[idx].get("metrics", {}).get("pue") or 0
         bar_parts.append(
             f'<text x="{cx:.1f}" y="{by - 13:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" '
             f'text-anchor="middle">PUE {pue:.3f}</text>'
         )
         # Label
         wrapped = _wrap_label(label, max_chars=12, max_lines=2)
         for li, line in enumerate(wrapped):
             bar_parts.append(
-                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 9:.1f}" fill="#374151" '
-                f'font-family="system-ui,sans-serif" font-size="7" '
+                f'<text x="{cx:.1f}" y="{plot_bottom + 14 + li * 9:.1f}" fill="#1B303A" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" '
                 f'text-anchor="middle">{escape(line)}</text>'
             )
 
     # Y-axis label
     y_label = (
         f'<text x="14" y="{(plot_top + plot_bottom) / 2:.1f}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="8" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" '
         f'text-anchor="middle" transform="rotate(-90, 14, {(plot_top + plot_bottom) / 2:.1f})">'
         f'Committed IT (MW)</text>'
     )
@@ -1691,8 +1691,8 @@ def build_daily_profile_chart(
     if not days or len(days) < 2:
         return {"available": False, "title": "Daily Operating Profiles", "message": "Insufficient data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
 
     w, h = CHART_WIDTH, CHART_HEIGHT + 20
     plot_left = 70
@@ -1739,8 +1739,8 @@ def build_daily_profile_chart(
         val = it_min_val + (it_max_val - it_min_val) * frac
         y = plot_bottom - frac * plot_h
         tick_parts.append(
-            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#f3f4f6" stroke-width="1" />'
-            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#F5F5F5" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="8" text-anchor="end">{val:.1f}</text>'
         )
 
@@ -1752,13 +1752,13 @@ def build_daily_profile_chart(
         if day_idx < n:
             x_labels.append(
                 f'<text x="{x_pos(day_idx):.1f}" y="{plot_bottom + 14:.1f}" fill="#9ca3af" '
-                f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="middle">{month_labels[m]}</text>'
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" text-anchor="middle">{month_labels[m]}</text>'
             )
 
     # Y-axis label
     y_label = (
         f'<text x="14" y="{(plot_top + plot_bottom) / 2:.1f}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="middle" '
         f'transform="rotate(-90 14 {(plot_top + plot_bottom) / 2:.1f})">IT Load (MW)</text>'
     )
 
@@ -1787,7 +1787,7 @@ def build_daily_pue_profile_chart(
     if not days or len(days) < 2:
         return {"available": False, "title": "Daily PUE Profile", "message": "Insufficient data.", "svg_markup": None}
 
-    secondary = _c(secondary_color, "#2b6cb0")
+    secondary = _c(secondary_color, "#795AFD")
 
     w, h = CHART_WIDTH, CHART_HEIGHT + 20
     plot_left = 70
@@ -1829,8 +1829,8 @@ def build_daily_pue_profile_chart(
         val = pue_lo + (pue_hi - pue_lo) * frac
         y = plot_bottom - frac * plot_h
         tick_parts.append(
-            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#f3f4f6" stroke-width="1" />'
-            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#F5F5F5" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="8" text-anchor="end">{val:.2f}</text>'
         )
 
@@ -1842,13 +1842,13 @@ def build_daily_pue_profile_chart(
         if day_idx < n:
             x_labels.append(
                 f'<text x="{x_pos(day_idx):.1f}" y="{plot_bottom + 14:.1f}" fill="#9ca3af" '
-                f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="middle">{month_labels[m]}</text>'
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" text-anchor="middle">{month_labels[m]}</text>'
             )
 
     # Y-axis label
     y_label = (
         f'<text x="14" y="{(plot_top + plot_bottom) / 2:.1f}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="middle" '
         f'transform="rotate(-90 14 {(plot_top + plot_bottom) / 2:.1f})">PUE</text>'
     )
 
@@ -1886,16 +1886,16 @@ def build_firm_capacity_chart(
     if firm_mw <= 0 and mean_mw <= 0:
         return {"available": False, "title": "Firm Capacity", "message": "No data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
-    secondary = _c(secondary_color, "#2b6cb0")
-    palette = [primary, "#16a34a", "#ea580c", "#8b5cf6"]
+    primary = _c(primary_color, "#0A2240")
+    secondary = _c(secondary_color, "#795AFD")
+    palette = [primary, "#5FE838", "#00F1F2", "#4E2589"]
 
     # Capacity spectrum bars
     items = [
         ("Worst", worst_mw, "#ef4444"),
         ("P99 (Firm)", firm_mw, primary),
         ("Mean", mean_mw, secondary),
-        ("Best", best_mw, "#16a34a"),
+        ("Best", best_mw, "#5FE838"),
     ]
     items = [(label, val, color) for label, val, color in items if val and val > 0]
 
@@ -1916,8 +1916,8 @@ def build_firm_capacity_chart(
         val = upper * i / 4
         y = plot_bottom - (val / upper) * plot_h
         tick_parts.append(
-            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#f3f4f6" stroke-width="1" />'
-            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" stroke="#F5F5F5" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="8" text-anchor="end">{val:.1f} MW</text>'
         )
 
@@ -1929,9 +1929,9 @@ def build_firm_capacity_chart(
         by = plot_bottom - bar_h_px
         bar_parts.append(
             f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_w:.1f}" height="{bar_h_px:.1f}" rx="3" fill="{color}" opacity="0.85" />'
-            f'<text x="{cx:.1f}" y="{by - 6:.1f}" fill="{color}" font-family="system-ui,sans-serif" '
+            f'<text x="{cx:.1f}" y="{by - 6:.1f}" fill="{color}" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="9" font-weight="700" text-anchor="middle">{val:.2f} MW</text>'
-            f'<text x="{cx:.1f}" y="{plot_bottom + 14:.1f}" fill="#374151" font-family="system-ui,sans-serif" '
+            f'<text x="{cx:.1f}" y="{plot_bottom + 14:.1f}" fill="#1B303A" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="8" text-anchor="middle">{escape(label)}</text>'
         )
 
@@ -1954,8 +1954,8 @@ def build_firm_capacity_deficit_chart(
     firm_kw: float,
     mean_kw: float,
     *,
-    primary_color: str = "#1a365d",
-    secondary_color: str = "#2b6cb0",
+    primary_color: str = "#0A2240",
+    secondary_color: str = "#795AFD",
 ) -> dict[str, Any]:
     """Hourly IT capacity chart with firm/mean lines and shaded deficit area.
 
@@ -1969,7 +1969,7 @@ def build_firm_capacity_deficit_chart(
     if not hourly_it_kw or len(hourly_it_kw) < 24:
         return {"available": False, "title": "Capacity Deficit", "message": "No hourly data.", "svg_markup": None}
 
-    primary = _c(primary_color, "#1a365d")
+    primary = _c(primary_color, "#0A2240")
 
     n = len(hourly_it_kw)
     w, h = 680, 240  # compact size for report print
@@ -2004,8 +2004,8 @@ def build_firm_capacity_deficit_chart(
         y = plot_bottom - frac * plot_h
         parts.append(
             f'<line x1="{plot_left}" y1="{y:.1f}" x2="{plot_right}" y2="{y:.1f}" '
-            f'stroke="#f3f4f6" stroke-width="1" />'
-            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="system-ui,sans-serif" '
+            f'stroke="#F5F5F5" stroke-width="1" />'
+            f'<text x="{plot_left - 6}" y="{y + 3:.1f}" fill="#9ca3af" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" '
             f'font-size="7" text-anchor="end">{val / 1000:.1f}</text>'
         )
 
@@ -2058,7 +2058,7 @@ def build_firm_capacity_deficit_chart(
         f'<line x1="{plot_left}" y1="{y_mean:.1f}" x2="{plot_right}" y2="{y_mean:.1f}" '
         f'stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3" />'
         f'<text x="{plot_right + 3}" y="{y_mean + 3:.1f}" fill="#ef4444" '
-        f'font-family="system-ui,sans-serif" font-size="6.5" font-weight="600">'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5" font-weight="600">'
         f'Mean {mean_kw / 1000:.2f} MW</text>'
     )
 
@@ -2066,9 +2066,9 @@ def build_firm_capacity_deficit_chart(
     y_firm = y_pos(firm_kw)
     parts.append(
         f'<line x1="{plot_left}" y1="{y_firm:.1f}" x2="{plot_right}" y2="{y_firm:.1f}" '
-        f'stroke="#16a34a" stroke-width="1.5" stroke-dasharray="6,3" />'
-        f'<text x="{plot_right + 3}" y="{y_firm + 3:.1f}" fill="#16a34a" '
-        f'font-family="system-ui,sans-serif" font-size="6.5" font-weight="600">'
+        f'stroke="#5FE838" stroke-width="1.5" stroke-dasharray="6,3" />'
+        f'<text x="{plot_right + 3}" y="{y_firm + 3:.1f}" fill="#5FE838" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5" font-weight="600">'
         f'Firm {firm_kw / 1000:.2f} MW</text>'
     )
 
@@ -2083,13 +2083,13 @@ def build_firm_capacity_deficit_chart(
         x = x_pos(day_start)
         parts.append(
             f'<text x="{x:.1f}" y="{plot_bottom + 10:.1f}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="7" text-anchor="middle">{month_labels[m]}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" text-anchor="middle">{month_labels[m]}</text>'
         )
 
     # Y-axis label
     parts.append(
         f'<text x="{_PAD_OUTER}" y="{plot_top + plot_h / 2:.1f}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="7" text-anchor="middle" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" text-anchor="middle" '
         f'transform="rotate(-90 {_PAD_OUTER} {plot_top + plot_h / 2:.1f})">IT Capacity (MW)</text>'
     )
 
@@ -2097,15 +2097,15 @@ def build_firm_capacity_deficit_chart(
     ly = h - 12
     parts.append(
         f'<rect x="{plot_left}" y="{ly}" width="8" height="3" fill="#ef4444" opacity="0.4" />'
-        f'<text x="{plot_left + 11}" y="{ly + 3}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="6.5">'
+        f'<text x="{plot_left + 11}" y="{ly + 3}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5">'
         f'Deficit below Mean: {deficit_energy_kwh / 1000:.1f} MWh ({deficit_hours} hours)</text>'
         f'<line x1="{plot_left + 230}" y1="{ly + 1.5}" x2="{plot_left + 244}" y2="{ly + 1.5}" '
-        f'stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4,2" />'
-        f'<text x="{plot_left + 247}" y="{ly + 3}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="6.5">'
+        f'stroke="#5FE838" stroke-width="1.5" stroke-dasharray="4,2" />'
+        f'<text x="{plot_left + 247}" y="{ly + 3}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5">'
         f'Firm (P99)</text>'
         f'<line x1="{plot_left + 290}" y1="{ly + 1.5}" x2="{plot_left + 304}" y2="{ly + 1.5}" '
         f'stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2" />'
-        f'<text x="{plot_left + 307}" y="{ly + 3}" fill="#6b7280" font-family="system-ui,sans-serif" font-size="6.5">'
+        f'<text x="{plot_left + 307}" y="{ly + 3}" fill="#6b7280" font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5">'
         f'Mean</text>'
     )
 
@@ -2133,8 +2133,8 @@ def build_firm_capacity_deficit_chart(
 # ══════════════════════════════════════════════════════════════════════════════
 
 _PIE_PALETTE = [
-    "#1a365d", "#2b6cb0", "#16a34a", "#ea580c", "#8b5cf6",
-    "#0891b2", "#d97706", "#dc2626", "#4f46e5", "#059669",
+    "#0A2240", "#795AFD", "#5FE838", "#00F1F2", "#4E2589",
+    "#BCACFE", "#1B303A", "#E7E6E6", "#ef4444", "#f59e0b",
 ]
 
 
@@ -2143,8 +2143,8 @@ def build_pie_chart(
     *,
     title: str = "Pie Chart",
     subtitle: str = "",
-    primary_color: str = "#1a365d",
-    secondary_color: str = "#2b6cb0",
+    primary_color: str = "#0A2240",
+    secondary_color: str = "#795AFD",
 ) -> dict[str, Any]:
     """Generic pie chart builder.
 
@@ -2197,8 +2197,8 @@ def build_pie_chart(
         ly = legend_y + idx * 24
         parts.append(
             f'<rect x="{legend_x:.0f}" y="{ly:.0f}" width="12" height="12" rx="2" fill="{color}" />'
-            f'<text x="{legend_x + 18:.0f}" y="{ly + 10:.0f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="9.5" font-weight="600">'
+            f'<text x="{legend_x + 18:.0f}" y="{ly + 10:.0f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="9.5" font-weight="600">'
             f'{escape(s["label"])} ({fraction * 100:.1f}%)</text>'
         )
 
@@ -2227,8 +2227,8 @@ def build_tornado_chart(
     output_unit: str = "MW",
     title: str = "Sensitivity Tornado",
     subtitle: str = "",
-    primary_color: str = "#1a365d",
-    secondary_color: str = "#2b6cb0",
+    primary_color: str = "#0A2240",
+    secondary_color: str = "#795AFD",
 ) -> dict[str, Any]:
     """Tornado chart for sensitivity analysis.
 
@@ -2266,8 +2266,8 @@ def build_tornado_chart(
     bar_gap = 28
     y_start = _PAD_TOP + 20
 
-    primary_c = _c(primary_color, "#1a365d")
-    secondary_c = _c(secondary_color, "#2b6cb0")
+    primary_c = _c(primary_color, "#0A2240")
+    secondary_c = _c(secondary_color, "#795AFD")
 
     parts: list[str] = []
 
@@ -2279,7 +2279,7 @@ def build_tornado_chart(
     )
     parts.append(
         f'<text x="{baseline_x:.1f}" y="{y_start - 8}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="8" text-anchor="middle">'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="middle">'
         f'Baseline: {baseline:.2f} {escape(output_unit)}</text>'
     )
 
@@ -2297,14 +2297,14 @@ def build_tornado_chart(
         else:
             parts.append(
                 f'<rect x="{baseline_x:.1f}" y="{cy - bar_h / 2:.1f}" '
-                f'width="{low_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#16a34a" opacity="0.75" />'
+                f'width="{low_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#5FE838" opacity="0.75" />'
             )
 
         # High side
         if high_x > baseline_x:
             parts.append(
                 f'<rect x="{baseline_x:.1f}" y="{cy - bar_h / 2:.1f}" '
-                f'width="{high_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#16a34a" opacity="0.75" />'
+                f'width="{high_x - baseline_x:.1f}" height="{bar_h}" rx="3" fill="#5FE838" opacity="0.75" />'
             )
         else:
             parts.append(
@@ -2314,20 +2314,20 @@ def build_tornado_chart(
 
         # Values on ends
         parts.append(
-            f'<text x="{low_x - 4:.1f}" y="{cy + 3:.1f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="end">'
+            f'<text x="{low_x - 4:.1f}" y="{cy + 3:.1f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" text-anchor="end">'
             f'{bar["low"]:.2f}</text>'
         )
         parts.append(
-            f'<text x="{high_x + 4:.1f}" y="{cy + 3:.1f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="start">'
+            f'<text x="{high_x + 4:.1f}" y="{cy + 3:.1f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" text-anchor="start">'
             f'{bar["high"]:.2f}</text>'
         )
 
         # Label on left
         parts.append(
-            f'<text x="{label_w}" y="{cy + 3:.1f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">'
+            f'<text x="{label_w}" y="{cy + 3:.1f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">'
             f'{escape(bar["label"])}</text>'
         )
 
@@ -2362,16 +2362,16 @@ def build_green_energy_breakdown_chart(
 ) -> dict[str, Any]:
     """Build a horizontal bar chart SVG for annual energy breakdown."""
     categories = [
-        ("Total Facility", total_facility_kwh, "#9ca3af"),
-        ("Total IT", total_it_kwh, "#d1d5db"),
-        ("Total Overhead", total_overhead_kwh, "#e5e7eb"),
-        ("PV Generation", total_pv_generation_kwh, "#f59e0b"),
-        ("PV \u2192 Overhead", total_pv_to_overhead_kwh, "#22c55e"),
-        ("PV \u2192 BESS", total_pv_to_bess_kwh, "#3b82f6"),
-        ("BESS Discharge", total_bess_discharge_kwh, "#8b5cf6"),
-        ("Fuel Cell", total_fuel_cell_kwh, "#6366f1"),
+        ("Total Facility", total_facility_kwh, "#1B303A"),
+        ("Total IT", total_it_kwh, "#0A2240"),
+        ("Total Overhead", total_overhead_kwh, "#E7E6E6"),
+        ("PV Generation", total_pv_generation_kwh, "#5FE838"),
+        ("PV \u2192 Overhead", total_pv_to_overhead_kwh, "#5FE838"),
+        ("PV \u2192 BESS", total_pv_to_bess_kwh, "#795AFD"),
+        ("BESS Discharge", total_bess_discharge_kwh, "#4E2589"),
+        ("Fuel Cell", total_fuel_cell_kwh, "#BCACFE"),
         ("Grid Import", total_grid_import_kwh, "#ef4444"),
-        ("PV Curtailed", total_pv_curtailed_kwh, "#d1d5db"),
+        ("PV Curtailed", total_pv_curtailed_kwh, "#E7E6E6"),
     ]
 
     # Filter to only categories with actual values
@@ -2417,14 +2417,14 @@ def build_green_energy_breakdown_chart(
         )
         # Label on left
         parts.append(
-            f'<text x="{label_w}" y="{cy + 3:.1f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="8" text-anchor="end">'
+            f'<text x="{label_w}" y="{cy + 3:.1f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" text-anchor="end">'
             f'{escape(label)}</text>'
         )
         # Value at end of bar
         parts.append(
-            f'<text x="{plot_left + bar_width + 4:.1f}" y="{cy + 3:.1f}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="7.5" text-anchor="start">'
+            f'<text x="{plot_left + bar_width + 4:.1f}" y="{cy + 3:.1f}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7.5" text-anchor="start">'
             f'{val:,.1f} MWh</text>'
         )
 
@@ -2474,9 +2474,9 @@ def build_green_dispatch_hourly_chart(
 
     # Extract layers (bottom to top): pv_to_overhead, bess_discharge, fuel_cell, grid_import
     layers_keys = [
-        ("pv_to_overhead_kw", "#22c55e"),
-        ("bess_discharge_kw", "#8b5cf6"),
-        ("fuel_cell_kw", "#6366f1"),
+        ("pv_to_overhead_kw", "#5FE838"),
+        ("bess_discharge_kw", "#795AFD"),
+        ("fuel_cell_kw", "#4E2589"),
         ("grid_import_kw", "#ef4444"),
     ]
 
@@ -2527,7 +2527,7 @@ def build_green_dispatch_hourly_chart(
         label = f"{val / 1000:.0f} MW" if val >= 1000 else f"{val:.0f} kW"
         parts.append(
             f'<text x="{plot_left - 4}" y="{y + 3:.1f}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" text-anchor="end">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" text-anchor="end">'
             f'{label}</text>'
         )
 
@@ -2543,7 +2543,7 @@ def build_green_dispatch_hourly_chart(
         mx = plot_left + frac * plot_w
         parts.append(
             f'<text x="{mx:.1f}" y="{plot_bottom + 12}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" text-anchor="middle">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" text-anchor="middle">'
             f'{mname}</text>'
         )
 
@@ -2578,17 +2578,17 @@ def build_green_dispatch_hourly_chart(
     for j in range(1, n_pts):
         demand_path.append(f"L{x_pos(j):.1f},{y_pos(sampled[j]['overhead_kw']):.1f}")
     parts.append(
-        f'<path d="{" ".join(demand_path)}" fill="none" stroke="#374151" '
+        f'<path d="{" ".join(demand_path)}" fill="none" stroke="#0A2240" '
         f'stroke-width="1" opacity="0.6" />'
     )
 
     # Legend
     legend_items = [
-        ("PV Direct", "#22c55e"),
-        ("BESS", "#8b5cf6"),
-        ("Fuel Cell", "#6366f1"),
+        ("PV Direct", "#5FE838"),
+        ("BESS", "#795AFD"),
+        ("Fuel Cell", "#4E2589"),
         ("Grid", "#ef4444"),
-        ("Demand", "#374151"),
+        ("Demand", "#0A2240"),
     ]
     lx = plot_left
     for li, (lbl, lcolor) in enumerate(legend_items):
@@ -2599,7 +2599,7 @@ def build_green_dispatch_hourly_chart(
         )
         parts.append(
             f'<text x="{lx + offset + 11}" y="{plot_bottom + 24}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="6.5">{lbl}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5">{lbl}</text>'
         )
 
     body_dispatch = "".join(parts)
@@ -2620,8 +2620,8 @@ def build_green_dispatch_hourly_chart(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _RAG_BAR_COLORS: dict[str, str] = {
-    "BLUE": "#3b82f6",
-    "GREEN": "#16a34a",
+    "BLUE": "#795AFD",
+    "GREEN": "#5FE838",
     "AMBER": "#f59e0b",
     "RED": "#ef4444",
 }
@@ -2644,7 +2644,7 @@ def build_exec_comparison_chart(
     if len(results) < 2:
         return None
 
-    pc = _c(primary_color, "#1a365d")
+    pc = _c(primary_color, "#0A2240")
 
     # Extract data
     rows: list[dict[str, Any]] = []
@@ -2686,9 +2686,9 @@ def build_exec_comparison_chart(
 
     # Background
     parts.append(
-        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#f9fafb" />'
+        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#F5F5F5" />'
         f'<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="3.5" '
-        f'fill="white" stroke="#e5e7eb" stroke-width="0.5" />'
+        f'fill="white" stroke="#E7E6E6" stroke-width="0.5" />'
     )
 
     for idx, row in enumerate(rows):
@@ -2704,13 +2704,13 @@ def build_exec_comparison_chart(
         load_short = escape(row["load_type"][:16])
         label_short = escape(row["label"][:20])
         parts.append(
-            f'<text x="{plot_left - 4}" y="{cy - 2}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="7" font-weight="{weight}" '
+            f'<text x="{plot_left - 4}" y="{cy - 2}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" font-weight="{weight}" '
             f'text-anchor="end">{load_short}</text>'
         )
         parts.append(
             f'<text x="{plot_left - 4}" y="{cy + 7}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="6" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6" '
             f'text-anchor="end">{label_short}</text>'
         )
 
@@ -2725,24 +2725,24 @@ def build_exec_comparison_chart(
             sep_y = row_h * (idx + 1)
             parts.append(
                 f'<line x1="4" y1="{sep_y:.1f}" x2="{width - 4}" y2="{sep_y:.1f}" '
-                f'stroke="#f3f4f6" stroke-width="0.5" />'
+                f'stroke="#F5F5F5" stroke-width="0.5" />'
             )
 
         # Right annotations: IT MW | PUE | Density | Racks
         ax = plot_right + 4
         parts.append(
-            f'<text x="{ax}" y="{cy - 5}" fill="#111827" '
-            f'font-family="system-ui,sans-serif" font-size="8" font-weight="600">'
+            f'<text x="{ax}" y="{cy - 5}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="600">'
             f'{row["it_mw"]:.2f} MW</text>'
         )
         parts.append(
             f'<text x="{ax}" y="{cy + 4}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="6.5">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6.5">'
             f'PUE {row["pue"]:.3f} · {row["rack_density"]:.0f} kW/rack</text>'
         )
         parts.append(
             f'<text x="{ax}" y="{cy + 12}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="6">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="6">'
             f'{row["racks"]:,} racks</text>'
         )
 
@@ -2781,14 +2781,14 @@ def build_exec_firm_capacity_chart(
     if firm_mw <= 0 and mean_mw <= 0:
         return None
 
-    pc = _c(primary_color, "#1a365d")
-    sc = _c(secondary_color, "#2b6cb0")
+    pc = _c(primary_color, "#0A2240")
+    sc = _c(secondary_color, "#795AFD")
 
     items = [
         ("Worst", worst_mw, "#ef4444"),
         ("P99 Firm", firm_mw, pc),
         ("Mean", mean_mw, sc),
-        ("Best", best_mw, "#16a34a"),
+        ("Best", best_mw, "#5FE838"),
     ]
     items = [(label, val, color) for label, val, color in items if val and val > 0]
     if not items:
@@ -2806,9 +2806,9 @@ def build_exec_firm_capacity_chart(
 
     parts: list[str] = []
     parts.append(
-        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#f9fafb" />'
+        f'<rect x="0" y="0" width="{width}" height="{height}" rx="4" fill="#F5F5F5" />'
         f'<rect x="0.5" y="0.5" width="{width - 1}" height="{height - 1}" rx="3.5" '
-        f'fill="white" stroke="#e5e7eb" stroke-width="0.5" />'
+        f'fill="white" stroke="#E7E6E6" stroke-width="0.5" />'
     )
 
     for idx, (label, val, color) in enumerate(items):
@@ -2819,7 +2819,7 @@ def build_exec_firm_capacity_chart(
         # Label
         parts.append(
             f'<text x="{plot_left - 4}" y="{cy + 3}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="7" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="7" '
             f'text-anchor="end">{escape(label)}</text>'
         )
 
@@ -2832,7 +2832,7 @@ def build_exec_firm_capacity_chart(
         # Value
         parts.append(
             f'<text x="{plot_right + 4}" y="{cy + 3}" fill="{color}" '
-            f'font-family="system-ui,sans-serif" font-size="8" font-weight="600">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="8" font-weight="600">'
             f'{val:.2f} MW</text>'
         )
 
@@ -2855,7 +2855,7 @@ def build_exec_deficit_chart(
     firm_kw: float,
     mean_kw: float,
     *,
-    primary_color: str = "#1a365d",
+    primary_color: str = "#0A2240",
     width: int = 400,
     height: int = 120,
 ) -> str | None:
@@ -2868,7 +2868,7 @@ def build_exec_deficit_chart(
     if not hourly_it_kw or len(hourly_it_kw) < 24:
         return None
 
-    pc = _c(primary_color, "#1a365d")
+    pc = _c(primary_color, "#0A2240")
     n = len(hourly_it_kw)
 
     pad_l, pad_r, pad_t, pad_b = 42, 6, 10, 18
@@ -2906,11 +2906,11 @@ def build_exec_deficit_chart(
         yp = sy(v)
         parts.append(
             f'<line x1="{pad_l}" y1="{yp:.1f}" x2="{width - pad_r}" y2="{yp:.1f}" '
-            f'stroke="#f3f4f6" stroke-width="0.5" />'
+            f'stroke="#F5F5F5" stroke-width="0.5" />'
         )
         parts.append(
             f'<text x="{pad_l - 3}" y="{yp + 2.5}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="end">'
             f'{v / 1000:.1f}</text>'
         )
 
@@ -2951,7 +2951,7 @@ def build_exec_deficit_chart(
     )
     parts.append(
         f'<text x="{width - pad_r}" y="{my - 2}" fill="#ef4444" '
-        f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="end">'
         f'Mean {mean_kw / 1000:.2f} MW</text>'
     )
 
@@ -2959,11 +2959,11 @@ def build_exec_deficit_chart(
     fy = sy(firm_kw)
     parts.append(
         f'<line x1="{pad_l}" y1="{fy:.1f}" x2="{width - pad_r}" y2="{fy:.1f}" '
-        f'stroke="#16a34a" stroke-width="0.6" stroke-dasharray="3,2" />'
+        f'stroke="#5FE838" stroke-width="0.6" stroke-dasharray="3,2" />'
     )
     parts.append(
-        f'<text x="{width - pad_r}" y="{fy - 2}" fill="#16a34a" '
-        f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+        f'<text x="{width - pad_r}" y="{fy - 2}" fill="#5FE838" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="end">'
         f'Firm {firm_kw / 1000:.2f} MW</text>'
     )
 
@@ -2973,13 +2973,13 @@ def build_exec_deficit_chart(
         xi = pad_l + (mi / 12) * pw
         parts.append(
             f'<text x="{xi:.0f}" y="{height - 4}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="5">{label}</text>'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5">{label}</text>'
         )
 
     # Y-axis label
     parts.append(
         f'<text x="3" y="{pad_t + ph / 2}" fill="#9ca3af" '
-        f'font-family="system-ui,sans-serif" font-size="5" '
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" '
         f'transform="rotate(-90,3,{pad_t + ph / 2})" text-anchor="middle">IT MW</text>'
     )
 
@@ -2989,7 +2989,7 @@ def build_exec_deficit_chart(
     gap_mw = (mean_kw - firm_kw) / 1000
     parts.append(
         f'<text x="{pad_l + 2}" y="{pad_t + 6}" fill="#6b7280" '
-        f'font-family="system-ui,sans-serif" font-size="5">'
+        f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5">'
         f'Gap: {gap_mw:.2f} MW · Deficit: {deficit_kwh / 1000:.0f} MWh ({deficit_hours}h)</text>'
     )
 
@@ -3056,13 +3056,13 @@ def build_exec_pue_pie_chart(
     # PUE value in center
     if pue_value is not None:
         parts.append(
-            f'<text x="{cx}" y="{cy + 2}" fill="#111827" '
-            f'font-family="system-ui,sans-serif" font-size="9" font-weight="700" '
+            f'<text x="{cx}" y="{cy + 2}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="700" '
             f'text-anchor="middle">{pue_value:.3f}</text>'
         )
         parts.append(
             f'<text x="{cx}" y="{cy + 9}" fill="#9ca3af" '
-            f'font-family="system-ui,sans-serif" font-size="5" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" '
             f'text-anchor="middle">PUE</text>'
         )
 
@@ -3083,13 +3083,13 @@ def build_exec_pue_pie_chart(
         if len(label) > 18:
             label = label[:17] + "…"
         parts.append(
-            f'<text x="{lx + 9}" y="{ly + 5.5}" fill="#374151" '
-            f'font-family="system-ui,sans-serif" font-size="5.5">{escape(label)}</text>'
+            f'<text x="{lx + 9}" y="{ly + 5.5}" fill="#1B303A" '
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5.5">{escape(label)}</text>'
         )
         # Percentage
         parts.append(
             f'<text x="{width - 4}" y="{ly + 5.5}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="5" text-anchor="end">'
+            f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="end">'
             f'{fraction * 100:.0f}%</text>'
         )
 

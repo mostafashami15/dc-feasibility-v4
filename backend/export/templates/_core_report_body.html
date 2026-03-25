@@ -389,7 +389,7 @@
             </thead>
             <tbody>
               {% for r in display_ranked %}
-                <tr {% if r.is_primary %}style="background:#eff6ff;font-weight:600;"{% endif %}>
+                <tr {% if r.is_primary %}style="background:#E8E0FF;font-weight:600;"{% endif %}>
                   <td><span class="rank-badge {% if r.rank_within_site == 1 %}rank-1{% elif r.rank_within_site == 2 %}rank-2{% elif r.rank_within_site == 3 %}rank-3{% endif %}">{{ r.rank_within_site }}</span></td>
                   <td class="scenario-config-cell">
                     {{ r.scenario.load_type }} / {{ r.scenario.cooling_type }} /

@@ -85,7 +85,7 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E7E6E6" />
             <XAxis
               dataKey="hour"
               ticks={monthTicks}
@@ -107,7 +107,7 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
             <Tooltip
               contentStyle={{
                 backgroundColor: "#fff",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #E7E6E6",
                 borderRadius: "8px",
                 fontSize: "11px",
               }}
@@ -131,7 +131,7 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
               type="stepAfter"
               dataKey="gapUpper"
               stroke="none"
-              fill="#3b82f620"
+              fill="#795AFD20"
               fillOpacity={1}
               name="gapUpper"
               legendType="none"
@@ -178,7 +178,7 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
             <Line
               type="monotone"
               dataKey="itMw"
-              stroke="#1e3a5f"
+              stroke="#0A2240"
               strokeWidth={1.2}
               dot={false}
               name="itMw"
@@ -189,26 +189,26 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
             {/* Firm (P99) reference line */}
             <ReferenceLine
               y={firmMw}
-              stroke="#f97316"
+              stroke="#5FE838"
               strokeWidth={1.5}
               strokeDasharray="6 3"
               label={{
                 value: `Firm P99: ${firmMw.toFixed(2)} MW`,
                 position: "right",
-                style: { fontSize: 9, fill: "#f97316", fontWeight: 600 },
+                style: { fontSize: 9, fill: "#5FE838", fontWeight: 600 },
               }}
             />
 
             {/* Mean reference line */}
             <ReferenceLine
               y={meanMw}
-              stroke="#2563eb"
+              stroke="#795AFD"
               strokeWidth={1.5}
               strokeDasharray="6 3"
               label={{
                 value: `Mean: ${meanMw.toFixed(2)} MW`,
                 position: "right",
-                style: { fontSize: 9, fill: "#2563eb", fontWeight: 600 },
+                style: { fontSize: 9, fill: "#795AFD", fontWeight: 600 },
               }}
             />
 
@@ -216,15 +216,15 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
               content={() => (
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs mt-2 px-2">
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-4 h-0.5 bg-[#1e3a5f] rounded" />
+                    <span className="inline-block w-4 h-0.5 bg-[#0A2240] rounded" />
                     IT Capacity
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: "#f97316" }} />
+                    <span className="inline-block w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: "#5FE838" }} />
                     Firm P99: {firmMw.toFixed(2)} MW
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: "#2563eb" }} />
+                    <span className="inline-block w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: "#795AFD" }} />
                     Mean: {meanMw.toFixed(2)} MW
                   </span>
                   <span className="flex items-center gap-1.5">
@@ -232,7 +232,7 @@ export default function FirmCapacityDeficitChart({ advisory }: Props) {
                     Deficit Energy: {deficitMwh.toFixed(1)} MWh
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-3.5 h-3.5 rounded-sm" style={{ backgroundColor: "rgba(59,130,246,0.15)" }} />
+                    <span className="inline-block w-3.5 h-3.5 rounded-sm" style={{ backgroundColor: "rgba(121,90,253,0.15)" }} />
                     Capacity Gap: {gapMw.toFixed(2)} MW
                   </span>
                   <span className="flex items-center gap-1.5 text-gray-500">

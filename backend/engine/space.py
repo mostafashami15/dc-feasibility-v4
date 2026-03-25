@@ -129,12 +129,21 @@ def compute_space(site: Site, cooling_type: CoolingType | None = None) -> SpaceR
         expansion_racks_raw = int(expansion_whitespace_m2 / site.rack_footprint_m2)
         expansion_racks = int(expansion_racks_raw * whitespace_adjustment)
 
+    # ── Step 7b: Gray space (explicit naming of support area) ──
+    # Gray space is the complement of whitespace — the non-IT area used
+    # for power rooms, cooling plant, corridors, offices, and other
+    # support infrastructure. Identical to support_area_m2 by definition.
+    gray_space_m2 = support_area_m2
+    gray_space_ratio = 1.0 - site.whitespace_ratio
+
     # ── Build and return result ──
     return SpaceResult(
         buildable_footprint_m2=round(buildable_footprint_m2, 1),
         gross_building_area_m2=round(gross_building_area_m2, 1),
         it_whitespace_m2=round(it_whitespace_m2, 1),
         support_area_m2=round(support_area_m2, 1),
+        gray_space_m2=round(gray_space_m2, 1),
+        gray_space_ratio=round(gray_space_ratio, 4),
         max_racks_by_space=max_racks_by_space,
         effective_racks=effective_racks,
         whitespace_adjustment_factor=whitespace_adjustment,
@@ -147,6 +156,44 @@ def compute_space(site: Site, cooling_type: CoolingType | None = None) -> SpaceR
         expansion_whitespace_m2=round(expansion_whitespace_m2, 1),
         expansion_racks=expansion_racks,
     )
+
+
+def compute_effective_racks(
+    land_area_m2: float,
+    coverage_ratio: float,
+    num_floors: int,
+    whitespace_ratio: float,
+    rack_footprint_m2: float,
+    whitespace_adjustment: float,
+) -> int:
+    """Compute effective racks from raw geometry parameters.
+
+    Single source of truth for the geometry → racks chain used by both
+    space.compute_space() and sensitivity sweeps.
+
+    Formula chain (Architecture Agreement Section 3.14):
+        buildable = land_area × coverage_ratio
+        gross = buildable × floors
+        whitespace = gross × ws_ratio
+        max_racks = int(whitespace / rack_footprint)
+        effective_racks = int(max_racks × ws_adjustment)
+    """
+    buildable = land_area_m2 * coverage_ratio
+    gross = buildable * num_floors
+    whitespace = gross * whitespace_ratio
+    max_racks = int(whitespace / rack_footprint_m2) if rack_footprint_m2 > 0 else 0
+    return int(max_racks * whitespace_adjustment)
+
+
+def compute_it_load_from_racks(
+    effective_racks: int,
+    rack_density_kw: float,
+) -> float:
+    """Convert rack count to IT load in MW (no rounding).
+
+    Used by sensitivity sweeps where rounding would distort gradients.
+    """
+    return effective_racks * rack_density_kw / 1000.0
 
 
 def compute_it_load_from_space(

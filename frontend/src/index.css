@@ -28,12 +28,10 @@ html {
 body {
   margin: 0;
   font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
     "Segoe UI",
     Roboto,
+    "Helvetica Neue",
+    Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -64,7 +62,7 @@ body {
   position: absolute;
   inset: -6px;
   border-radius: 999px 999px 999px 10px;
-  background: rgba(37, 99, 235, 0.14);
+  background: rgba(121, 90, 253, 0.14);
   z-index: -1;
 }
 
@@ -76,26 +74,26 @@ body {
 }
 
 .site-map-pin--overview {
-  background: linear-gradient(135deg, #0f766e, #2563eb);
+  background: linear-gradient(135deg, #0A2240, #795AFD);
 }
 
 .site-map-pin--detail {
   height: 30px;
   width: 30px;
-  background: linear-gradient(135deg, #155e75, #1d4ed8);
+  background: linear-gradient(135deg, #0A2240, #4E2589);
 }
 
 .site-map-pin--terrain {
   height: 34px;
   width: 34px;
   border-width: 3px;
-  background: linear-gradient(135deg, #14532d, #ca8a04);
-  box-shadow: 0 16px 34px rgba(20, 83, 45, 0.34);
+  background: linear-gradient(135deg, #0A2240, #5FE838);
+  box-shadow: 0 16px 34px rgba(10, 34, 64, 0.34);
 }
 
 .site-map-pin--terrain::after {
   inset: -8px;
-  background: rgba(22, 163, 74, 0.2);
+  background: rgba(95, 232, 56, 0.2);
 }
 
 .site-map-pin--terrain .site-map-pin__core {
@@ -108,21 +106,21 @@ body {
 }
 
 .site-map-pin.is-selected {
-  background: linear-gradient(135deg, #0f172a, #2563eb);
-  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.34);
+  background: linear-gradient(135deg, #0A2240, #795AFD);
+  box-shadow: 0 14px 32px rgba(121, 90, 253, 0.34);
 }
 
 .site-map-pin.is-selected::after {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(121, 90, 253, 0.2);
 }
 
 .site-map-pin--terrain.is-selected {
-  background: linear-gradient(135deg, #166534, #f59e0b);
-  box-shadow: 0 20px 40px rgba(20, 83, 45, 0.42);
+  background: linear-gradient(135deg, #0A2240, #5FE838);
+  box-shadow: 0 20px 40px rgba(10, 34, 64, 0.42);
 }
 
 .site-map-pin--terrain.is-selected::after {
-  background: rgba(34, 197, 94, 0.26);
+  background: rgba(95, 232, 56, 0.26);
 }
 
 /* SlidePanel animation */

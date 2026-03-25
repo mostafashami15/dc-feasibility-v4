@@ -266,6 +266,15 @@ class Site(BaseModel):
         description="Floors reserved for future expansion phases"
     )
 
+    # ── Roof ──
+    roof_usable: bool = Field(
+        default=True,
+        description=(
+            "Whether the building roof can host cooling equipment (condensers/dry coolers). "
+            "If False, cooling equipment is placed inside the building gray space."
+        )
+    )
+
     # ── White Space ──
     whitespace_ratio: float = Field(
         default=0.40, gt=0, le=0.80,
@@ -403,6 +412,12 @@ class SpaceResult(BaseModel):
     gross_building_area_m2: float = Field(description="Total building area across active floors")
     it_whitespace_m2: float = Field(description="IT hall area (gross × whitespace_ratio)")
     support_area_m2: float = Field(description="Non-IT area (power rooms, corridors, etc.)")
+    gray_space_m2: float = Field(
+        description="Gray space area — same as support_area_m2 (power rooms, cooling plant, corridors, offices)"
+    )
+    gray_space_ratio: float = Field(
+        description="Gray space / gross building area (complement of whitespace_ratio)"
+    )
 
     # ── Rack capacity ──
     max_racks_by_space: int = Field(description="Maximum racks that physically fit")
@@ -764,4 +779,14 @@ class GridContextResult(BaseModel):
         description="Source layers used to build the result",
     )
     confidence: GridConfidence = Field(description="Overall confidence/source classification")
+    data_quality_confidence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Data quality confidence score (0.0–1.0) based on region coverage. "
+            "Higher values indicate more mapped assets were found, suggesting "
+            "better OSM coverage in the area. 0.0 = no data or API failure."
+        ),
+    )
     generated_at_utc: str = Field(description="UTC timestamp when the result was generated")

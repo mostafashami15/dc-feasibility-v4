@@ -291,9 +291,18 @@ async def upload_kml_endpoint(file: UploadFile = File(...)):
             detail="Only .kml and .kmz files are supported"
         )
 
+    # File size limit: 10 MB max to prevent resource exhaustion
+    KML_MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
     try:
         from engine.weather import parse_kml_string
         content = await file.read()
+
+        if len(content) > KML_MAX_SIZE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large ({len(content) / 1024 / 1024:.1f} MB). Maximum allowed: 10 MB."
+            )
 
         if file.filename and file.filename.lower().endswith(".kmz"):
             with zipfile.ZipFile(io.BytesIO(content), "r") as zf:

@@ -506,6 +506,16 @@ def _evaluate_rag(
             f"tight site, limited outdoor equipment space"
         )
 
+    # Gray space sufficiency check (Phase 1.2)
+    # For Tier III facilities, gray space ratio should be ≥ 0.55.
+    # If whitespace_ratio > 0.45 the gray space may be too small for
+    # support infrastructure (power rooms, cooling plant, corridors).
+    if space.gray_space_ratio < 0.55:
+        amber_reasons.append(
+            f"Gray space ratio {space.gray_space_ratio:.0%} "
+            f"(< 55% threshold) — may be insufficient for support infrastructure"
+        )
+
     if amber_reasons:
         return RAGStatus.AMBER, amber_reasons
 

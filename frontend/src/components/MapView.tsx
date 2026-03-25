@@ -272,7 +272,7 @@ function renderGeometry(
   }
 
   const isSelected = selectedId === site.id;
-  const color = isSelected ? "#2563eb" : "#0f766e";
+  const color = isSelected ? "#795AFD" : "#0A2240";
 
   if (geometry.geometry_type === "polygon") {
     return (

@@ -33,6 +33,7 @@ import zipfile
 import io
 import re
 import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as DefusedET
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 from dataclasses import dataclass, field
@@ -404,6 +405,9 @@ def _parse_coordinate_text(coord_text: str) -> list[tuple[float, float]]:
 
     KML stores coordinates as:
         lon,lat[,alt] lon,lat[,alt] ...
+
+    Validates that longitude is in [-180, 180] and latitude is in [-90, 90].
+    Invalid coordinates are silently skipped.
     """
     pattern = re.compile(
         r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(?:\s*,\s*-?\d+(?:\.\d+)?)?"
@@ -411,7 +415,9 @@ def _parse_coordinate_text(coord_text: str) -> list[tuple[float, float]]:
 
     coordinates: list[tuple[float, float]] = []
     for lon_text, lat_text in pattern.findall(coord_text):
-        coordinates.append((float(lon_text), float(lat_text)))
+        lon, lat = float(lon_text), float(lat_text)
+        if -180.0 <= lon <= 180.0 and -90.0 <= lat <= 90.0:
+            coordinates.append((lon, lat))
 
     return coordinates
 
@@ -456,7 +462,7 @@ def parse_kml_string(kml_content: str) -> list[KMLCoordinates]:
     results = []
 
     try:
-        root = ET.fromstring(kml_content)
+        root = DefusedET.fromstring(kml_content)
     except ET.ParseError as e:
         raise ValueError(f"Invalid KML XML: {e}")
 

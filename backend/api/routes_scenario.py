@@ -281,7 +281,8 @@ class FootprintRequest(BaseModel):
     facility_power_mw: float = Field(gt=0, description="Total facility power (MW)")
     procurement_power_mw: float = Field(gt=0, description="Grid capacity (MW)")
     buildable_footprint_m2: float = Field(gt=0, description="Building footprint (m²)")
-    land_area_m2: float = Field(gt=0, description="Total land area (m²)")
+    gray_space_m2: float = Field(gt=0, description="Available gray space (m²)")
+    roof_usable: bool = Field(default=True, description="Whether roof can host cooling equipment")
     backup_power_type: BackupPowerType = Field(
         default=BackupPowerType.DIESEL_GENSET,
         description="Backup power technology"
@@ -650,21 +651,28 @@ async def guided_run_endpoint(request: GuidedRunRequest):
         for r in results:
             ground_util = 0.0
             roof_util = 0.0
+
+            # Use committed IT capacity (hourly p99 or static) to compute
+            # actual power needed — not the grid availability envelope.
+            pue_used = r.get("annual_pue") or r["power"]["pue_used"]
+            it_mw = r.get("it_capacity_p99_mw") or r["power"]["it_load_mw"]
+            eta = r["power"].get("eta_chain", 1.0)
+            pf = r["power"].get("procurement_factor", 1.0)
+            actual_facility_mw = it_mw * pue_used / eta
+            actual_procurement_mw = actual_facility_mw * pf
+
             try:
-                land_area = r["space"]["buildable_footprint_m2"] / r["space"]["site_coverage_used"]
                 fp = compute_footprint(
-                    facility_power_mw=r["power"]["facility_power_mw"],
-                    procurement_power_mw=r["power"]["procurement_power_mw"],
+                    facility_power_mw=actual_facility_mw,
+                    procurement_power_mw=actual_procurement_mw,
                     buildable_footprint_m2=r["space"]["buildable_footprint_m2"],
-                    land_area_m2=land_area,
+                    gray_space_m2=r["space"].get("gray_space_m2", r["space"]["support_area_m2"]),
+                    roof_usable=getattr(site, "roof_usable", True),
                 )
                 ground_util = fp.ground_utilization_ratio
                 roof_util = fp.roof_utilization_ratio
             except (ValueError, KeyError, ZeroDivisionError):
                 pass
-
-            pue_used = r.get("annual_pue") or r["power"]["pue_used"]
-            it_mw = r.get("it_capacity_p99_mw") or r["power"]["it_load_mw"]
 
             breakdown = score_scenario(
                 pue=pue_used,
@@ -675,10 +683,21 @@ async def guided_run_endpoint(request: GuidedRunRequest):
                 rag_status=RAGStatus(r["power"]["rag_status"]),
                 ground_utilization_ratio=ground_util,
                 roof_utilization_ratio=roof_util,
+                gray_space_ratio=r["space"].get("gray_space_ratio", 0.60),
             )
 
             r["score"] = round(breakdown.composite_score, 2)
             r["score_breakdown"] = breakdown.model_dump(mode="json")
+
+            # Override RAG when infrastructure doesn't fit
+            if not breakdown.equipment_fits:
+                r["power"]["rag_status"] = "RED"
+                if "Equipment does not fit" not in " ".join(r["power"].get("rag_reasons", [])):
+                    r["power"].setdefault("rag_reasons", []).append(
+                        f"Equipment does not fit in gray space "
+                        f"(utilization {ground_util:.0%}). Scenario not feasible."
+                    )
+
             scored_results.append(r)
 
         scored_results.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -823,18 +842,41 @@ async def score_endpoint(request: ScoreRequest):
     if max_it <= 0:
         max_it = 1.0  # Avoid division by zero
 
+    # Cache site lookups for roof_usable
+    _site_cache: dict[str, bool] = {}
+
     scored: list[dict] = []
     for r in request.results:
         ground_utilization_ratio = 0.0
         roof_utilization_ratio = 0.0
 
+        # Resolve roof_usable from site config
+        if r.site_id not in _site_cache:
+            site_data = get_site(r.site_id)
+            _site_cache[r.site_id] = (
+                getattr(site_data[1], "roof_usable", True)
+                if site_data else True
+            )
+        roof_usable = _site_cache[r.site_id]
+
+        # Use committed IT capacity to compute actual power needed for
+        # footprint sizing — not the grid availability envelope.
+        pue_for_score = r.annual_pue if r.annual_pue is not None else r.power.pue_used
+        it_for_score = (
+            r.it_capacity_p99_mw
+            if r.it_capacity_p99_mw is not None
+            else r.power.it_load_mw
+        )
+        actual_facility_mw = it_for_score * pue_for_score / r.power.eta_chain
+        actual_procurement_mw = actual_facility_mw * r.power.procurement_factor
+
         try:
-            land_area_m2 = r.space.buildable_footprint_m2 / r.space.site_coverage_used
             footprint = compute_footprint(
-                facility_power_mw=r.power.facility_power_mw,
-                procurement_power_mw=r.power.procurement_power_mw,
+                facility_power_mw=actual_facility_mw,
+                procurement_power_mw=actual_procurement_mw,
                 buildable_footprint_m2=r.space.buildable_footprint_m2,
-                land_area_m2=land_area_m2,
+                gray_space_m2=r.space.gray_space_m2,
+                roof_usable=roof_usable,
                 backup_power_type=r.scenario.backup_power,
             )
             ground_utilization_ratio = footprint.ground_utilization_ratio
@@ -845,18 +887,15 @@ async def score_endpoint(request: ScoreRequest):
 
         # Compute per-component score
         breakdown = score_scenario(
-            pue=r.annual_pue if r.annual_pue is not None else r.power.pue_used,
-            it_load_mw=(
-                r.it_capacity_p99_mw
-                if r.it_capacity_p99_mw is not None
-                else r.power.it_load_mw
-            ),
+            pue=pue_for_score,
+            it_load_mw=it_for_score,
             max_it_load_mw=max_it,
             racks_deployed=r.power.racks_deployed,
             effective_racks=r.space.effective_racks,
             rag_status=r.power.rag_status,
             ground_utilization_ratio=ground_utilization_ratio,
             roof_utilization_ratio=roof_utilization_ratio,
+            gray_space_ratio=r.space.gray_space_ratio,
             weights=request.weights,
         )
 
@@ -864,6 +903,19 @@ async def score_endpoint(request: ScoreRequest):
         result_dict = r.model_dump(mode="json")
         result_dict["score"] = round(breakdown.composite_score, 2)
         result_dict["score_breakdown"] = breakdown.model_dump(mode="json")
+
+        # Override RAG when infrastructure doesn't fit
+        if not breakdown.equipment_fits:
+            result_dict["power"]["rag_status"] = "RED"
+            existing_reasons = result_dict["power"].get("rag_reasons", [])
+            fit_reason = (
+                f"Equipment does not fit in gray space "
+                f"(utilization {ground_utilization_ratio:.0%}). Scenario not feasible."
+            )
+            if fit_reason not in existing_reasons:
+                existing_reasons.append(fit_reason)
+                result_dict["power"]["rag_reasons"] = existing_reasons
+
         scored.append(result_dict)
 
     # Sort by score descending (best first)
@@ -1074,7 +1126,8 @@ async def footprint_endpoint(request: FootprintRequest):
             facility_power_mw=request.facility_power_mw,
             procurement_power_mw=request.procurement_power_mw,
             buildable_footprint_m2=request.buildable_footprint_m2,
-            land_area_m2=request.land_area_m2,
+            gray_space_m2=request.gray_space_m2,
+            roof_usable=request.roof_usable,
             backup_power_type=request.backup_power_type,
             cooling_m2_per_kw_override=request.cooling_m2_per_kw_override,
         )

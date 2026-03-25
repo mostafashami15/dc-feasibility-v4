@@ -168,6 +168,31 @@ class TestCOP:
         assert cop == pytest.approx(7.9, abs=1e-6)
 
 
+class TestCOPQuadratic:
+    """Test the optional quadratic COP model extension.
+
+    When COP_quadratic = 0 (default), results are identical to the linear model.
+    When COP_quadratic ≠ 0, the formula becomes:
+        COP = COP_ref + COP_slope × ΔT + COP_quadratic × ΔT²
+    """
+
+    def test_quadratic_zero_matches_linear(self):
+        """With COP_quadratic=0 (the default), result must match linear model."""
+        # CRAC at 25°C: linear gives 3.5 + 0.12 × 10 = 4.7
+        cop = compute_cop(25.0, None, "Air-Cooled CRAC (DX)")
+        assert cop == pytest.approx(4.7, abs=1e-6)
+
+    def test_all_profiles_have_quadratic_key(self):
+        """Every profile must have COP_quadratic (default 0.0)."""
+        for name, profile in COOLING_PROFILES.items():
+            assert "COP_quadratic" in profile, (
+                f"'{name}' missing COP_quadratic key"
+            )
+            assert profile["COP_quadratic"] == 0.0, (
+                f"'{name}' should default COP_quadratic to 0.0"
+            )
+
+
 # ═════════════════════════════════════════════════════════════
 # 3. COOLING MODE DETERMINATION
 # ═════════════════════════════════════════════════════════════

@@ -18,20 +18,32 @@ from export.visual_assets import (
 def _build_capacity_spectrum_svg(
     worst_mw: float, firm_mw: float, mean_mw: float, best_mw: float,
 ) -> str:
-    """Build a tiny inline horizontal capacity spectrum indicator (200×28)."""
+    """Build a tiny inline horizontal capacity spectrum indicator (200×28).
+
+    Uses a zoomed range (not starting from zero) so that the relative
+    differences between Worst / P99 / Mean / Best are clearly visible.
+    """
     w, h = 200, 28
-    pad_l, pad_r = 4, 4
+    pad_l, pad_r = 30, 30  # room for edge labels
     bar_y, bar_h = 4, 8
     bw = w - pad_l - pad_r
-    upper = best_mw * 1.05 if best_mw > 0 else mean_mw * 1.1
+
+    vals = [v for v in (worst_mw, firm_mw, mean_mw, best_mw) if v > 0]
+    if not vals:
+        return ""
+    lo = min(vals)
+    hi = max(vals)
+    margin = (hi - lo) * 0.15 if hi > lo else hi * 0.05
+    lower = lo - margin
+    upper = hi + margin
 
     def sx(v: float) -> float:
-        return pad_l + (v / upper) * bw if upper > 0 else pad_l
+        return pad_l + ((v - lower) / (upper - lower)) * bw if upper > lower else pad_l + bw / 2
 
     # Background track
     parts = [
         f'<rect x="{pad_l}" y="{bar_y}" width="{bw}" height="{bar_h}" '
-        f'rx="2" fill="#f3f4f6" />',
+        f'rx="2" fill="#F5F5F5" />',
     ]
 
     # Worst → Firm segment (red-ish)
@@ -40,15 +52,15 @@ def _build_capacity_spectrum_svg(
         x2 = sx(firm_mw)
         parts.append(
             f'<rect x="{x1:.1f}" y="{bar_y}" width="{max(x2 - x1, 1):.1f}" '
-            f'height="{bar_h}" fill="#fca5a5" opacity="0.7" />'
+            f'height="{bar_h}" fill="#ef4444" opacity="0.5" />'
         )
 
-    # Firm → Mean segment (blue)
+    # Firm → Mean segment (purple)
     x1 = sx(firm_mw)
     x2 = sx(mean_mw)
     parts.append(
         f'<rect x="{x1:.1f}" y="{bar_y}" width="{max(x2 - x1, 1):.1f}" '
-        f'height="{bar_h}" fill="#93c5fd" opacity="0.7" />'
+        f'height="{bar_h}" fill="#BCACFE" opacity="0.7" />'
     )
 
     # Mean → Best segment (green)
@@ -56,34 +68,38 @@ def _build_capacity_spectrum_svg(
     x3 = sx(best_mw)
     parts.append(
         f'<rect x="{x2m:.1f}" y="{bar_y}" width="{max(x3 - x2m, 1):.1f}" '
-        f'height="{bar_h}" fill="#86efac" opacity="0.7" />'
+        f'height="{bar_h}" fill="#5FE838" opacity="0.5" />'
     )
 
-    # Markers with labels
+    # Markers with labels — spread vertically to avoid overlap
     markers = [
-        (worst_mw, "#ef4444", "Worst"),
-        (firm_mw, "#1a365d", "P99"),
-        (mean_mw, "#2b6cb0", "Mean"),
-        (best_mw, "#16a34a", "Best"),
+        (worst_mw, "#ef4444", "Worst", -1),   # label above
+        (firm_mw, "#0A2240", "P99", 1),        # label below
+        (mean_mw, "#795AFD", "Mean", -1),      # label above
+        (best_mw, "#5FE838", "Best", 1),       # label below
     ]
-    for val, color, label in markers:
+    for val, color, label, side in markers:
         if val <= 0:
             continue
         mx = sx(val)
         parts.append(
-            f'<line x1="{mx:.1f}" y1="{bar_y - 1}" x2="{mx:.1f}" y2="{bar_y + bar_h + 1}" '
-            f'stroke="{color}" stroke-width="1" />'
+            f'<line x1="{mx:.1f}" y1="{bar_y - 2}" x2="{mx:.1f}" y2="{bar_y + bar_h + 2}" '
+            f'stroke="{color}" stroke-width="1.2" />'
         )
-        parts.append(
-            f'<text x="{mx:.1f}" y="{bar_y + bar_h + 8}" fill="{color}" '
-            f'font-family="system-ui,sans-serif" font-size="5" text-anchor="middle" '
-            f'font-weight="600">{label}</text>'
-        )
-        parts.append(
-            f'<text x="{mx:.1f}" y="{bar_y + bar_h + 14}" fill="#6b7280" '
-            f'font-family="system-ui,sans-serif" font-size="4.5" text-anchor="middle">'
-            f'{val:.1f}</text>'
-        )
+        if side < 0:
+            # Above the bar
+            parts.append(
+                f'<text x="{mx:.1f}" y="{bar_y - 3}" fill="{color}" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="middle" '
+                f'font-weight="600">{label} {val:.1f}</text>'
+            )
+        else:
+            # Below the bar
+            parts.append(
+                f'<text x="{mx:.1f}" y="{bar_y + bar_h + 8}" fill="{color}" '
+                f'font-family="Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="5" text-anchor="middle" '
+                f'font-weight="600">{label} {val:.1f}</text>'
+            )
 
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
@@ -110,7 +126,10 @@ def _pct(value: float | None) -> str:
     return f"{value:.0f}%"
 
 
-def _build_climate_snapshot(climate_block: dict[str, Any]) -> dict[str, Any] | None:
+def _build_climate_snapshot(
+    climate_block: dict[str, Any],
+    scenario_cooling_type: str | None = None,
+) -> dict[str, Any] | None:
     if climate_block.get("status") != "available":
         return None
     analysis = climate_block.get("analysis")
@@ -118,18 +137,29 @@ def _build_climate_snapshot(climate_block: dict[str, Any]) -> dict[str, Any] | N
         return None
 
     temp = analysis.get("temperature_stats") or {}
-    best_fc = analysis.get("best_free_cooling")
+
+    # Try to find the free cooling entry for the scenario's actual cooling type
+    # instead of the theoretical best — this gives the realistic number.
+    fc_entry = None
+    if scenario_cooling_type:
+        for fc in analysis.get("free_cooling") or []:
+            if fc.get("cooling_type") == scenario_cooling_type:
+                fc_entry = fc
+                break
+    # Fallback to best_free_cooling if no match
+    if fc_entry is None:
+        fc_entry = analysis.get("best_free_cooling")
 
     return {
         "temp_mean": _fmt(temp.get("mean"), 1, " °C"),
         "temp_min": _fmt(temp.get("min"), 1, " °C"),
         "temp_max": _fmt(temp.get("max"), 1, " °C"),
         "free_cooling_pct": (
-            _pct(best_fc["free_cooling_fraction"] * 100)
-            if best_fc and best_fc.get("free_cooling_fraction") is not None
+            _pct(fc_entry["free_cooling_fraction"] * 100)
+            if fc_entry and fc_entry.get("free_cooling_fraction") is not None
             else None
         ),
-        "free_cooling_type": best_fc.get("cooling_type") if best_fc else None,
+        "free_cooling_type": fc_entry.get("cooling_type") if fc_entry else None,
     }
 
 
@@ -357,6 +387,26 @@ def _build_firm_capacity_snapshot(
             best_mw=best_mw or mean_mw,
         )
 
+    # Extract top mitigation strategies (compact: label + capacity + sizing)
+    strategies_raw = block.get("strategies") or []
+    strategies: list[dict[str, str]] = []
+    for s in strategies_raw[:3]:
+        cap_mw = s.get("capacity_mw")
+        cap_str = f"{cap_mw:.1f} MW" if cap_mw else ""
+        capex = s.get("estimated_capex_usd")
+        capex_str = ""
+        if capex and capex > 0:
+            if capex >= 1_000_000:
+                capex_str = f"~${capex / 1_000_000:.1f}M"
+            else:
+                capex_str = f"~${capex / 1_000:,.0f}k"
+        strategies.append({
+            "label": s.get("label", ""),
+            "capacity": cap_str,
+            "capex": capex_str,
+            "sizing": s.get("sizing_summary", ""),
+        })
+
     return {
         "nominal_it": data.get("nominal it target", "—"),
         "mean_it": data.get("mean it capacity", "—"),
@@ -368,6 +418,7 @@ def _build_firm_capacity_snapshot(
         "deficit_chart_svg": deficit_svg,
         "bar_chart_svg": bar_chart_svg,
         "spectrum_svg": spectrum_svg,
+        "strategies": strategies,
     }
 
 
@@ -385,22 +436,17 @@ def _build_findings(
     for reason in rag_reasons[:3]:
         findings.append(reason)
 
-    # Binding constraint
-    constraint = primary.get("metrics", {}).get("binding_constraint")
-    if constraint:
-        findings.append(f"Binding constraint: {constraint}")
-
     # Overtemperature
     ot_hours = primary.get("metrics", {}).get("overtemperature_hours")
     if ot_hours is not None and ot_hours > 0:
         findings.append(f"Overtemperature risk: {ot_hours:,} hours/year")
 
-    # Climate — use the scenario's actual cooling type, not the theoretical best
+    # Climate — use the scenario's actual cooling type fraction
     if climate_snap and climate_snap.get("free_cooling_pct"):
-        scenario_cooling = primary.get("scenario", {}).get("cooling_type", "")
+        fc_type = climate_snap.get("free_cooling_type", "")
         findings.append(
             f"Free cooling potential: {climate_snap['free_cooling_pct']}"
-            + (f" ({scenario_cooling})" if scenario_cooling else "")
+            + (f" ({fc_type})" if fc_type else "")
         )
 
     # Green energy
@@ -457,7 +503,9 @@ def build_executive_site_context(
             scenario_pills.append(val)
 
     # --- Analysis snapshots ---
-    climate_snap = _build_climate_snapshot(climate_block)
+    climate_snap = _build_climate_snapshot(
+        climate_block, scenario_cooling_type=scenario.get("cooling_type"),
+    )
     grid_snap = _build_grid_snapshot(grid_block)
     green_snap = _build_green_snapshot(green_chapter)
     loadmix_snap = _build_loadmix_snapshot(loadmix_chapter)

@@ -98,7 +98,7 @@ export default function FreeCoolingChart({ freeCooling }: FreeCoolingChartProps)
             <Tooltip
               contentStyle={{
                 backgroundColor: "#fff",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #E7E6E6",
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
@@ -115,8 +115,8 @@ export default function FreeCoolingChart({ freeCooling }: FreeCoolingChartProps)
             />
             <Legend wrapperStyle={{ fontSize: "12px" }} />
 
-            <Bar dataKey="free" name="Free Cooling" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="partial" name="Partial" stackId="a" fill="#facc15" />
+            <Bar dataKey="free" name="Free Cooling" stackId="a" fill="#5FE838" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="partial" name="Partial" stackId="a" fill="#BCACFE" />
             <Bar dataKey="mechanical" name="Mechanical" stackId="a" fill="#ef4444" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

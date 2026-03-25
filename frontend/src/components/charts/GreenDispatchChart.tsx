@@ -150,7 +150,7 @@ export default function GreenDispatchChart({
             <Tooltip
               contentStyle={{
                 backgroundColor: "#fff",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #E7E6E6",
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
@@ -167,8 +167,8 @@ export default function GreenDispatchChart({
               dataKey="pvOverhead"
               name="PV to Overhead"
               stackId="dispatch"
-              stroke="#22c55e"
-              fill="#22c55e"
+              stroke="#5FE838"
+              fill="#5FE838"
               fillOpacity={0.7}
               dot={false}
               isAnimationActive={false}
@@ -178,8 +178,8 @@ export default function GreenDispatchChart({
               dataKey="bess"
               name="BESS Discharge"
               stackId="dispatch"
-              stroke="#8b5cf6"
-              fill="#8b5cf6"
+              stroke="#795AFD"
+              fill="#795AFD"
               fillOpacity={0.7}
               dot={false}
               isAnimationActive={false}
@@ -189,8 +189,8 @@ export default function GreenDispatchChart({
               dataKey="fuelCell"
               name="Fuel Cell"
               stackId="dispatch"
-              stroke="#6366f1"
-              fill="#6366f1"
+              stroke="#4E2589"
+              fill="#4E2589"
               fillOpacity={0.7}
               dot={false}
               isAnimationActive={false}
@@ -210,7 +210,7 @@ export default function GreenDispatchChart({
               type="monotone"
               dataKey="totalOverhead"
               name="Total Overhead"
-              stroke="#1f2937"
+              stroke="#0A2240"
               strokeWidth={1.5}
               dot={false}
               isAnimationActive={false}

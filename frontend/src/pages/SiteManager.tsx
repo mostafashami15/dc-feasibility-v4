@@ -1107,6 +1107,13 @@ export default function SiteManager() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                       <p className="text-[10px] text-gray-400 mt-0.5">Reserved for future phases</p>
                     </div>
+                    <div className="flex items-center gap-2 self-center pt-4">
+                      <input type="checkbox" id="roof_usable" name="roof_usable"
+                        checked={formData.roof_usable ?? true}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, roof_usable: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <label htmlFor="roof_usable" className="text-xs font-medium text-gray-600">Roof usable for equipment</label>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Voltage Level</label>
                       <select name="voltage" value={formData.voltage ?? ""} onChange={handleChange}

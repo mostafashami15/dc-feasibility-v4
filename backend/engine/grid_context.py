@@ -14,11 +14,15 @@ based on public geography rather than deterministic fixtures.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol, Sequence
+
+logger = logging.getLogger(__name__)
 
 from engine.models import (
     GridAnalysisGrade,
@@ -48,6 +52,9 @@ GRID_SCORE_MAX_EVIDENCE_POINTS = 15.0
 OVERPASS_INTERPRETER_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_QUERY_TIMEOUT_SECONDS = 25
 OVERPASS_REQUEST_TIMEOUT_SECONDS = 45
+OVERPASS_MAX_RETRIES = 3
+OVERPASS_BACKOFF_BASE_SECONDS = 1.0
+OVERPASS_BACKOFF_FACTOR = 2.0
 _OVERPASS_LINE_TAG_PATTERN = "^(line|minor_line|cable)$"
 _OVERPASS_SUBSTATION_TAG_PATTERN = "^(substation|sub_station)$"
 _VOLTAGE_NUMBER_PATTERN = re.compile(r"\d+(?:\.\d+)?")
@@ -411,35 +418,49 @@ class OverpassGridContextProvider:
 
         query = _build_overpass_query(latitude, longitude, radius_km)
 
-        try:
-            response = requests.post(
-                self.endpoint_url,
-                data={"data": query},
-                headers={
-                    "Accept": "application/json",
-                    "User-Agent": "dc-feasibility-v4-grid-context/1.0",
-                },
-                timeout=self.request_timeout_seconds,
+        # Retry with exponential backoff
+        last_exc: Exception | None = None
+        for attempt in range(OVERPASS_MAX_RETRIES):
+            try:
+                response = requests.post(
+                    self.endpoint_url,
+                    data={"data": query},
+                    headers={
+                        "Accept": "application/json",
+                        "User-Agent": "dc-feasibility-v4-grid-context/1.0",
+                    },
+                    timeout=self.request_timeout_seconds,
+                )
+                response.raise_for_status()
+                break  # Success
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < OVERPASS_MAX_RETRIES - 1:
+                    wait = OVERPASS_BACKOFF_BASE_SECONDS * (OVERPASS_BACKOFF_FACTOR ** attempt)
+                    logger.warning(
+                        "Overpass API attempt %d/%d failed (%s), retrying in %.1fs",
+                        attempt + 1, OVERPASS_MAX_RETRIES, exc, wait,
+                    )
+                    time.sleep(wait)
+        else:
+            # All retries exhausted — graceful degradation: return empty list
+            logger.error(
+                "Overpass API failed after %d retries: %s. "
+                "Returning empty asset list (graceful degradation).",
+                OVERPASS_MAX_RETRIES, last_exc,
             )
-            response.raise_for_status()
-        except requests.RequestException as exc:
-            raise GridContextProviderError(
-                "Grid Context could not reach the mapped-public asset service. "
-                "Please retry in a moment."
-            ) from exc
+            return []
 
         try:
             payload = response.json()
-        except ValueError as exc:
-            raise GridContextProviderError(
-                "Grid Context received an invalid response from the mapped-public asset service."
-            ) from exc
+        except ValueError:
+            logger.error("Overpass API returned invalid JSON. Returning empty asset list.")
+            return []
 
         elements = payload.get("elements")
         if not isinstance(elements, list):
-            raise GridContextProviderError(
-                "Grid Context received an unexpected mapped-public payload shape."
-            )
+            logger.error("Overpass API returned unexpected payload shape. Returning empty asset list.")
+            return []
 
         assets: list[ProviderAsset] = []
         for element in elements:
@@ -795,6 +816,42 @@ def compute_grid_context_score(
     )
 
 
+def compute_data_quality_confidence(summary: GridContextSummary) -> float:
+    """Estimate data quality confidence based on region coverage (0.0–1.0).
+
+    A region with many mapped assets is likely well-covered in OSM.
+    A region with zero assets could mean poor coverage OR genuinely no grid.
+    We use asset count, voltage presence, and substation presence as signals.
+
+    Returns:
+        Float in [0.0, 1.0]. Higher = more confidence in data completeness.
+    """
+    score = 0.0
+    total_assets = summary.nearby_line_count + summary.nearby_substation_count
+
+    # Asset count signal: 0 assets = 0.0, 1–2 = 0.3, 3–5 = 0.5, 6–10 = 0.7, >10 = 0.8
+    if total_assets == 0:
+        return 0.0
+    elif total_assets <= 2:
+        score = 0.3
+    elif total_assets <= 5:
+        score = 0.5
+    elif total_assets <= 10:
+        score = 0.7
+    else:
+        score = 0.8
+
+    # Bonus: voltage data present (tagged assets = better data quality)
+    if summary.max_voltage_kv is not None:
+        score += 0.1
+
+    # Bonus: substation present (substations are well-mapped in good regions)
+    if summary.nearby_substation_count > 0:
+        score += 0.1
+
+    return min(1.0, round(score, 2))
+
+
 def _derive_overall_confidence(
     assets: Sequence[GridAsset],
     official_evidence: GridOfficialEvidence | None = None,
@@ -985,6 +1042,8 @@ def build_grid_context_result(
     ) or [GRID_CONTEXT_SOURCE_LAYER]
     evidence_notes = _build_evidence_notes(source_layers, official_evidence)
 
+    data_quality = compute_data_quality_confidence(summary)
+
     return GridContextResult(
         site_id=site_id,
         site_name=site.name,
@@ -999,5 +1058,6 @@ def build_grid_context_result(
         official_context_notes=[note.detail for note in evidence_notes],
         source_layers=source_layers,
         confidence=confidence,
+        data_quality_confidence=data_quality,
         generated_at_utc=datetime.now(timezone.utc).isoformat(),
     )

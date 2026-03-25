@@ -31,8 +31,8 @@ OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 _SITE_BOUNDARY_FILL = "#fee2e2"
 _SITE_BOUNDARY_STROKE = "#dc2626"
-_SITE_MARKER_OUTER = "#1a365d"
-_SITE_MARKER_CORE = "#2b6cb0"
+_SITE_MARKER_OUTER = "#0A2240"
+_SITE_MARKER_CORE = "#795AFD"
 
 
 def _to_base64(png_bytes: bytes | None) -> str | None:
@@ -388,9 +388,9 @@ def generate_grid_context_image(
                         m.add_marker(staticmap.CircleMarker((lon_a, lat_a), color, 4))
 
         # Site marker on top (prominent)
-        m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 16))
+        m.add_marker(staticmap.CircleMarker((lon, lat), "#0A2240", 16))
         m.add_marker(staticmap.CircleMarker((lon, lat), "white", 9))
-        m.add_marker(staticmap.CircleMarker((lon, lat), "#1a365d", 6))
+        m.add_marker(staticmap.CircleMarker((lon, lat), "#0A2240", 6))
 
         image = m.render(zoom=effective_zoom)
 

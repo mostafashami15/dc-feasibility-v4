@@ -670,12 +670,18 @@ def _build_firm_capacity_block(
 
 
 def _build_footprint_block(site: Site, result: ScenarioResult) -> dict[str, Any] | None:
+    # Use committed IT capacity to derive actual power — not grid availability.
+    committed_it = result.it_capacity_p99_mw or result.power.it_load_mw
+    eff_pue = result.annual_pue or result.power.pue_used
+    actual_facility = committed_it * eff_pue / result.power.eta_chain
+    actual_procurement = actual_facility * result.power.procurement_factor
     try:
         footprint = compute_footprint(
-            facility_power_mw=result.power.facility_power_mw,
-            procurement_power_mw=result.power.procurement_power_mw,
+            facility_power_mw=actual_facility,
+            procurement_power_mw=actual_procurement,
             buildable_footprint_m2=result.space.buildable_footprint_m2,
-            land_area_m2=_analysis_land_area_m2(site, result),
+            gray_space_m2=result.space.gray_space_m2,
+            roof_usable=getattr(site, "roof_usable", True),
             backup_power_type=result.scenario.backup_power,
         )
     except ValueError:
@@ -686,31 +692,31 @@ def _build_footprint_block(site: Site, result: ScenarioResult) -> dict[str, Any]
         "Footprint",
         summary_items=[
             _fact(
-                "Ground equipment",
-                _display_number(footprint.total_ground_m2, digits=0, suffix="m2"),
+                "Gray space equipment",
+                _display_number(footprint.total_gray_space_equipment_m2, digits=0, suffix="m2"),
             ),
             _fact(
                 "Roof equipment",
-                _display_number(footprint.total_roof_m2, digits=0, suffix="m2"),
+                _display_number(footprint.total_roof_equipment_m2, digits=0, suffix="m2"),
             ),
             _fact(
-                "Ground utilization",
-                _display_percent(footprint.ground_utilization_ratio, digits=0),
+                "Gray space utilization",
+                _display_percent(footprint.gray_space_utilization_ratio, digits=0),
             ),
             _fact(
                 "Roof utilization",
                 _display_percent(footprint.roof_utilization_ratio, digits=0),
             ),
             _fact(
-                "Outdoor available",
-                _display_number(footprint.available_outdoor_m2, digits=0, suffix="m2"),
+                "Gray space available",
+                _display_number(footprint.gray_space_m2, digits=0, suffix="m2"),
             ),
             _fact(
                 "Roof available",
                 _display_number(footprint.building_roof_m2, digits=0, suffix="m2"),
             ),
             _fact("Backup technology", footprint.backup_power_type),
-            _fact("Ground fit", _display_bool(footprint.ground_fits)),
+            _fact("Gray space fit", _display_bool(footprint.gray_space_fits)),
             _fact("Roof fit", _display_bool(footprint.roof_fits)),
         ],
         tables=[
@@ -976,12 +982,18 @@ def _build_infrastructure_footprint_block(
     result: ScenarioResult,
 ) -> dict[str, Any] | None:
     """Infrastructure Footprint box — matches the UI card exactly."""
+    # Use committed IT capacity to derive actual power — not grid availability.
+    committed_it = result.it_capacity_p99_mw or result.power.it_load_mw
+    eff_pue = result.annual_pue or result.power.pue_used
+    actual_facility = committed_it * eff_pue / result.power.eta_chain
+    actual_procurement = actual_facility * result.power.procurement_factor
     try:
         footprint = compute_footprint(
-            facility_power_mw=result.power.facility_power_mw,
-            procurement_power_mw=result.power.procurement_power_mw,
+            facility_power_mw=actual_facility,
+            procurement_power_mw=actual_procurement,
             buildable_footprint_m2=result.space.buildable_footprint_m2,
-            land_area_m2=_analysis_land_area_m2(site, result),
+            gray_space_m2=result.space.gray_space_m2,
+            roof_usable=getattr(site, "roof_usable", True),
             backup_power_type=result.scenario.backup_power,
         )
     except ValueError:
@@ -992,24 +1004,24 @@ def _build_infrastructure_footprint_block(
         "Infrastructure Footprint",
         summary_items=[
             _fact(
-                "Ground equipment",
-                _display_number(footprint.total_ground_m2, digits=0, suffix="m²"),
+                "Gray space equipment",
+                _display_number(footprint.total_gray_space_equipment_m2, digits=0, suffix="m²"),
             ),
             _fact(
                 "Roof equipment",
-                _display_number(footprint.total_roof_m2, digits=0, suffix="m²"),
+                _display_number(footprint.total_roof_equipment_m2, digits=0, suffix="m²"),
             ),
             _fact(
-                "Ground utilization",
-                _display_percent(footprint.ground_utilization_ratio, digits=0),
+                "Gray space utilization",
+                _display_percent(footprint.gray_space_utilization_ratio, digits=0),
             ),
             _fact(
                 "Roof utilization",
                 _display_percent(footprint.roof_utilization_ratio, digits=0),
             ),
             _fact(
-                "Outdoor available",
-                _display_number(footprint.available_outdoor_m2, digits=0, suffix="m²"),
+                "Gray space available",
+                _display_number(footprint.gray_space_m2, digits=0, suffix="m²"),
             ),
             _fact(
                 "Roof available",
@@ -1064,7 +1076,7 @@ def _build_infrastructure_footprint_block(
         ],
         notes=[f"Backup basis: {footprint.backup_power_type}."],
     )
-    block["ground_fits"] = footprint.ground_fits
+    block["ground_fits"] = footprint.gray_space_fits
     block["roof_fits"] = footprint.roof_fits
     return block
 
@@ -1483,8 +1495,8 @@ def _build_deep_dive_chapter(
     *,
     site: Site | None = None,
     primary_scenario_result: ScenarioResult | None = None,
-    primary_color: str = "#1a365d",
-    secondary_color: str = "#2b6cb0",
+    primary_color: str = "#0A2240",
+    secondary_color: str = "#795AFD",
     green_energy_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if primary_result is None:
@@ -1602,6 +1614,14 @@ def _build_deep_dive_chapter(
             _fact(
                 "Support area",
                 _display_number(space["support_area_m2"], digits=0, suffix="m2"),
+            ),
+            _fact(
+                "Gray space",
+                _display_number(space.get("gray_space_m2", space["support_area_m2"]), digits=0, suffix="m2"),
+            ),
+            _fact(
+                "Gray space ratio",
+                _display_percent(space.get("gray_space_ratio", 1.0 - space.get("whitespace_ratio_used", 0.4))),
             ),
             _fact(
                 "Effective racks",

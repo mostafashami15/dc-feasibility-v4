@@ -54,25 +54,25 @@ export default function ITCapacityChart({ result }: ITCapacityChartProps) {
     {
       label: "P99",
       value: r.it_capacity_p99_mw ?? 0,
-      color: "#3b82f6",
+      color: "#0A2240",
       desc: "Committed (99%)",
     },
     {
       label: "P90",
       value: r.it_capacity_p90_mw ?? 0,
-      color: "#22c55e",
+      color: "#4E2589",
       desc: "90% of hours",
     },
     {
       label: "Mean",
       value: r.it_capacity_mean_mw ?? 0,
-      color: "#8b5cf6",
+      color: "#795AFD",
       desc: "Annual average",
     },
     {
       label: "Best",
       value: r.it_capacity_best_mw ?? 0,
-      color: "#06b6d4",
+      color: "#5FE838",
       desc: "Coolest hour",
     },
   ];
@@ -101,7 +101,7 @@ export default function ITCapacityChart({ result }: ITCapacityChartProps) {
           <Tooltip
             contentStyle={{
               backgroundColor: "#fff",
-              border: "1px solid #e5e7eb",
+              border: "1px solid #E7E6E6",
               borderRadius: "8px",
               fontSize: "12px",
             }}
@@ -115,13 +115,13 @@ export default function ITCapacityChart({ result }: ITCapacityChartProps) {
           {/* Static IT load reference line */}
           <ReferenceLine
             y={staticIT}
-            stroke="#f59e0b"
+            stroke="#00F1F2"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             label={{
               value: `Static: ${staticIT.toFixed(2)} MW`,
               position: "right",
-              style: { fontSize: 10, fill: "#f59e0b" },
+              style: { fontSize: 10, fill: "#00F1F2" },
             }}
           />
 

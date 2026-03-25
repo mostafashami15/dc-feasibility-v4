@@ -273,9 +273,9 @@ export default function Export() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [layoutMode, setLayoutMode] = useState<ReportLayoutMode>("presentation_16_9");
   const [includeAllScenarios, setIncludeAllScenarios] = useState(true);
-  const [primaryColor, setPrimaryColor] = useState("#1a365d");
-  const [secondaryColor, setSecondaryColor] = useState("#2b6cb0");
-  const [fontFamily, setFontFamily] = useState("Arial, Helvetica, sans-serif");
+  const [primaryColor, setPrimaryColor] = useState("#0A2240");
+  const [secondaryColor, setSecondaryColor] = useState("#795AFD");
+  const [fontFamily, setFontFamily] = useState("'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif");
   const [logoUrl, setLogoUrl] = useState("");
 
   // Export state
