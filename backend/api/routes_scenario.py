@@ -54,6 +54,8 @@ from engine.models import (
 )
 from engine.power import solve, apply_hourly_rag_adjustments
 from engine.pue_engine import simulate_hourly
+from engine.green_energy import simulate_green_dispatch, compute_green_advisory
+from engine.solar import make_pvgis_profile_key, scale_normalized_profile
 from engine.ranking import score_scenario, optimize_load_mix
 from engine.sensitivity import compute_tornado, compute_break_even
 from engine.backup_power import compare_technologies, compute_firm_capacity_advisory
@@ -69,7 +71,7 @@ from engine.assumption_overrides import (
     validate_assumption_override_preset_key,
 )
 from engine.smart_preset import get_guided_presets, build_guided_scenarios
-from api.store import get_site, get_weather
+from api.store import get_site, get_weather, get_solar_profile, has_any_solar_profile
 
 
 # ─────────────────────────────────────────────────────────────
@@ -328,6 +330,109 @@ class FirmCapacityAdvisoryRequest(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────
+# Helper: Integrated green dispatch (Phase 2)
+# ─────────────────────────────────────────────────────────────
+
+# Default PVGIS parameters for auto-fetched profiles
+_DEFAULT_PVGIS_KEY_PARAMS = dict(
+    start_year=2019,
+    end_year=2023,
+    pv_technology="crystSi",
+    mounting_place="free",
+    system_loss_pct=14.0,
+    use_horizon=True,
+    optimal_angles=True,
+    surface_tilt_deg=None,
+    surface_azimuth_deg=None,
+)
+
+DEFAULT_BESS_EFFICIENCY = 0.875
+DEFAULT_GRID_CO2_KG_PER_KWH = 0.256
+
+
+def _get_pvgis_params(site: Site) -> dict:
+    """Return PVGIS key params from site overrides with defaults as fallback."""
+    return dict(
+        start_year=site.pvgis_start_year if site.pvgis_start_year is not None else 2019,
+        end_year=site.pvgis_end_year if site.pvgis_end_year is not None else 2023,
+        pv_technology=site.pvgis_technology or "crystSi",
+        mounting_place=site.pvgis_mounting_place or "free",
+        system_loss_pct=site.pvgis_system_loss_pct if site.pvgis_system_loss_pct is not None else 14.0,
+        use_horizon=site.pvgis_use_horizon if site.pvgis_use_horizon is not None else True,
+        optimal_angles=site.pvgis_optimal_angles if site.pvgis_optimal_angles is not None else True,
+        surface_tilt_deg=site.pvgis_surface_tilt_deg,
+        surface_azimuth_deg=site.pvgis_surface_azimuth_deg,
+    )
+
+
+def _try_green_dispatch(
+    site_id: str,
+    site: Site,
+    sim,
+) -> dict | None:
+    """Run green dispatch if site has green energy inputs and a solar profile.
+
+    Returns a dict with dispatch summary (suitable for JSON serialization)
+    or None if green energy is not configured for this site.
+    """
+    from dataclasses import asdict
+
+    # Check if site has any green energy configuration
+    pv_kwp = site.pv_capacity_kwp or 0.0
+    bess_kwh = site.bess_capacity_kwh or 0.0
+    bess_eff = site.bess_efficiency or DEFAULT_BESS_EFFICIENCY
+    fc_kw = site.fuel_cell_kw or 0.0
+
+    # Need at least PV capacity or BESS or fuel cell to run dispatch
+    if pv_kwp <= 0 and bess_kwh <= 0 and fc_kw <= 0:
+        return None
+
+    # Get hourly PV profile
+    hourly_pv_kw = [0.0] * len(sim.hourly_facility_kw)
+    pv_profile_source = "zero"
+
+    pvgis_params = _get_pvgis_params(site)
+
+    if pv_kwp > 0 and site.latitude is not None and site.longitude is not None:
+        # Try to find a cached PVGIS profile
+        profile_key = make_pvgis_profile_key(
+            site_id=site_id,
+            latitude=site.latitude,
+            longitude=site.longitude,
+            **pvgis_params,
+        )
+        solar_data = get_solar_profile(site_id, profile_key)
+        if solar_data is not None:
+            normalized = solar_data.get("hourly_pv_kw_per_kwp", [])
+            if len(normalized) == len(sim.hourly_facility_kw):
+                hourly_pv_kw = scale_normalized_profile(normalized, pv_kwp)
+                pv_profile_source = "pvgis"
+
+    # Run the dispatch simulation
+    try:
+        result = simulate_green_dispatch(
+            hourly_facility_kw=sim.hourly_facility_kw,
+            hourly_it_kw=sim.hourly_it_kw,
+            hourly_pv_kw=hourly_pv_kw,
+            bess_capacity_kwh=bess_kwh,
+            bess_roundtrip_efficiency=bess_eff,
+            bess_initial_soc_kwh=0.0,
+            fuel_cell_capacity_kw=fc_kw,
+            pv_capacity_kwp=pv_kwp,
+            grid_co2_kg_per_kwh=DEFAULT_GRID_CO2_KG_PER_KWH,
+        )
+
+        # Convert to dict, include hourly_dispatch for chart rendering
+        result_dict = asdict(result)
+        result_dict["pv_profile_source"] = pv_profile_source
+        # Include PVGIS params used for display
+        result_dict["pvgis_params"] = pvgis_params
+        return result_dict
+    except Exception:
+        return None
+
+
+# ─────────────────────────────────────────────────────────────
 # Helper: Run one scenario (used by both single and batch)
 # ─────────────────────────────────────────────────────────────
 
@@ -367,6 +472,7 @@ def _run_single_scenario(
     overtemperature_hours = None
     it_worst = it_p99 = it_p90 = it_mean = it_best = None
     hourly_simulated = False
+    sim = None
 
     if include_hourly and compatible and power.it_load_mw > 0:
         weather = get_weather(site_id)
@@ -425,7 +531,16 @@ def _run_single_scenario(
                 overtemperature_hours=overtemperature_hours,
             )
 
-    # ── Step 4: Assemble result ──
+    # ── Step 4: Green energy dispatch (if site has solar + green inputs) ──
+    green_energy_result = None
+    if hourly_simulated and sim is not None:
+        green_energy_result = _try_green_dispatch(
+            site_id=site_id,
+            site=site,
+            sim=sim,
+        )
+
+    # ── Step 5: Assemble result ──
     return ScenarioResult(
         site_id=site_id,
         site_name=site.name,
@@ -442,6 +557,7 @@ def _run_single_scenario(
         it_capacity_p90_mw=it_p90,
         it_capacity_mean_mw=it_mean,
         it_capacity_best_mw=it_best,
+        green_energy=green_energy_result,
         assumption_override_preset_label=get_assumption_override_preset_label(
             scenario.assumption_override_preset_key
         ),
@@ -1391,3 +1507,247 @@ async def firm_capacity_advisory_endpoint(request: FirmCapacityAdvisoryRequest):
             for s in advisory.strategies
         ],
     }
+
+
+# ─────────────────────────────────────────────────────────────
+# Green Energy Advisory — Coverage Target Sizing
+# ─────────────────────────────────────────────────────────────
+
+class GreenAdvisoryRequest(BaseModel):
+    """Request for green energy advisory auto-sizing."""
+    site_id: str = Field(description="UUID of the saved site")
+    scenario: Scenario = Field(description="Scenario configuration")
+
+
+@router.post("/green-advisory")
+async def green_advisory_endpoint(request: GreenAdvisoryRequest):
+    """Compute PV + BESS sizing needed for target coverage levels.
+
+    For each of 10%, 25%, 50%, 75%, 100% overhead coverage,
+    computes the PV capacity (kWp) and BESS capacity (kWh)
+    needed using binary search over dispatch simulations.
+
+    Requires cached weather and PVGIS solar profile for the site.
+    """
+    from dataclasses import asdict
+
+    result = get_site(request.site_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Site '{request.site_id}' not found")
+    _, site = result
+
+    weather = get_weather(request.site_id)
+    if weather is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Hourly weather data is required. Fetch or upload on the Climate page first.",
+        )
+
+    if site.latitude is None or site.longitude is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Site must have coordinates for green energy advisory.",
+        )
+
+    # Get PVGIS solar profile (use site-level params if set)
+    pvgis_params = _get_pvgis_params(site)
+    profile_key = make_pvgis_profile_key(
+        site_id=request.site_id,
+        latitude=site.latitude,
+        longitude=site.longitude,
+        **pvgis_params,
+    )
+    solar_data = get_solar_profile(request.site_id, profile_key)
+    if solar_data is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No PVGIS solar profile cached for this site. "
+                   "Wait for auto-fetch to complete or trigger it from Site Manager.",
+        )
+
+    normalized_pv = solar_data.get("hourly_pv_kw_per_kwp", [])
+
+    # Run hourly simulation to get facility/IT arrays
+    compatibility_status, compat_reasons = evaluate_compatibility(
+        request.scenario.load_type.value,
+        request.scenario.cooling_type.value,
+        density_scenario=request.scenario.density_scenario.value,
+    )
+    if compatibility_status == "incompatible":
+        raise HTTPException(status_code=400, detail="; ".join(compat_reasons))
+
+    space, power = solve(site, request.scenario)
+    temperatures = weather["temperatures"]
+    humidities = weather.get("humidities")
+
+    if power.it_load_mw <= 0:
+        raise HTTPException(status_code=400, detail="Zero IT load — cannot compute advisory.")
+
+    if (
+        site.power_confirmed
+        and site.available_power_mw > 0
+        and power.binding_constraint == "POWER"
+    ):
+        sim = simulate_hourly(
+            temperatures=temperatures,
+            humidities=humidities,
+            cooling_type=request.scenario.cooling_type.value,
+            eta_chain=power.eta_chain,
+            facility_power_kw=power.facility_power_mw * 1000,
+            override_preset_key=request.scenario.assumption_override_preset_key,
+        )
+    else:
+        sim = simulate_hourly(
+            temperatures=temperatures,
+            humidities=humidities,
+            cooling_type=request.scenario.cooling_type.value,
+            eta_chain=power.eta_chain,
+            it_load_kw=power.it_load_mw * 1000,
+            override_preset_key=request.scenario.assumption_override_preset_key,
+        )
+
+    # Ensure profile length matches simulation
+    if len(normalized_pv) != len(sim.hourly_facility_kw):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solar profile length ({len(normalized_pv)}) does not match "
+                   f"weather hours ({len(sim.hourly_facility_kw)}).",
+        )
+
+    bess_eff = site.bess_efficiency or DEFAULT_BESS_EFFICIENCY
+
+    try:
+        levels = compute_green_advisory(
+            hourly_facility_kw=sim.hourly_facility_kw,
+            hourly_it_kw=sim.hourly_it_kw,
+            hourly_pv_kw_per_kwp=normalized_pv,
+            bess_roundtrip_efficiency=bess_eff,
+            grid_co2_kg_per_kwh=DEFAULT_GRID_CO2_KG_PER_KWH,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Advisory computation failed: {e}")
+
+    total_overhead_kwh = sum(
+        max(f - i, 0.0) for f, i in zip(sim.hourly_facility_kw, sim.hourly_it_kw)
+    )
+
+    return {
+        "site_id": request.site_id,
+        "site_name": site.name,
+        "scenario_key": f"{request.scenario.load_type.value}|{request.scenario.cooling_type.value}",
+        "total_overhead_kwh": round(total_overhead_kwh, 2),
+        "levels": [asdict(level) for level in levels],
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Green Energy Advisory — Custom Coverage Target
+# ─────────────────────────────────────────────────────────────
+
+class GreenCustomCoverageRequest(BaseModel):
+    """Request for single custom coverage target computation."""
+    site_id: str = Field(description="UUID of the saved site")
+    scenario: Scenario = Field(description="Scenario configuration")
+    coverage_target: float = Field(ge=0.0, le=1.0, description="Target coverage fraction (0.0–1.0)")
+
+
+@router.post("/green-advisory-custom")
+async def green_advisory_custom_endpoint(request: GreenCustomCoverageRequest):
+    """Compute PV-only and PV+BESS sizing for a single custom coverage target."""
+    from dataclasses import asdict
+
+    result = get_site(request.site_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Site '{request.site_id}' not found")
+    _, site = result
+
+    weather = get_weather(request.site_id)
+    if weather is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Hourly weather data is required.",
+        )
+
+    if site.latitude is None or site.longitude is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Site must have coordinates.",
+        )
+
+    pvgis_params = _get_pvgis_params(site)
+    profile_key = make_pvgis_profile_key(
+        site_id=request.site_id,
+        latitude=site.latitude,
+        longitude=site.longitude,
+        **pvgis_params,
+    )
+    solar_data = get_solar_profile(request.site_id, profile_key)
+    if solar_data is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No PVGIS solar profile cached for this site.",
+        )
+
+    normalized_pv = solar_data.get("hourly_pv_kw_per_kwp", [])
+
+    compatibility_status, compat_reasons = evaluate_compatibility(
+        request.scenario.load_type.value,
+        request.scenario.cooling_type.value,
+        density_scenario=request.scenario.density_scenario.value,
+    )
+    if compatibility_status == "incompatible":
+        raise HTTPException(status_code=400, detail="; ".join(compat_reasons))
+
+    space, power = solve(site, request.scenario)
+    temperatures = weather["temperatures"]
+    humidities = weather.get("humidities")
+
+    if power.it_load_mw <= 0:
+        raise HTTPException(status_code=400, detail="Zero IT load — cannot compute.")
+
+    if (
+        site.power_confirmed
+        and site.available_power_mw > 0
+        and power.binding_constraint == "POWER"
+    ):
+        sim = simulate_hourly(
+            temperatures=temperatures,
+            humidities=humidities,
+            cooling_type=request.scenario.cooling_type.value,
+            eta_chain=power.eta_chain,
+            facility_power_kw=power.facility_power_mw * 1000,
+            override_preset_key=request.scenario.assumption_override_preset_key,
+        )
+    else:
+        sim = simulate_hourly(
+            temperatures=temperatures,
+            humidities=humidities,
+            cooling_type=request.scenario.cooling_type.value,
+            eta_chain=power.eta_chain,
+            it_load_kw=power.it_load_mw * 1000,
+            override_preset_key=request.scenario.assumption_override_preset_key,
+        )
+
+    if len(normalized_pv) != len(sim.hourly_facility_kw):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solar profile length ({len(normalized_pv)}) does not match weather hours ({len(sim.hourly_facility_kw)}).",
+        )
+
+    bess_eff = site.bess_efficiency or DEFAULT_BESS_EFFICIENCY
+
+    try:
+        levels = compute_green_advisory(
+            hourly_facility_kw=sim.hourly_facility_kw,
+            hourly_it_kw=sim.hourly_it_kw,
+            hourly_pv_kw_per_kwp=normalized_pv,
+            bess_roundtrip_efficiency=bess_eff,
+            grid_co2_kg_per_kwh=DEFAULT_GRID_CO2_KG_PER_KWH,
+            coverage_targets=[request.coverage_target],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Custom coverage computation failed: {e}")
+
+    if levels:
+        return asdict(levels[0])
+    raise HTTPException(status_code=500, detail="No result computed.")

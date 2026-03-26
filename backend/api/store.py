@@ -381,6 +381,14 @@ def delete_solar_cache(site_id: str, profile_key: Optional[str] = None) -> None:
         shutil.rmtree(site_dir)
 
 
+def has_any_solar_profile(site_id: str) -> bool:
+    """Check whether any cached solar profile exists for a site."""
+    site_dir = _solar_site_dir(site_id)
+    if not site_dir.exists():
+        return False
+    return any(site_dir.glob("*.json"))
+
+
 def count_solar_sites() -> int:
     """Return how many site directories currently have cached solar data."""
     return sum(1 for path in SOLAR_DIR.iterdir() if path.is_dir())

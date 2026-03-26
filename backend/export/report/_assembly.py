@@ -91,6 +91,24 @@ def _build_site_bundle(
         green_energy_input,
         effective_primary_result_key,
     )
+
+    # Auto-populate green energy from integrated pipeline if not explicitly supplied
+    if green_energy.get("status") != "available" and primary_result is not None:
+        pipeline_green = getattr(primary_result, "green_energy", None)
+        if pipeline_green is None and isinstance(primary_result, dict):
+            pipeline_green = primary_result.get("green_energy")
+        if pipeline_green is not None:
+            green_energy = {
+                "status": "available",
+                "available": True,
+                "message": None,
+                "result_key": effective_primary_result_key,
+                "result": pipeline_green,
+                "pv_profile_name": None,
+                "pvgis_profile": None,
+                "bess_initial_soc_kwh": None,
+                "grid_co2_kg_per_kwh": pipeline_green.get("grid_co2_kg_per_kwh", 0.256) if isinstance(pipeline_green, dict) else 0.256,
+            }
     normalized_site_data = _normalize_site_data(site)
 
     normalized_all_results = []

@@ -796,6 +796,12 @@ export default function SiteManager() {
                           {s.has_weather && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700">Weather ✓</span>
                           )}
+                          {s.has_solar && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Solar ✓</span>
+                          )}
+                          {s.solar_fetch_status === "loading" && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 flex items-center gap-0.5"><Loader2 size={8} className="animate-spin" /> PVGIS</span>
+                          )}
                           {s.site.available_power_mw > 0 && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
                               {s.site.available_power_mw} MW
@@ -873,6 +879,10 @@ export default function SiteManager() {
                     label="Weather"
                     value={selectedSite.has_weather ? "Cached" : "Not fetched"}
                   />
+                  <MetricCard
+                    label="Solar (PVGIS)"
+                    value={selectedSite.has_solar ? "Cached" : selectedSite.solar_fetch_status === "loading" ? "Loading..." : selectedSite.solar_fetch_status === "error" ? "Error" : "Not fetched"}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -908,6 +918,27 @@ export default function SiteManager() {
                     </p>
                   </div>
                 </div>
+
+                {/* Green Energy Facilities summary */}
+                {(selectedSite.site.pv_capacity_kwp || selectedSite.site.bess_capacity_kwh || selectedSite.site.fuel_cell_kw) && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 mb-1">Green Energy Facilities</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-gray-700">
+                      {selectedSite.site.pv_capacity_kwp != null && selectedSite.site.pv_capacity_kwp > 0 && (
+                        <div><span className="text-xs text-gray-500">PV:</span> {selectedSite.site.pv_capacity_kwp.toLocaleString()} kWp</div>
+                      )}
+                      {selectedSite.site.bess_capacity_kwh != null && selectedSite.site.bess_capacity_kwh > 0 && (
+                        <div><span className="text-xs text-gray-500">BESS:</span> {selectedSite.site.bess_capacity_kwh.toLocaleString()} kWh</div>
+                      )}
+                      {selectedSite.site.bess_efficiency != null && (
+                        <div><span className="text-xs text-gray-500">Eff:</span> {(selectedSite.site.bess_efficiency * 100).toFixed(1)}%</div>
+                      )}
+                      {selectedSite.site.fuel_cell_kw != null && selectedSite.site.fuel_cell_kw > 0 && (
+                        <div><span className="text-xs text-gray-500">FC:</span> {selectedSite.site.fuel_cell_kw.toLocaleString()} kW</div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {selectedSite.site.notes && (
                   <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -1153,6 +1184,143 @@ export default function SiteManager() {
                       </label>
                     </div>
                   </div>
+                </fieldset>
+
+                {/* Green Energy Facilities */}
+                <fieldset>
+                  <legend className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    Green Energy Facilities
+                    <span className="text-[10px] font-normal text-gray-400">(optional site-level defaults)</span>
+                  </legend>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">PV Capacity (kWp)</label>
+                      <input type="number" name="pv_capacity_kwp" value={formData.pv_capacity_kwp ?? ""} onChange={handleChange}
+                        step="1" min={0}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. 2400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">BESS Capacity (kWh)</label>
+                      <input type="number" name="bess_capacity_kwh" value={formData.bess_capacity_kwh ?? ""} onChange={handleChange}
+                        step="1" min={0}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. 1200" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">BESS Efficiency (%)</label>
+                      <input type="number" name="bess_efficiency" value={formData.bess_efficiency != null ? formData.bess_efficiency * 100 : ""}
+                        onChange={(e) => {
+                          const pct = e.target.value === "" ? null : parseFloat(e.target.value);
+                          setFormData((prev) => ({ ...prev, bess_efficiency: pct != null ? pct / 100 : null }));
+                        }}
+                        step="0.1" min={0} max={100}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="87.5" />
+                      <p className="text-[10px] text-gray-400 mt-0.5">Default: 87.5% (NREL ATB 2024)</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Fuel Cell (kW)</label>
+                      <input type="number" name="fuel_cell_kw" value={formData.fuel_cell_kw ?? ""} onChange={handleChange}
+                        step="1" min={0}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. 500" />
+                    </div>
+                  </div>
+                  {/* PVGIS status indicator */}
+                  {isEditing && editingId && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {(() => {
+                        const siteEntry = sites.find((s) => s.id === editingId);
+                        const status = siteEntry?.solar_fetch_status ?? "none";
+                        if (status === "cached") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700">PVGIS Profile Cached</span>;
+                        if (status === "loading") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Fetching PVGIS...</span>;
+                        if (status === "error") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">PVGIS Fetch Failed</span>;
+                        return <span className="text-[10px] text-gray-400">PVGIS auto-fetches on save when coordinates are set</span>;
+                      })()}
+                    </div>
+                  )}
+
+                  {/* PVGIS Configuration (collapsible) */}
+                  <details className="mt-3">
+                    <summary className="text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">
+                      PVGIS Solar Profile Parameters (Advanced)
+                    </summary>
+                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Start Year</label>
+                        <input type="number" value={formData.pvgis_start_year ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_start_year: e.target.value === "" ? null : parseInt(e.target.value) }))}
+                          min={2005} max={2023} step={1}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          placeholder="2019" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End Year</label>
+                        <input type="number" value={formData.pvgis_end_year ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_end_year: e.target.value === "" ? null : parseInt(e.target.value) }))}
+                          min={2005} max={2023} step={1}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          placeholder="2023" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">PV Technology</label>
+                        <select value={formData.pvgis_technology ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_technology: e.target.value || null }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="">crystSi (default)</option>
+                          <option value="crystSi">Crystalline Silicon</option>
+                          <option value="CIS">CIS</option>
+                          <option value="CdTe">CdTe</option>
+                          <option value="Unknown">Unknown</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Mounting</label>
+                        <select value={formData.pvgis_mounting_place ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_mounting_place: e.target.value || null }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="">Free-standing (default)</option>
+                          <option value="free">Free-standing</option>
+                          <option value="building">Building-integrated</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">System Loss (%)</label>
+                        <input type="number" value={formData.pvgis_system_loss_pct ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_system_loss_pct: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                          min={0} max={50} step={0.1}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          placeholder="14.0" />
+                      </div>
+                      <div className="flex items-center gap-2 pt-4">
+                        <input type="checkbox" checked={formData.pvgis_use_horizon ?? true}
+                          onChange={(e) => setFormData((p) => ({ ...p, pvgis_use_horizon: e.target.checked }))}
+                          className="rounded border-gray-300" />
+                        <label className="text-xs text-gray-600">Use Horizon</label>
+                      </div>
+                      <div className="flex items-center gap-2 pt-4">
+                        <input type="checkbox" checked={formData.pvgis_optimal_angles ?? true}
+                          onChange={(e) => setFormData((p) => ({ ...p, pvgis_optimal_angles: e.target.checked }))}
+                          className="rounded border-gray-300" />
+                        <label className="text-xs text-gray-600">Optimal Angles</label>
+                      </div>
+                      {!(formData.pvgis_optimal_angles ?? true) && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Surface Tilt (°)</label>
+                            <input type="number" value={formData.pvgis_surface_tilt_deg ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_surface_tilt_deg: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                              min={0} max={90} step={1}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                              placeholder="35" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Surface Azimuth (°)</label>
+                            <input type="number" value={formData.pvgis_surface_azimuth_deg ?? ""} onChange={(e) => setFormData((p) => ({ ...p, pvgis_surface_azimuth_deg: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                              min={-180} max={180} step={1}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                              placeholder="0 (south)" />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Leave blank for defaults. Changing these will require a new PVGIS fetch on next save.</p>
+                  </details>
                 </fieldset>
 
                 {/* Notes */}

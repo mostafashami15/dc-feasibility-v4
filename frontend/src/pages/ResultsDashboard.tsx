@@ -18,6 +18,7 @@ import {
   BarChart3,
   Layers,
   Layers3,
+  Leaf,
   HelpCircle,
   X,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import ITCapacityChart from "../components/charts/ITCapacityChart";
 import DailyProfileChart from "../components/charts/DailyProfileChart";
 import TornadoChart from "../components/charts/TornadoChart";
 import FirmCapacityDeficitChart from "../components/charts/FirmCapacityDeficitChart";
+import GreenDispatchChart from "../components/charts/GreenDispatchChart";
 import TabGroup from "../components/ui/TabGroup";
 import type {
   ScenarioResult,
@@ -46,6 +48,9 @@ import type {
   LoadType,
   CoolingType,
   DensityScenario,
+  GreenAdvisoryResult,
+  GreenDispatchResult,
+  GreenCustomCoverageResult,
 } from "../types";
 
 
@@ -70,6 +75,7 @@ const DETAIL_TABS = [
   { key: "infrastructure", label: "Infrastructure", icon: <Building2 size={14} /> },
   { key: "sensitivity", label: "Sensitivity", icon: <TrendingUp size={14} /> },
   { key: "expansion", label: "Expansion", icon: <Layers size={14} /> },
+  { key: "green", label: "Green Energy", icon: <Leaf size={14} /> },
   { key: "firm", label: "Firm Capacity", icon: <Target size={14} /> },
 ];
 
@@ -719,6 +725,10 @@ function DetailPanel({ result }: { result: ScenarioResult }) {
             expansionAdvisoryError={expansionAdvisoryError}
             loadExpansionAdvisory={loadExpansionAdvisory}
           />
+        )}
+
+        {activeTab === "green" && (
+          <GreenEnergyTab r={r} />
         )}
 
         {activeTab === "firm" && (
@@ -1601,6 +1611,365 @@ function LoadMixSection({ r }: { r: ScenarioResult }) {
         </div>
       )}
     </SectionCard>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// Tab: Green Energy
+// ─────────────────────────────────────────────────────────────
+
+/** Smart unit formatting: auto-scales k → M → G → T based on magnitude */
+function smartPower(kwp: number): string {
+  if (kwp >= 1e9) return `${(kwp / 1e9).toFixed(1)} TWp`;
+  if (kwp >= 1e6) return `${(kwp / 1e6).toFixed(1)} GWp`;
+  if (kwp >= 1e3) return `${(kwp / 1e3).toFixed(1)} MWp`;
+  return `${kwp.toFixed(0)} kWp`;
+}
+function smartEnergy(kwh: number): string {
+  if (kwh >= 1e9) return `${(kwh / 1e9).toFixed(1)} TWh`;
+  if (kwh >= 1e6) return `${(kwh / 1e6).toFixed(1)} GWh`;
+  if (kwh >= 1e3) return `${(kwh / 1e3).toFixed(1)} MWh`;
+  return `${kwh.toFixed(0)} kWh`;
+}
+function smartEnergyMwh(mwh: number): string {
+  if (mwh >= 1e6) return `${(mwh / 1e6).toFixed(1)} TWh`;
+  if (mwh >= 1e3) return `${(mwh / 1e3).toFixed(1)} GWh`;
+  return `${mwh.toFixed(1)} MWh`;
+}
+
+function GreenEnergyTab({ r }: { r: ScenarioResult }) {
+  const green = r.green_energy as GreenDispatchResult | null;
+  const [advisory, setAdvisory] = useState<GreenAdvisoryResult | null>(null);
+  const [advisoryLoading, setAdvisoryLoading] = useState(false);
+  const [advisoryError, setAdvisoryError] = useState<string | null>(null);
+  const [customCoverage, setCustomCoverage] = useState(50);
+  const [customResult, setCustomResult] = useState<GreenCustomCoverageResult | null>(null);
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customError, setCustomError] = useState<string | null>(null);
+
+  function loadAdvisory() {
+    setAdvisoryLoading(true);
+    setAdvisoryError(null);
+    api.fetchGreenAdvisory(r.site_id, r.scenario)
+      .then(setAdvisory)
+      .catch((e) => setAdvisoryError(e?.response?.data?.detail || "Failed to load advisory"))
+      .finally(() => setAdvisoryLoading(false));
+  }
+
+  function loadCustomCoverage() {
+    setCustomLoading(true);
+    setCustomError(null);
+    api.fetchGreenCustomCoverage(r.site_id, r.scenario, customCoverage / 100)
+      .then(setCustomResult)
+      .catch((e) => setCustomError(e?.response?.data?.detail || "Failed to compute custom coverage"))
+      .finally(() => setCustomLoading(false));
+  }
+
+  if (!green) {
+    return (
+      <div className="text-center py-10">
+        <Leaf size={40} className="mx-auto text-gray-300 mb-3" />
+        <p className="text-gray-500 text-sm">No green energy configuration for this site.</p>
+        <p className="text-gray-400 text-xs mt-1">
+          Add PV capacity, BESS, or fuel cell in Site Manager to enable green dispatch.
+        </p>
+      </div>
+    );
+  }
+
+  const fmtMWh = (kwh: number) => (kwh / 1000).toFixed(1) + " MWh";
+  const fmtPct = (v: number) => (v * 100).toFixed(1) + "%";
+  const pvParams = green.pvgis_params;
+
+  // Detect PV-only physical ceiling from advisory results
+  const pvOnlyMaxCoverage = advisory
+    ? Math.max(...advisory.levels.filter(l => l.pv_only_ceiling_reached).map(l => l.pv_only_coverage_achieved), 0)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Headline metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <MetricBox label="Renewable Fraction" value={fmtPct(green.renewable_fraction)} color="emerald" />
+        <MetricBox label="Overhead Coverage" value={fmtPct(green.overhead_coverage_fraction)} color="emerald" />
+        <MetricBox label="CO2 Avoided" value={`${green.co2_avoided_tonnes.toFixed(1)} tCO2`} color="green" />
+        <MetricBox label="Grid Import (Overhead)" value={fmtMWh(green.total_grid_import_kwh)} color="gray" />
+      </div>
+
+      {/* Configuration summary */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Green Energy Configuration</h4>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div><span className="text-gray-500">PV Capacity:</span> {green.pv_capacity_kwp.toLocaleString()} kWp</div>
+          <div><span className="text-gray-500">BESS:</span> {green.bess_capacity_kwh.toLocaleString()} kWh</div>
+          <div><span className="text-gray-500">BESS Eff:</span> {fmtPct(green.bess_roundtrip_efficiency)}</div>
+          <div><span className="text-gray-500">Fuel Cell:</span> {green.fuel_cell_capacity_kw.toLocaleString()} kW</div>
+        </div>
+        {/* PVGIS assumptions */}
+        {pvParams && green.pv_profile_source === "pvgis" && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <h5 className="text-xs font-medium text-gray-500 mb-1.5">PVGIS Solar Profile Parameters</h5>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600">
+              <div><span className="text-gray-400">Years:</span> {pvParams.start_year}–{pvParams.end_year}</div>
+              <div><span className="text-gray-400">Technology:</span> {pvParams.pv_technology}</div>
+              <div><span className="text-gray-400">Mounting:</span> {pvParams.mounting_place}</div>
+              <div><span className="text-gray-400">System Loss:</span> {pvParams.system_loss_pct}%</div>
+              <div><span className="text-gray-400">Horizon:</span> {pvParams.use_horizon ? "Yes" : "No"}</div>
+              <div><span className="text-gray-400">Optimal Angles:</span> {pvParams.optimal_angles ? "Yes" : "No"}</div>
+              {!pvParams.optimal_angles && pvParams.surface_tilt_deg != null && (
+                <div><span className="text-gray-400">Tilt:</span> {pvParams.surface_tilt_deg}°</div>
+              )}
+              {!pvParams.optimal_angles && pvParams.surface_azimuth_deg != null && (
+                <div><span className="text-gray-400">Azimuth:</span> {pvParams.surface_azimuth_deg}°</div>
+              )}
+            </div>
+          </div>
+        )}
+        {green.pv_profile_source === "zero" && (
+          <p className="mt-2 text-[10px] text-gray-400">PV profile: None (zero generation)</p>
+        )}
+        {green.pv_profile_source === "manual" && (
+          <p className="mt-2 text-[10px] text-gray-400">PV profile: Manual hourly upload</p>
+        )}
+      </div>
+
+      {/* Hourly dispatch chart */}
+      {green.hourly_dispatch && green.hourly_dispatch.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Hourly Overhead Dispatch Profile</h4>
+          <GreenDispatchChart
+            hourlyDispatch={green.hourly_dispatch}
+            totalOverheadMwh={green.total_overhead_kwh / 1000}
+            pvToOverheadMwh={green.total_pv_to_overhead_kwh / 1000}
+            bessDischargeMwh={green.total_bess_discharge_kwh / 1000}
+            fuelCellMwh={green.total_fuel_cell_kwh / 1000}
+            gridImportMwh={green.total_grid_import_kwh / 1000}
+          />
+        </div>
+      )}
+
+      {/* Dispatch breakdown */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Annual Energy Dispatch</h4>
+        <div className="space-y-2">
+          {[
+            { label: "PV Generation", value: green.total_pv_generation_kwh, color: "bg-yellow-400" },
+            { label: "PV to Overhead", value: green.total_pv_to_overhead_kwh, color: "bg-green-400" },
+            { label: "PV to BESS", value: green.total_pv_to_bess_kwh, color: "bg-emerald-400" },
+            { label: "PV Curtailed", value: green.total_pv_curtailed_kwh, color: "bg-gray-300" },
+            { label: "BESS Discharge", value: green.total_bess_discharge_kwh, color: "bg-blue-400" },
+            { label: "Fuel Cell", value: green.total_fuel_cell_kwh, color: "bg-purple-400" },
+            { label: "Grid Import (OH)", value: green.total_grid_import_kwh, color: "bg-red-300" },
+          ].map(({ label, value, color }) => {
+            const total = green.total_facility_kwh || 1;
+            const pct = (value / total) * 100;
+            return (
+              <div key={label} className="flex items-center gap-3 text-xs">
+                <span className="w-28 text-gray-600 text-right">{label}</span>
+                <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${color} rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                </div>
+                <span className="w-24 text-gray-700">{fmtMWh(value)}</span>
+                <span className="w-12 text-gray-400 text-right">{pct.toFixed(1)}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Additional metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-xs text-gray-500">PV Self-Consumption</p>
+          <p className="font-medium">{fmtPct(green.pv_self_consumption_fraction)}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-xs text-gray-500">BESS Equivalent Cycles/yr</p>
+          <p className="font-medium">{green.bess_cycles_equivalent.toFixed(1)}</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-xs text-gray-500">Total Overhead</p>
+          <p className="font-medium">{fmtMWh(green.total_overhead_kwh)}</p>
+        </div>
+      </div>
+
+      {/* Advisory Mode */}
+      <div className="border-t border-gray-200 pt-5">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Advisory Mode: Coverage Target Sizing</h4>
+        <p className="text-xs text-gray-500 mb-3">
+          Compare PV-only vs PV+BESS sizing to reach 10%–100% overhead coverage from renewables.
+        </p>
+        {!advisory && !advisoryLoading && (
+          <button onClick={loadAdvisory}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+            Compute Advisory Sizing
+          </button>
+        )}
+        {advisoryLoading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 size={16} className="animate-spin" /> Computing advisory sizing...
+          </div>
+        )}
+        {advisoryError && (
+          <p className="text-sm text-red-600">{advisoryError}</p>
+        )}
+        {advisory && (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-center">
+                    <th rowSpan={2} className="px-3 py-2 text-xs font-medium text-gray-500 text-left border-r border-gray-200">Coverage<br/>Target</th>
+                    <th className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border-r border-gray-200">PV Only</th>
+                    <th colSpan={2} className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border-r border-gray-200">PV + BESS</th>
+                    <th colSpan={2} className="px-3 py-1.5 text-xs font-medium text-gray-500">Output (PV+BESS)</th>
+                  </tr>
+                  <tr className="bg-gray-50 text-left">
+                    <th className="px-3 py-1.5 text-xs font-medium text-gray-500 border-r border-gray-200">PV Needed</th>
+                    <th className="px-3 py-1.5 text-xs font-medium text-gray-500">PV Needed</th>
+                    <th className="px-3 py-1.5 text-xs font-medium text-gray-500 border-r border-gray-200">BESS Needed</th>
+                    <th className="px-3 py-1.5 text-xs font-medium text-gray-500">Annual Gen</th>
+                    <th className="px-3 py-1.5 text-xs font-medium text-gray-500">CO2 Avoided</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {advisory.levels.map((level) => {
+                    const isCeiling = level.pv_only_ceiling_reached;
+                    return (
+                      <tr key={level.coverage_target} className="border-t border-gray-100 text-center">
+                        <td className="px-3 py-2 font-medium text-left border-r border-gray-200">{(level.coverage_target * 100).toFixed(0)}%</td>
+                        <td className={`px-3 py-2 border-r border-gray-200 ${isCeiling ? "bg-amber-50/50" : "bg-emerald-50/30"}`}>
+                          {isCeiling ? (
+                            <span className="text-amber-600" title="PV alone cannot reach this coverage (limited by nighttime hours with zero solar)">
+                              max {fmtPct(level.pv_only_coverage_achieved)}
+                            </span>
+                          ) : (
+                            smartPower(level.pv_only_kwp_needed)
+                          )}
+                        </td>
+                        <td className="px-3 py-2 bg-blue-50/30">{smartPower(level.pv_kwp_needed)}</td>
+                        <td className="px-3 py-2 bg-blue-50/30 border-r border-gray-200">{smartEnergy(level.bess_kwh_needed)}</td>
+                        <td className="px-3 py-2">{smartEnergyMwh(level.annual_generation_mwh)}</td>
+                        <td className="px-3 py-2">{level.co2_avoided_tonnes.toFixed(1)} t</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {pvOnlyMaxCoverage > 0 && (
+              <p className="text-[10px] text-amber-600 mt-2">
+                PV-only maximum achievable coverage: ~{fmtPct(pvOnlyMaxCoverage)} — limited by nighttime hours with zero solar generation. BESS enables storing daytime surplus for nighttime use.
+              </p>
+            )}
+
+            {/* Advisory visualization — PV+BESS capacity breakdown */}
+            <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+              <h5 className="text-xs font-medium text-gray-600 mb-3">PV + BESS Required Capacity by Coverage Target</h5>
+              <div className="space-y-2">
+                {advisory.levels.map((level) => {
+                  const maxCap = Math.max(...advisory.levels.map(l => l.pv_kwp_needed + l.bess_kwh_needed)) || 1;
+                  const pvPct = (level.pv_kwp_needed / maxCap) * 100;
+                  const bessPct = (level.bess_kwh_needed / maxCap) * 100;
+                  return (
+                    <div key={level.coverage_target} className="flex items-center gap-2">
+                      <span className="w-10 text-xs font-medium text-gray-600 text-right">{(level.coverage_target * 100).toFixed(0)}%</span>
+                      <div className="flex-1 h-6 bg-gray-100 rounded-md overflow-hidden flex">
+                        <div className="h-full bg-emerald-400 flex items-center justify-center text-[9px] text-white font-medium"
+                          style={{ width: `${Math.max(pvPct, 0)}%`, minWidth: pvPct > 3 ? "auto" : "0" }}>
+                          {pvPct > 8 && smartPower(level.pv_kwp_needed)}
+                        </div>
+                        <div className="h-full bg-blue-400 flex items-center justify-center text-[9px] text-white font-medium"
+                          style={{ width: `${Math.max(bessPct, 0)}%`, minWidth: bessPct > 3 ? "auto" : "0" }}>
+                          {bessPct > 8 && smartEnergy(level.bess_kwh_needed)}
+                        </div>
+                      </div>
+                      <span className="w-20 text-[10px] text-gray-500 text-right">{smartPower(level.pv_kwp_needed)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-500">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" /> PV Capacity</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> BESS Capacity</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Custom Coverage Slider */}
+      <div className="border-t border-gray-200 pt-5">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Coverage Target</h4>
+        <p className="text-xs text-gray-500 mb-3">
+          Select a specific overhead coverage percentage and compute the required sizing.
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="range" min={0} max={100} step={1}
+            value={customCoverage}
+            onChange={(e) => setCustomCoverage(parseInt(e.target.value))}
+            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+          />
+          <span className="text-sm font-semibold w-12 text-right">{customCoverage}%</span>
+          <button onClick={loadCustomCoverage} disabled={customLoading}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+            {customLoading && <Loader2 size={14} className="animate-spin" />}
+            Calculate
+          </button>
+        </div>
+        {customError && <p className="text-sm text-red-600 mt-2">{customError}</p>}
+        {customResult && (
+          <div className="mt-3 bg-gray-50 rounded-lg p-4">
+            <p className="text-xs font-medium text-gray-600 mb-2">
+              Results for {(customResult.coverage_target * 100).toFixed(0)}% overhead coverage:
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-emerald-700">PV Only</p>
+                {customResult.pv_only_ceiling_reached ? (
+                  <>
+                    <div className="text-amber-600 text-xs font-medium">Cannot reach target with PV alone</div>
+                    <div><span className="text-gray-500 text-xs">Max Coverage:</span> <span className="font-medium">{fmtPct(customResult.pv_only_coverage_achieved)}</span></div>
+                    <div><span className="text-gray-500 text-xs">PV at plateau:</span> <span className="font-medium">{smartPower(customResult.pv_only_kwp_needed)}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div><span className="text-gray-500 text-xs">PV Needed:</span> <span className="font-medium">{smartPower(customResult.pv_only_kwp_needed)}</span></div>
+                    <div><span className="text-gray-500 text-xs">Annual Gen:</span> <span className="font-medium">{smartEnergyMwh(customResult.pv_only_annual_gen_mwh)}</span></div>
+                    <div><span className="text-gray-500 text-xs">CO2 Avoided:</span> <span className="font-medium">{customResult.pv_only_co2_avoided_tonnes.toFixed(1)} t</span></div>
+                  </>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-blue-700">PV + BESS</p>
+                <div><span className="text-gray-500 text-xs">PV Needed:</span> <span className="font-medium">{smartPower(customResult.pv_kwp_needed)}</span></div>
+                <div><span className="text-gray-500 text-xs">BESS Needed:</span> <span className="font-medium">{smartEnergy(customResult.bess_kwh_needed)}</span></div>
+                <div><span className="text-gray-500 text-xs">Annual Gen:</span> <span className="font-medium">{smartEnergyMwh(customResult.annual_generation_mwh)}</span></div>
+                <div><span className="text-gray-500 text-xs">CO2 Avoided:</span> <span className="font-medium">{customResult.co2_avoided_tonnes.toFixed(1)} t</span></div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function MetricBox({ label, value, color = "blue" }: { label: string; value: string; color?: string }) {
+  const colorMap: Record<string, string> = {
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    green: "bg-green-50 border-green-200 text-green-700",
+    blue: "bg-blue-50 border-blue-200 text-blue-700",
+    gray: "bg-gray-50 border-gray-200 text-gray-700",
+  };
+  return (
+    <div className={`rounded-lg border p-3 ${colorMap[color] || colorMap.blue}`}>
+      <p className="text-xs opacity-75">{label}</p>
+      <p className="text-lg font-semibold mt-0.5">{value}</p>
+    </div>
   );
 }
 

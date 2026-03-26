@@ -1114,6 +1114,11 @@
           {{ green_energy.dispatch_hourly_chart_visual.svg_markup | safe }}
         </div>
       {% endif %}
+
+      {% if green_energy.advisory_table is defined and green_energy.advisory_table %}
+        {{ subsection_heading(site_number ~ ".8.3", green_energy.advisory_table.title, site_section_prefix ~ "-green-energy-advisory") }}
+        {{ data_table(green_energy.advisory_table) }}
+      {% endif %}
       {{ slide_footer(green_energy_context) }}
     </section>
   {% endif %}

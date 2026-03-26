@@ -71,6 +71,8 @@ import type {
   DeleteGridOfficialEvidenceResponse,
   GuidedPresetsResponse,
   GuidedRunResponse,
+  GreenAdvisoryResult,
+  GreenCustomCoverageResult,
 } from "../types";
 
 type RawReferenceData = {
@@ -646,4 +648,42 @@ export async function exportExcelReport(config: ReportConfig): Promise<Blob> {
 /** Get terrain preview image URL for a site */
 export function getTerrainPreviewUrl(siteId: string): string {
   return `/api/export/terrain-preview?site_id=${encodeURIComponent(siteId)}`;
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// Green Energy Advisory
+// ─────────────────────────────────────────────────────────────
+
+/** Fetch green energy advisory sizing for coverage targets */
+export async function fetchGreenAdvisory(
+  siteId: string,
+  scenario: RunSingleRequest["scenario"],
+): Promise<GreenAdvisoryResult> {
+  try {
+    const { data } = await api.post<GreenAdvisoryResult>(
+      "/api/scenarios/green-advisory",
+      { site_id: siteId, scenario },
+    );
+    return data;
+  } catch (err) {
+    throw extractApiError(err);
+  }
+}
+
+/** Fetch green energy advisory for a custom coverage target */
+export async function fetchGreenCustomCoverage(
+  siteId: string,
+  scenario: RunSingleRequest["scenario"],
+  coverageTarget: number,
+): Promise<GreenCustomCoverageResult> {
+  try {
+    const { data } = await api.post<GreenCustomCoverageResult>(
+      "/api/scenarios/green-advisory-custom",
+      { site_id: siteId, scenario, coverage_target: coverageTarget },
+    );
+    return data;
+  } catch (err) {
+    throw extractApiError(err);
+  }
 }

@@ -3,7 +3,6 @@ import {
   BarChart3,
   Cloud,
   FileText,
-  Leaf,
   MapPin,
   Play,
   Settings,
@@ -17,7 +16,8 @@ const NAV_ITEMS = [
   { to: "/climate", label: "Climate & Weather", icon: Cloud },
   { to: "/scenarios", label: "Scenario Runner", icon: Play },
   { to: "/results", label: "Results", icon: BarChart3 },
-  { to: "/green", label: "Green Energy", icon: Leaf },
+  // Green Energy is now integrated into Results Dashboard (Phase 2)
+  // Standalone page kept at /green as advanced exploration archive
   { to: "/export", label: "Reports & Export", icon: FileText },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

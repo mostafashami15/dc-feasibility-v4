@@ -88,6 +88,21 @@ export interface Site {
   power_confirmed: boolean;
   power_input_mode: PowerInputMode;
   voltage: string | null;
+  // Green Energy Facilities
+  pv_capacity_kwp: number | null;
+  bess_capacity_kwh: number | null;
+  bess_efficiency: number | null;
+  fuel_cell_kw: number | null;
+  // PVGIS Configuration
+  pvgis_start_year: number | null;
+  pvgis_end_year: number | null;
+  pvgis_technology: string | null;
+  pvgis_mounting_place: string | null;
+  pvgis_system_loss_pct: number | null;
+  pvgis_use_horizon: boolean | null;
+  pvgis_optimal_angles: boolean | null;
+  pvgis_surface_tilt_deg: number | null;
+  pvgis_surface_azimuth_deg: number | null;
   notes: string | null;
 }
 
@@ -114,6 +129,19 @@ export const DEFAULT_SITE: Site = {
   power_confirmed: false,
   power_input_mode: "operational",
   voltage: null,
+  pv_capacity_kwp: null,
+  bess_capacity_kwh: null,
+  bess_efficiency: null,
+  fuel_cell_kw: null,
+  pvgis_start_year: null,
+  pvgis_end_year: null,
+  pvgis_technology: null,
+  pvgis_mounting_place: null,
+  pvgis_system_loss_pct: null,
+  pvgis_use_horizon: null,
+  pvgis_optimal_angles: null,
+  pvgis_surface_tilt_deg: null,
+  pvgis_surface_azimuth_deg: null,
   notes: null,
 };
 
@@ -208,6 +236,7 @@ export interface ScenarioResult {
   it_capacity_p90_mw: number | null;
   it_capacity_mean_mw: number | null;
   it_capacity_best_mw: number | null;
+  green_energy: GreenDispatchResult | null;
   assumption_override_preset_label: string | null;
   applied_assumption_overrides: AppliedAssumptionOverride[];
 }
@@ -286,6 +315,8 @@ export interface SiteResponse {
   id: string;
   site: Site;
   has_weather: boolean;
+  has_solar: boolean;
+  solar_fetch_status: "none" | "loading" | "cached" | "error";
 }
 
 export interface SiteListResponse {
@@ -774,6 +805,18 @@ export interface GreenDispatchResult {
   total_facility_kwh: number;
   total_it_kwh: number;
   hourly_dispatch?: Array<Record<string, number>>;
+  pv_profile_source?: "zero" | "manual" | "pvgis";
+  pvgis_params?: {
+    start_year: number;
+    end_year: number;
+    pv_technology: string;
+    mounting_place: string;
+    system_loss_pct: number;
+    use_horizon: boolean;
+    optimal_angles: boolean;
+    surface_tilt_deg: number | null;
+    surface_azimuth_deg: number | null;
+  };
 }
 
 export interface PVGISProfileResult {
@@ -810,6 +853,45 @@ export interface ScenarioGreenDispatchResult extends GreenDispatchResult {
   committed_it_mw: number;
   pv_profile_source?: "zero" | "manual" | "pvgis";
   pvgis_profile_key?: string | null;
+}
+
+/** Advisory mode: auto-sizing for target coverage levels */
+export interface GreenAdvisoryCoverageLevel {
+  coverage_target: number;
+  // PV-only sizing
+  pv_only_kwp_needed: number;
+  pv_only_annual_gen_mwh: number;
+  pv_only_co2_avoided_tonnes: number;
+  pv_only_coverage_achieved: number;
+  pv_only_ceiling_reached: boolean;
+  // PV + BESS sizing
+  pv_kwp_needed: number;
+  bess_kwh_needed: number;
+  annual_generation_mwh: number;
+  co2_avoided_tonnes: number;
+  renewable_fraction: number;
+}
+
+export interface GreenAdvisoryResult {
+  site_id: string;
+  site_name: string;
+  scenario_key: string;
+  total_overhead_kwh: number;
+  levels: GreenAdvisoryCoverageLevel[];
+}
+
+export interface GreenCustomCoverageResult {
+  coverage_target: number;
+  pv_only_kwp_needed: number;
+  pv_only_annual_gen_mwh: number;
+  pv_only_co2_avoided_tonnes: number;
+  pv_only_coverage_achieved: number;
+  pv_only_ceiling_reached: boolean;
+  pv_kwp_needed: number;
+  bess_kwh_needed: number;
+  annual_generation_mwh: number;
+  co2_avoided_tonnes: number;
+  renewable_fraction: number;
 }
 
 export interface FirmCapacityBaseline {

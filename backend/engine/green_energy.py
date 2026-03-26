@@ -1152,3 +1152,214 @@ def simulate_green_dispatch(
         total_facility_kwh=round(total_facility_kwh, 2),
         total_it_kwh=round(total_it_kwh, 2),
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# Advisory Mode: Auto-Sizing for Coverage Targets
+# ─────────────────────────────────────────────────────────────
+
+@dataclass
+class CoverageLevelResult:
+    """Result for one coverage target level — includes both PV-only and PV+BESS."""
+    coverage_target: float
+    # PV-only sizing
+    pv_only_kwp_needed: float
+    pv_only_annual_gen_mwh: float
+    pv_only_co2_avoided_tonnes: float
+    pv_only_coverage_achieved: float
+    pv_only_ceiling_reached: bool  # True when PV-only physically can't reach target
+    # PV + BESS sizing
+    pv_kwp_needed: float
+    bess_kwh_needed: float
+    annual_generation_mwh: float
+    co2_avoided_tonnes: float
+    renewable_fraction: float
+
+
+def _binary_search_pv_coverage(
+    target: float,
+    hourly_facility_kw: list[float],
+    hourly_it_kw: list[float],
+    hourly_pv_kw_per_kwp: list[float],
+    bess_roundtrip_efficiency: float,
+    grid_co2_kg_per_kwh: float,
+    with_bess: bool,
+) -> tuple[float, float, GreenEnergyResult | None, bool]:
+    """Binary search for PV capacity to achieve a target overhead coverage.
+
+    Returns (final_kwp, bess_kwh, best_result, ceiling_reached).
+    ceiling_reached is True when the physical maximum coverage is below the target.
+    """
+    low_kwp = 0.0
+    high_kwp = max(hourly_facility_kw) * 10
+    best_result = None
+
+    # First check: can we even reach the target at the upper bound?
+    upper_pv = [v * high_kwp for v in hourly_pv_kw_per_kwp]
+    if with_bess:
+        upper_avg = sum(upper_pv) / len(upper_pv) if upper_pv else 0.0
+        upper_bess = upper_avg * 4.0
+    else:
+        upper_bess = 0.0
+    upper_result = simulate_green_dispatch(
+        hourly_facility_kw=hourly_facility_kw,
+        hourly_it_kw=hourly_it_kw,
+        hourly_pv_kw=upper_pv,
+        bess_capacity_kwh=upper_bess,
+        bess_roundtrip_efficiency=bess_roundtrip_efficiency,
+        bess_initial_soc_kwh=0.0,
+        fuel_cell_capacity_kw=0.0,
+        pv_capacity_kwp=high_kwp,
+        grid_co2_kg_per_kwh=grid_co2_kg_per_kwh,
+    )
+    ceiling_reached = upper_result.overhead_coverage_fraction < target - 0.005
+
+    if ceiling_reached:
+        # Can't reach target — find the minimum PV that achieves the physical max
+        # Run a second binary search to find where adding more PV stops helping
+        # (diminishing returns — the coverage plateaus)
+        max_coverage = upper_result.overhead_coverage_fraction
+        # Search for PV that gets us to 99% of the max achievable coverage
+        plateau_target = max_coverage * 0.99
+
+        for _ in range(40):
+            mid_kwp = (low_kwp + high_kwp) / 2
+            hourly_pv = [v * mid_kwp for v in hourly_pv_kw_per_kwp]
+            if with_bess:
+                avg_pv = sum(hourly_pv) / len(hourly_pv) if hourly_pv else 0.0
+                bess_kwh = avg_pv * 4.0
+            else:
+                bess_kwh = 0.0
+
+            result = simulate_green_dispatch(
+                hourly_facility_kw=hourly_facility_kw,
+                hourly_it_kw=hourly_it_kw,
+                hourly_pv_kw=hourly_pv,
+                bess_capacity_kwh=bess_kwh,
+                bess_roundtrip_efficiency=bess_roundtrip_efficiency,
+                bess_initial_soc_kwh=0.0,
+                fuel_cell_capacity_kw=0.0,
+                pv_capacity_kwp=mid_kwp,
+                grid_co2_kg_per_kwh=grid_co2_kg_per_kwh,
+            )
+            best_result = result
+            if result.overhead_coverage_fraction < plateau_target:
+                low_kwp = mid_kwp
+            else:
+                high_kwp = mid_kwp
+    else:
+        for _ in range(40):
+            mid_kwp = (low_kwp + high_kwp) / 2
+            hourly_pv = [v * mid_kwp for v in hourly_pv_kw_per_kwp]
+
+            if with_bess:
+                avg_pv = sum(hourly_pv) / len(hourly_pv) if hourly_pv else 0.0
+                bess_kwh = avg_pv * 4.0
+            else:
+                bess_kwh = 0.0
+
+            result = simulate_green_dispatch(
+                hourly_facility_kw=hourly_facility_kw,
+                hourly_it_kw=hourly_it_kw,
+                hourly_pv_kw=hourly_pv,
+                bess_capacity_kwh=bess_kwh,
+                bess_roundtrip_efficiency=bess_roundtrip_efficiency,
+                bess_initial_soc_kwh=0.0,
+                fuel_cell_capacity_kw=0.0,
+                pv_capacity_kwp=mid_kwp,
+                grid_co2_kg_per_kwh=grid_co2_kg_per_kwh,
+            )
+
+            best_result = result
+            if result.overhead_coverage_fraction < target:
+                low_kwp = mid_kwp
+            else:
+                high_kwp = mid_kwp
+
+    final_kwp = round((low_kwp + high_kwp) / 2, 1)
+    if with_bess:
+        avg_pv_final = sum(v * final_kwp for v in hourly_pv_kw_per_kwp) / len(hourly_pv_kw_per_kwp)
+        final_bess = round(avg_pv_final * 4.0, 1)
+    else:
+        final_bess = 0.0
+
+    return final_kwp, final_bess, best_result, ceiling_reached
+
+
+def compute_green_advisory(
+    hourly_facility_kw: list[float],
+    hourly_it_kw: list[float],
+    hourly_pv_kw_per_kwp: list[float],
+    bess_roundtrip_efficiency: float = DEFAULT_BESS_ROUNDTRIP_EFF,
+    grid_co2_kg_per_kwh: float = DEFAULT_GRID_CO2_KG_PER_KWH,
+    coverage_targets: list[float] | None = None,
+) -> list[CoverageLevelResult]:
+    """Compute both PV-only and PV+BESS sizing for target coverage levels.
+
+    For each coverage target, runs binary search twice:
+    1. PV-only (no BESS) — finds PV kWp needed
+    2. PV+BESS (BESS sized as 4h avg PV) — finds PV kWp + BESS kWh needed
+
+    Returns list of CoverageLevelResult with both pathways.
+    """
+    if coverage_targets is None:
+        coverage_targets = [0.10, 0.25, 0.50, 0.75, 1.00]
+
+    results: list[CoverageLevelResult] = []
+
+    for target in coverage_targets:
+        if target <= 0:
+            results.append(CoverageLevelResult(
+                coverage_target=target,
+                pv_only_kwp_needed=0.0,
+                pv_only_annual_gen_mwh=0.0,
+                pv_only_co2_avoided_tonnes=0.0,
+                pv_only_coverage_achieved=0.0,
+                pv_only_ceiling_reached=False,
+                pv_kwp_needed=0.0,
+                bess_kwh_needed=0.0,
+                annual_generation_mwh=0.0,
+                co2_avoided_tonnes=0.0,
+                renewable_fraction=0.0,
+            ))
+            continue
+
+        # PV-only search
+        pv_only_kwp, _, pv_only_result, pv_only_ceiling = _binary_search_pv_coverage(
+            target=target,
+            hourly_facility_kw=hourly_facility_kw,
+            hourly_it_kw=hourly_it_kw,
+            hourly_pv_kw_per_kwp=hourly_pv_kw_per_kwp,
+            bess_roundtrip_efficiency=bess_roundtrip_efficiency,
+            grid_co2_kg_per_kwh=grid_co2_kg_per_kwh,
+            with_bess=False,
+        )
+        pv_only_gen_mwh = round(sum(v * pv_only_kwp for v in hourly_pv_kw_per_kwp) / 1000.0, 1)
+
+        # PV+BESS search
+        pv_bess_kwp, bess_kwh, pv_bess_result, _ = _binary_search_pv_coverage(
+            target=target,
+            hourly_facility_kw=hourly_facility_kw,
+            hourly_it_kw=hourly_it_kw,
+            hourly_pv_kw_per_kwp=hourly_pv_kw_per_kwp,
+            bess_roundtrip_efficiency=bess_roundtrip_efficiency,
+            grid_co2_kg_per_kwh=grid_co2_kg_per_kwh,
+            with_bess=True,
+        )
+        pv_bess_gen_mwh = round(sum(v * pv_bess_kwp for v in hourly_pv_kw_per_kwp) / 1000.0, 1)
+
+        results.append(CoverageLevelResult(
+            coverage_target=target,
+            pv_only_kwp_needed=pv_only_kwp,
+            pv_only_annual_gen_mwh=pv_only_gen_mwh,
+            pv_only_co2_avoided_tonnes=round(pv_only_result.co2_avoided_tonnes, 1) if pv_only_result else 0.0,
+            pv_only_coverage_achieved=round(pv_only_result.overhead_coverage_fraction, 4) if pv_only_result else 0.0,
+            pv_only_ceiling_reached=pv_only_ceiling,
+            pv_kwp_needed=pv_bess_kwp,
+            bess_kwh_needed=bess_kwh,
+            annual_generation_mwh=pv_bess_gen_mwh,
+            co2_avoided_tonnes=round(pv_bess_result.co2_avoided_tonnes, 1) if pv_bess_result else 0.0,
+            renewable_fraction=round(pv_bess_result.renewable_fraction, 4) if pv_bess_result else 0.0,
+        ))
+
+    return results

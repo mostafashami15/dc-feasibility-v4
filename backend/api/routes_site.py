@@ -33,9 +33,10 @@ Reference: Architecture Agreement v2.0, Sections 6 (Page 1), 8 (Phase 4)
 
 from typing import Optional
 import io
+import logging
 import zipfile
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel, Field
 
 from engine.models import Site, CoolingType, SpaceResult
@@ -48,7 +49,12 @@ from api.store import (
     update_site,
     delete_site,
     has_weather,
+    has_any_solar_profile,
+    has_solar_profile,
+    save_solar_profile,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -59,6 +65,112 @@ from api.store import (
 # API docs at http://localhost:8000/docs
 
 router = APIRouter(prefix="/api", tags=["Sites"])
+
+
+# ── In-memory PVGIS fetch status tracker ──
+# Tracks background PVGIS fetch status per site_id.
+# Possible values: "loading", "cached", "error", "none"
+_pvgis_fetch_status: dict[str, str] = {}
+
+
+def _get_solar_status(site_id: str) -> tuple[bool, str]:
+    """Return (has_solar, solar_fetch_status) for a site."""
+    if has_any_solar_profile(site_id):
+        return True, "cached"
+    status = _pvgis_fetch_status.get(site_id, "none")
+    return False, status
+
+
+# Default PVGIS parameters — used as fallback when site has no overrides
+_DEFAULT_PVGIS_KEY_PARAMS = dict(
+    start_year=2019,
+    end_year=2023,
+    pv_technology="crystSi",
+    mounting_place="free",
+    system_loss_pct=14.0,
+    use_horizon=True,
+    optimal_angles=True,
+    surface_tilt_deg=None,
+    surface_azimuth_deg=None,
+)
+
+
+def _get_pvgis_params(site: Site) -> dict:
+    """Return PVGIS key params from site overrides with defaults as fallback."""
+    return dict(
+        start_year=site.pvgis_start_year if site.pvgis_start_year is not None else 2019,
+        end_year=site.pvgis_end_year if site.pvgis_end_year is not None else 2023,
+        pv_technology=site.pvgis_technology or "crystSi",
+        mounting_place=site.pvgis_mounting_place or "free",
+        system_loss_pct=site.pvgis_system_loss_pct if site.pvgis_system_loss_pct is not None else 14.0,
+        use_horizon=site.pvgis_use_horizon if site.pvgis_use_horizon is not None else True,
+        optimal_angles=site.pvgis_optimal_angles if site.pvgis_optimal_angles is not None else True,
+        surface_tilt_deg=site.pvgis_surface_tilt_deg,
+        surface_azimuth_deg=site.pvgis_surface_azimuth_deg,
+    )
+
+
+def _pvgis_background_fetch(site_id: str, latitude: float, longitude: float, pvgis_params: dict | None = None) -> None:
+    """Background task: fetch PVGIS normalized profile and cache it."""
+    try:
+        from engine.solar import build_representative_pvgis_profile, make_pvgis_profile_key
+        from dataclasses import asdict
+
+        params = pvgis_params or _DEFAULT_PVGIS_KEY_PARAMS
+
+        profile_key = make_pvgis_profile_key(
+            site_id=site_id,
+            latitude=latitude,
+            longitude=longitude,
+            **params,
+        )
+
+        # Skip if already cached
+        if has_solar_profile(site_id, profile_key):
+            _pvgis_fetch_status[site_id] = "cached"
+            return
+
+        _pvgis_fetch_status[site_id] = "loading"
+
+        profile = build_representative_pvgis_profile(
+            latitude=latitude,
+            longitude=longitude,
+            site_id=site_id,
+            **params,
+        )
+
+        save_solar_profile(site_id, profile_key, asdict(profile))
+        _pvgis_fetch_status[site_id] = "cached"
+        logger.info("PVGIS auto-fetch complete for site %s (key=%s)", site_id, profile_key)
+
+    except Exception as e:
+        _pvgis_fetch_status[site_id] = "error"
+        logger.warning("PVGIS auto-fetch failed for site %s: %s", site_id, e)
+
+
+# BackgroundTasks instance — set by endpoint handlers
+_background_tasks: BackgroundTasks | None = None
+
+
+def _maybe_trigger_pvgis_background(site_id: str, site: Site) -> None:
+    """Trigger PVGIS background fetch if site has valid coordinates and no cached profile."""
+    if site.latitude is None or site.longitude is None:
+        return
+    if has_any_solar_profile(site_id):
+        return
+    if _pvgis_fetch_status.get(site_id) == "loading":
+        return  # Already fetching
+
+    _pvgis_fetch_status[site_id] = "loading"
+    pvgis_params = _get_pvgis_params(site)
+
+    import threading
+    thread = threading.Thread(
+        target=_pvgis_background_fetch,
+        args=(site_id, site.latitude, site.longitude, pvgis_params),
+        daemon=True,
+    )
+    thread.start()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -75,6 +187,14 @@ class SiteResponse(BaseModel):
     has_weather: bool = Field(
         default=False,
         description="Whether cached weather data exists for this site"
+    )
+    has_solar: bool = Field(
+        default=False,
+        description="Whether a cached PVGIS solar profile exists for this site"
+    )
+    solar_fetch_status: str = Field(
+        default="none",
+        description="PVGIS fetch status: none, loading, cached, error"
     )
 
 
@@ -167,10 +287,16 @@ async def create_site_endpoint(site: Site):
             )
 
     site_id, saved_site = create_site(site)
+
+    # Trigger background PVGIS fetch if site has valid coordinates
+    _maybe_trigger_pvgis_background(site_id, saved_site)
+
     return SiteResponse(
         id=site_id,
         site=saved_site,
-        has_weather=False,  # New site never has cached weather
+        has_weather=False,
+        has_solar=False,
+        solar_fetch_status=_pvgis_fetch_status.get(site_id, "none"),
     )
 
 
@@ -188,10 +314,14 @@ async def list_sites_endpoint():
     site_responses = []
     for entry in entries:
         site = Site(**entry["site"])
+        sid = entry["id"]
+        hs, ss = _get_solar_status(sid)
         site_responses.append(SiteResponse(
-            id=entry["id"],
+            id=sid,
             site=site,
-            has_weather=has_weather(entry["id"]),
+            has_weather=has_weather(sid),
+            has_solar=hs,
+            solar_fetch_status=ss,
         ))
     return SiteListResponse(
         count=len(site_responses),
@@ -212,10 +342,13 @@ async def get_site_endpoint(site_id: str):
     if result is None:
         raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found")
     sid, site = result
+    hs, ss = _get_solar_status(sid)
     return SiteResponse(
         id=sid,
         site=site,
         has_weather=has_weather(sid),
+        has_solar=hs,
+        solar_fetch_status=ss,
     )
 
 
@@ -242,10 +375,17 @@ async def update_site_endpoint(site_id: str, site: Site):
     updated = update_site(site_id, site)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found")
+
+    # Trigger background PVGIS fetch if coordinates changed/added
+    _maybe_trigger_pvgis_background(site_id, updated)
+
+    hs, ss = _get_solar_status(site_id)
     return SiteResponse(
         id=site_id,
         site=updated,
         has_weather=has_weather(site_id),
+        has_solar=hs,
+        solar_fetch_status=ss,
     )
 
 
@@ -467,6 +607,23 @@ async def space_preview_endpoint(
         space=space,
         cooling_type_used=cooling_type,
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# Solar Status
+# ─────────────────────────────────────────────────────────────
+
+@router.get("/sites/{site_id}/solar-status")
+async def solar_status_endpoint(site_id: str):
+    """Check PVGIS fetch status for a site.
+
+    The frontend polls this after site creation to show loading/cached/error.
+    """
+    result = get_site(site_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Site '{site_id}' not found")
+    hs, ss = _get_solar_status(site_id)
+    return {"site_id": site_id, "has_solar": hs, "solar_fetch_status": ss}
 
 
 # ─────────────────────────────────────────────────────────────

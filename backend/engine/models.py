@@ -316,6 +316,62 @@ class Site(BaseModel):
         description="Grid connection voltage: HV (110kV+), MV (10–33kV), LV (400V), TBD"
     )
 
+    # ── Green Energy Facilities ──
+    pv_capacity_kwp: Optional[float] = Field(
+        default=None, ge=0,
+        description="Installed PV capacity in kWp. Site-level default for scenarios."
+    )
+    bess_capacity_kwh: Optional[float] = Field(
+        default=None, ge=0,
+        description="Battery energy storage capacity in kWh."
+    )
+    bess_efficiency: Optional[float] = Field(
+        default=None, gt=0, le=1.0,
+        description="BESS round-trip efficiency (0–1). Default 0.875 (NREL ATB 2024)."
+    )
+    fuel_cell_kw: Optional[float] = Field(
+        default=None, ge=0,
+        description="Fuel cell capacity in kW."
+    )
+
+    # ── PVGIS Configuration ──
+    pvgis_start_year: Optional[int] = Field(
+        default=None, ge=2005, le=2023,
+        description="PVGIS start year for representative profile."
+    )
+    pvgis_end_year: Optional[int] = Field(
+        default=None, ge=2005, le=2023,
+        description="PVGIS end year for representative profile."
+    )
+    pvgis_technology: Optional[str] = Field(
+        default=None,
+        description="PV technology: crystSi, CIS, CdTe, Unknown."
+    )
+    pvgis_mounting_place: Optional[str] = Field(
+        default=None,
+        description="Mounting: free or building."
+    )
+    pvgis_system_loss_pct: Optional[float] = Field(
+        default=None, ge=0, le=50,
+        description="System losses in percent."
+    )
+    pvgis_use_horizon: Optional[bool] = Field(
+        default=None,
+        description="Use horizon profile from PVGIS."
+    )
+    pvgis_optimal_angles: Optional[bool] = Field(
+        default=None,
+        description="Let PVGIS compute optimal tilt/azimuth."
+    )
+    pvgis_surface_tilt_deg: Optional[float] = Field(
+        default=None, ge=0, le=90,
+        description="Fixed surface tilt in degrees (when not using optimal angles)."
+    )
+    pvgis_surface_azimuth_deg: Optional[float] = Field(
+        default=None, ge=-180, le=180,
+        description="Fixed surface azimuth in degrees (when not using optimal angles)."
+    )
+
     # ── Notes ──
     notes: Optional[str] = Field(default=None, description="Free-text notes")
 
@@ -557,6 +613,15 @@ class ScenarioResult(BaseModel):
     it_capacity_best_mw: Optional[float] = Field(
         default=None, description="Maximum IT capacity (coolest hour)"
     )
+    # ── Green energy (populated when site has solar profile + green inputs) ──
+    green_energy: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Green energy dispatch summary from integrated pipeline. "
+            "Contains renewable_fraction, overhead_coverage_fraction, co2_avoided_tonnes, etc."
+        ),
+    )
+
     assumption_override_preset_label: str | None = Field(
         default=None,
         description="Resolved label for the scenario-local preset applied to this result, if any",
